@@ -59,14 +59,17 @@ models:
   - {provider: ollama, id: llama3.2, label: Llama 3.2 (local), tier: local, price: [0, 0], context: 128000,
      q: 5, efforts: [], features: [local], verified: false}
 
-  # --- Subscription CLIs (spend your plan; they can also edit files in the task folder) ---
+  # --- Plan CLIs: spend your plans' daily limits, not credit. They can edit files in the task folder and
+  #     use Switchboard's tools (MCP servers on every machine) through the gateway. ---
   - {provider: claude-code, id: opus, label: Claude Code - Opus (your Claude plan), tier: frontier, price: [0, 0],
-     q: 9.5, skills: {code: 10, game_dev: 9.5}, efforts: [], features: [cli, agentic], verified: true}
+     q: 9.5, skills: {code: 10, game_dev: 9.5}, efforts: [], features: [cli, agentic, tools, vision], verified: true}
   - {provider: claude-code, id: sonnet, label: Claude Code - Sonnet (your Claude plan), tier: strong, price: [0, 0],
-     q: 8.5, skills: {code: 9}, efforts: [], features: [cli, agentic], verified: true}
+     q: 8.5, skills: {code: 9}, efforts: [], features: [cli, agentic, tools, vision], verified: true}
   - {provider: codex, id: default, label: Codex CLI (your ChatGPT plan), tier: frontier, price: [0, 0],
-     q: 9, skills: {code: 9.5}, efforts: [low, medium, high, xhigh], features: [cli, agentic], verified: false}
+     q: 9, skills: {code: 9.5}, efforts: [low, medium, high, xhigh], features: [cli, agentic, tools, vision], verified: true}
   - {provider: gemini-cli, id: default, label: Gemini CLI (your Google account), tier: strong, price: [0, 0],
-     q: 8.5, efforts: [], features: [cli, agentic], verified: false}
+     q: 8.5, skills: {research: 9}, efforts: [], features: [cli, agentic, tools, vision], verified: true}
   - {provider: copilot-cli, id: default, label: Copilot CLI (your Copilot plan), tier: strong, price: [0, 0],
-     q: 8.5, skills: {code: 9}, efforts: [], features: [cli, agentic], verified: false}
+     q: 8.5, skills: {code: 9}, efforts: [], features: [cli, agentic, tools], verified: true}
+  - {provider: grok-build, id: default, label: Grok Build (your SuperGrok plan), tier: strong, price: [0, 0],
+     q: 8.5, skills: {code: 8.5, research: 9}, efforts: [], features: [cli, agentic], verified: false}

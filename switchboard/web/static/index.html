@@ -57,6 +57,7 @@ details summary{cursor:pointer;color:var(--muted)}code{background:var(--code);pa
     <textarea id="prompt" placeholder="Describe the task. Switchboard picks the model, effort and tools, or choose them yourself."></textarea>
     <div class="row">
       <div class="seg" id="modeSeg"><button data-v="auto" class="active">Auto</button><button data-v="manual">Manual</button></div>
+      <select id="billing" title="What may this task spend?"><option value="plans_first">Plans first</option><option value="plans_only">Plans &amp; free only (no credit)</option><option value="any">Any (quality vs cost)</option></select>
       <span id="autoOpts"><select id="routeMode"><option value="balanced">Balanced</option><option value="best">Best quality</option><option value="cheapest">Cheapest</option></select></span>
       <span id="manualOpts" hidden><select id="provider"></select> <select id="model"></select>
         <select id="effort"><option value="">effort: auto</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></span>
@@ -77,6 +78,7 @@ details summary{cursor:pointer;color:var(--muted)}code{background:var(--code);pa
 </div>
 <div>
   <section><h2>Alerts</h2><div id="alerts" class="small muted">Loading...</div></section>
+  <section><h2>Plans <span class="small muted">daily limits, no credit</span></h2><div id="plans" class="small muted">Loading...</div></section>
   <section>
     <h2>Credits <span><button class="small" id="balRefresh">Refresh balances</button></span></h2>
     <table><thead><tr><th>Source</th><th>Left</th><th>Resets / expires</th></tr></thead><tbody id="credits"></tbody></table>
@@ -129,6 +131,7 @@ async function loadStatus() {
   $("#providerChips").innerHTML = on.map(p => `<span class="chip on" title="${esc(p.kind)}">${esc(p.name)}</span>`).join("")
     + (off.length ? `<span class="chip off" title="Not set up: ${esc(off.map(p => p.name).join(", "))}">+${off.length} not set up</span>` : "");
   $("#routeMode").value = s.router.mode || "balanced";
+  $("#billing").value = localStorage.getItem("sb_billing") || s.router.billing || "plans_first";
 }
 async function loadModels() {
   MODELS = list(await api("/api/models"));
@@ -144,7 +147,7 @@ function fillModels() {
 }
 function body() {
   const manual = MODE === "manual";
-  return { prompt: $("#prompt").value, mode: $("#routeMode").value,
+  return { prompt: $("#prompt").value, mode: $("#routeMode").value, billing: $("#billing").value,
     provider: manual ? $("#provider").value || null : null, model: manual ? $("#model").value || null : null,
     effort: manual ? $("#effort").value || null : null, tools: toolsSel.size ? [...toolsSel] : "auto" };
 }
@@ -227,6 +230,13 @@ async function loadCredits() {
       <td class="${cls}">${left}${s.monthly_budget ? `<div class="small muted">of ${money(s.monthly_budget)}/mo</div>` : ""}</td>
       <td>${s.expires ? "expires " + when(s.expires) : s.resets ? "resets " + when(s.resets) : "-"} <button class="small del" data-id="${esc(s.id)}" title="remove">×</button></td></tr>`;
   }).join("") || `<tr><td colspan=3 class="muted">No credits tracked yet. Add your promo credits, free tiers and plans below.</td></tr>`;
+  const fmtT = ts => new Date(ts * 1000).toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"});
+  $("#plans").innerHTML = (c.plans || []).map(p => `<div class="row" style="margin-top:4px"><span class="dot ${p.status === "ready" ? "on" : ""}"></span>
+    <span class="grow">${esc(p.label)}</span>
+    <span class="${p.status === "limit reached" ? "warn" : p.status === "ready" ? "ok" : "muted"}">${esc(p.status)}${p.resets ? " · resets " + esc(fmtT(p.resets)) : ""}${p.where ? " · " + esc(p.where) : ""}</span>
+    ${p.resets ? `<button class="small clearlim" data-p="${esc(p.provider)}" title="I know it has reset">clear</button>` : ""}</div>`).join("")
+    || "No plan CLIs configured.";
+  document.querySelectorAll(".clearlim").forEach(b => b.onclick = async () => { await api(`/api/plans/${b.dataset.p}/limit`, {method: "DELETE"}); loadCredits(); });
   $("#untracked").textContent = c.untracked_providers.length ? "Pay-as-you-go (untracked): " + c.untracked_providers.join(", ") : "";
   document.querySelectorAll(".del").forEach(b => b.onclick = async () => { if (confirm("Remove " + b.dataset.id + "?")) { await api("/api/credits/sources/" + b.dataset.id, {method: "DELETE"}); loadCredits(); } });
 }
@@ -276,7 +286,7 @@ async function installTool(node, tool, btn) {
 }
 function setMode(m) { MODE = m; document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("active", b.dataset.v === m)); $("#manualOpts").hidden = m !== "manual"; $("#autoOpts").hidden = m === "manual"; }
 document.querySelectorAll("#modeSeg button").forEach(b => b.onclick = () => setMode(b.dataset.v));
-$("#provider").onchange = fillModels; $("#planBtn").onclick = doPlan; $("#runBtn").onclick = () => run(false);
+$("#provider").onchange = fillModels; $("#billing").onchange = () => { try { localStorage.setItem("sb_billing", $("#billing").value); } catch (e) {} }; $("#planBtn").onclick = doPlan; $("#runBtn").onclick = () => run(false);
 $("#histRefresh").onclick = loadHistory; $("#nodesRefresh").onclick = () => loadNodes(true).then(loadAdvisor);
 $("#balRefresh").onclick = async () => { await api("/api/credits/refresh", {method: "POST"}); loadCredits(); };
 $("#c_save").onclick = saveCredit;

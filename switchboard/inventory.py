@@ -187,4 +187,7 @@ async def build_inventory(config, mcp_hub=None, start_mcp: bool = True) -> dict:
         "hostname": socket.gethostname(), "output_dir": str(config.output_dir),
         "mirror_outputs": bool(config.node.get("mirror_outputs", True)),
         "tools": tools, "devices": devices, "mcp": mcp,
+        "cli_providers": sorted(n for n, c in (config.providers or {}).items()
+                                if c and c.get("kind") == "cli" and not c.get("disabled")
+                                and shutil.which(c.get("command", n))),
     }

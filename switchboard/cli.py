@@ -215,7 +215,7 @@ def _plan_body(a, prompt: str) -> dict:
     if a.tools:
         tools = "none" if a.tools == "none" else [t.strip() for t in a.tools.split(",") if t.strip()]
     return {"prompt": prompt, "provider": a.provider, "model": a.model, "effort": a.effort, "mode": a.mode,
-            "tools": tools, "images": _image_urls(a.image)}
+            "tools": tools, "images": _image_urls(a.image), "billing": a.billing}
 
 
 def _read_prompt(a) -> str:
@@ -315,6 +315,12 @@ def cmd_credits(cfg: Config, a) -> None:
         when = s["expires"] or s["resets"] or ""
         flag = "" if s["available"] else "  (unavailable)"
         print(f"{s['label'][:24]:24} {s['provider'][:12]:12} {s['type']:13} {left:>14}  {when[:16]}{flag}")
+    if data.get("plans"):
+        print(f"\nPlans (billing: {data.get('billing')}):")
+        for pl in data["plans"]:
+            extra = f" until {time.strftime('%a %H:%M', time.localtime(pl['resets']))}" if pl.get("resets") else ""
+            where = f" on {pl['where']}" if pl.get("where") else ""
+            print(f"  {pl['provider']:14} {pl['status']}{extra}{where}")
     if data.get("untracked_providers"):
         print(f"\nPay-as-you-go, untracked: {', '.join(data['untracked_providers'])}")
     if not data["sources"]:
@@ -422,6 +428,13 @@ def cmd_mcp(cfg: Config, a) -> None:
         from .mcp_server import serve_stdio
 
         asyncio.run(serve_stdio(cfg))
+        return
+    if a.action == "gateway":
+        logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
+        from .mcp_server import serve_gateway
+
+        servers = [x for x in (a.servers or "").split(",") if x]
+        asyncio.run(serve_gateway(cfg, servers, a.task))
         return
     if a.action == "catalog":
         for name, e in mcp_catalog().items():
@@ -551,6 +564,9 @@ def build_parser() -> argparse.ArgumentParser:
         s.add_argument("-m", "--model", help="provider:id or id, e.g. claude-opus-5-5")
         s.add_argument("-e", "--effort", choices=["low", "medium", "high", "xhigh", "max"])
         s.add_argument("--mode", choices=["balanced", "best", "cheapest"])
+        s.add_argument("--plans-only", dest="billing", action="store_const", const="plans_only",
+                       help="never spend API credit: plans' daily limits, free tiers, local models only")
+        s.add_argument("--billing", choices=["plans_only", "plans_first", "any"])
         s.add_argument("--tools", help="comma-separated MCP servers, or 'none' (default: auto)")
         s.add_argument("-i", "--image", action="append", help="attach an image (repeatable)")
         s.add_argument("-f", "--file", action="append", help="append a text file to the prompt (repeatable)")
@@ -603,7 +619,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-y", "--yes", action="store_true")
 
     s = sub.add_parser("mcp", help="MCP servers: serve Switchboard, catalog, add/remove/list, export to other apps")
-    s.add_argument("action", choices=["serve", "catalog", "add", "remove", "list", "export"])
+    s.add_argument("action", choices=["serve", "gateway", "catalog", "add", "remove", "list", "export"])
+    s.add_argument("--servers", help=argparse.SUPPRESS)
+    s.add_argument("--task", help=argparse.SUPPRESS)
     s.add_argument("name", nargs="?")
     s.add_argument("--command", nargs=argparse.REMAINDER, help="custom server command and args (put last)")
     s.add_argument("--url")

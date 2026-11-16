@@ -20,6 +20,9 @@ server:                            # used by the hub only
 output_dir: auto                   # auto = ~/Switchboard/Output (Windows, macOS) or ~/switchboard-output (Linux/Pi)
 
 router:
+  billing: plans_first             # plans_only = never spend API credit (plans' daily limits, free tiers, local only)
+                                   # plans_first = use plans/free first, credit only when no plan can do it or limits are hit
+                                   # any = pick on quality vs cost across everything
   mode: balanced                   # balanced | best | cheapest
   classifier: heuristic            # heuristic | llm  (llm = ask the cheapest funded model to classify the task)
   auto_downgrade_effort: false     # true = silently lower a manual effort that is overkill for the task
@@ -45,35 +48,56 @@ providers:
   mistral:    {kind: openai_compat, api_key_env: MISTRAL_API_KEY, base_url: "https://api.mistral.ai/v1"}
   ollama:     {kind: openai_compat, api_key: ollama, base_url: "http://localhost:11434/v1", local: true}
 
-  # Subscription CLIs: these spend your Claude / ChatGPT / Google / Copilot PLAN, not API credit.
-  # Install them with `switchboard tools install <id>` and log in once interactively.
+  # Plan CLIs: these sign in with your Claude / ChatGPT / Google / Copilot / SuperGrok account and
+  # spend that plan's daily/weekly limits, NOT API credit. Install with `switchboard tools install <id>`
+  # on any machine, run the CLI once there to log in, and the hub will use it from that machine.
   claude-code:
     kind: cli
+    tool_id: claude_code
     command: claude
     args: ["-p", "{prompt}", "--output-format", "json"]
     model_args: ["--model", "{model}"]
     edit_args: ["--permission-mode", "acceptEdits"]
     json_result: result
     json_cost: total_cost_usd
+    mcp_style: claude
   codex:
     kind: cli
+    tool_id: codex
     command: codex
-    args: ["exec", "--skip-git-repo-check", "{prompt}"]
+    args: ["exec", "--skip-git-repo-check", "--output-last-message", "{result_file}"]
+    prompt_last: true
+    auth_check: ["login", "status"]        # fail fast instead of hanging when not logged in
+    auth_check_fail: "not logged in"
     model_args: ["-m", "{model}"]
     effort_args: ["-c", "model_reasoning_effort={effort}"]
-    edit_args: ["--full-auto"]
+    image_args: ["-i", "{image}"]
+    edit_args: ["--sandbox", "workspace-write"]
+    readonly_args: ["--sandbox", "read-only"]
+    mcp_style: codex
   gemini-cli:
     kind: cli
+    tool_id: gemini_cli
     command: gemini
-    args: ["-p", "{prompt}"]
+    args: ["-p", "{prompt}", "--output-format", "json", "--skip-trust"]   # trust only the task folder, this run
     model_args: ["-m", "{model}"]
     edit_args: ["--approval-mode", "auto_edit"]
+    json_result: response
+    mcp_style: gemini
   copilot-cli:
     kind: cli
+    tool_id: copilot_cli
     command: copilot
+    args: ["-p", "{prompt}", "--silent", "--no-color"]
+    model_args: ["--model", "{model}"]
+    edit_args: ["--allow-tool", "write"]
+    mcp_style: copilot
+  grok-build:                      # xAI's Grok Build CLI (SuperGrok / X Premium+). Check flags with `grok --help`.
+    kind: cli
+    tool_id: grok_cli
+    command: grok
     args: ["-p", "{prompt}"]
     model_args: ["--model", "{model}"]
-    edit_args: ["--allow-all-tools"]
 
 # MCP servers that run on THIS machine. Browse with `switchboard mcp catalog`,
 # add with `switchboard mcp add <name>`. The hub can use servers on every connected agent.

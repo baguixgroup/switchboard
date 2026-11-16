@@ -28,7 +28,8 @@ your output folder on every machine.
 
 | You asked for | How Switchboard does it |
 |---|---|
-| One place for DeepSeek, GPT, Copilot, Grok, Gemini, Claude and others | Adapters for the Anthropic API, every OpenAI-compatible API (OpenAI, DeepSeek, xAI, Gemini, GitHub Models, OpenRouter, Mistral, Ollama), and the official **subscription CLIs** (Claude Code, Codex, Copilot CLI, Gemini CLI), so tasks can spend your *plans*, not just API credit |
+| One place for DeepSeek, GPT, Copilot, Grok, Gemini, Claude and others | Adapters for the Anthropic API, every OpenAI-compatible API (OpenAI, DeepSeek, xAI, Gemini, GitHub Models, OpenRouter, Mistral, Ollama), and the official **plan CLIs** (Claude Code, Codex, Gemini CLI, Copilot CLI, Grok Build) |
+| Use the chat apps' daily limits instead of credits | `plans_only` / `plans_first` billing runs tasks through those plan CLIs (signed in with your subscriptions) on whichever machine they're installed on, with your tools attached. When a plan hits its limit it is parked until it resets and the next plan takes over (see below) |
 | Choose settings yourself, or let it optimise | Manual: provider, model, effort (`low`…`max`). Auto: classifies the task (category + complexity 1-5) and scores every funded model on quality vs. effective cost, in `balanced`, `best` or `cheapest` mode |
 | "If max is too much for a task, reduce it" | Picks the effort from the task's complexity. If you choose `max` for a trivial task it warns you and shows the cheaper estimate (CLI asks; set `auto_downgrade_effort: true` to lower it automatically) |
 | Know my credits and use them properly | Credit ledger with prepaid grants (with expiry), free tiers (with reset schedules), subscriptions and pay-as-you-go budgets. It reads live balances where the provider exposes one (DeepSeek, OpenRouter) and logs every call's tokens and cost |
@@ -39,6 +40,55 @@ your output folder on every machine.
 | Dedicated output folder on Windows and Mac | `~/Switchboard/Output/<date>/<time>-<task>/` with `prompt.md`, `response.md`, extracted code files, images and `meta.json`. The hub copies every task folder to each agent |
 | Test on phones, PS4, servers like Hostinger | Android (adb: screenshot, logs, install, launch, open URL), iOS devices and simulators (Xcode tools on the Mac), SSH servers (check, deploy with rsync/scp, run), and reachability checks for network devices. See limits below |
 | Use it from other AI apps | `switchboard mcp serve` makes Switchboard an MCP server. `switchboard mcp export` registers it with Claude Desktop, Claude Code, VS Code, Cursor, Codex or Gemini CLI |
+
+## Accessing Switchboard
+
+| From | How |
+|---|---|
+| **Any browser at home** (PC, Mac, phone, tablet) | `http://<pi-ip>:8765`. The Pi installer prints the address; on the Pi, `hostname -I` shows the IP. The first visit from another device asks for the token (`SWITCHBOARD_TOKEN` in the hub's `secrets.env`), then remembers it. On a phone, use "Add to Home Screen" for an app icon |
+| **The hub itself** | `http://localhost:8765` (no token needed) |
+| **Away from home** | Install [Tailscale](https://tailscale.com) on the Pi and on your phone/laptop, then open `http://<pi-tailscale-name>:8765`. Don't port-forward 8765 on your router |
+| **Terminal, any machine** | `switchboard ask "..."`, `switchboard credits`, `switchboard nodes` (agents forward to the hub) |
+| **Inside your AI apps** | `switchboard mcp export --target claude-desktop --write` (also `vscode`, `cursor`, `claude-code`, `codex`, `gemini-cli`). Then chat in that app as usual, using that app's own daily limits, and it can call Switchboard's tools |
+| **Phone alerts** | Set `notify.ntfy_topic` and subscribe in the ntfy app (expiring credit, unused free quota, limits) |
+
+## Running on your plans' daily limits (no API credit)
+
+Switchboard can do all its work through your **subscriptions**, the same daily/weekly limits you use in
+the chat apps, instead of paid API credit. It does this through each company's official command-line app,
+which signs in with your plan account:
+
+| Plan | Official CLI | Sign in once (on any of your machines) |
+|---|---|---|
+| Claude Pro / Max | Claude Code (`claude`) | `switchboard tools install claude_code`, then run `claude` and log in |
+| ChatGPT Plus / Pro | Codex (`codex`) | `switchboard tools install codex`, then `codex login` |
+| Google account / Google AI plan | Gemini CLI (`gemini`) | `switchboard tools install gemini_cli`, then run `gemini` and sign in with Google |
+| GitHub Copilot (Free / Pro) | Copilot CLI (`copilot`) | `switchboard tools install copilot_cli`, then run `copilot` and `/login` |
+| SuperGrok / X Premium+ | Grok Build (`grok`, beta) | install from xAI's docs, then `grok auth login` |
+
+Install them on whichever machine you like (the PC and Mac where you are already logged in are fine).
+The hub runs each one **on the machine where it is installed**. Your MCP tools (Unity, Photoshop,
+phones...) are passed to them through Switchboard's tool gateway, and files they create come back to
+the hub and every output folder.
+
+Billing modes (`router.billing` in `config.yaml`, the dashboard's billing menu, or `--plans-only` / `--billing`):
+
+- `plans_only`: never spends API credit. It uses plan CLIs, free tiers (Gemini free API, GitHub Models)
+  and local models only. When every plan has hit its limit, it tells you which resets first and when.
+- `plans_first` (default): plans and free tiers first; credit only when no plan can do the task
+  (for example image generation) or all plans are at their limit.
+- `any`: picks purely on quality vs. cost.
+
+When a CLI reports that its limit is reached, Switchboard reads the reset time from the message, parks
+that plan until then (the dashboard's Plans panel shows "limit reached · resets 15:00"), and moves on
+to the next plan. Set `permissions.cli_agents_can_edit: true` to let these CLIs write files in the
+task folder.
+
+**Why not drive the chat websites directly?** claude.ai, chatgpt.com, gemini.google.com, grok.com and
+copilot.microsoft.com don't allow scripted use. Automating them breaks their terms and gets accounts
+banned, and it stops working whenever they change their pages. The CLIs above are the official way to use
+the same plans from other software. Chat-only plans with no CLI (for example DeepSeek's free chat) can't
+be used this way; DeepSeek's API is very cheap instead.
 
 ## Install
 
@@ -170,10 +220,14 @@ switchboard mcp export --target claude-code         # prints the `claude mcp add
   **not** expose prepaid balances or promo-credit expiry through their APIs. Enter those grants once
   (`credits add`); Switchboard then tracks spend from token counts × catalog prices. Keep prices
   current with `models sync`.
-- **Subscription quotas** (ChatGPT Plus/Pro, Claude Pro/Max, Copilot, Google AI plans) have no API to
-  read what is left. Switchboard uses them through the official CLIs and counts requests against the
-  quota you enter. Log in to each CLI once on the hub (`claude`, `codex`, `copilot`, `gemini`).
-  SuperGrok has no CLI, so Grok runs on xAI API credit.
+- **Plan limits** (ChatGPT, Claude, Copilot, Google, SuperGrok) can't be read in advance: no plan
+  exposes "what's left". Switchboard learns a limit when a CLI reports it, then waits for the reset time
+  it gives. Optionally enter quotas in `credits.yaml` to get "use it before it resets" reminders.
+- **Plan CLIs** change their flags from time to time. The defaults were checked against Claude Code 2.1,
+  Codex 0.169, Gemini CLI 0.68 and Copilot CLI 1.0. Grok Build's flags are a best guess (check
+  `grok --help`). Override per machine under `providers:` in that machine's `config.yaml`.
+- **Image generation** isn't available through the plan CLIs, so it needs an OpenAI or xAI key
+  (in `plans_only` mode you get a written image prompt instead).
 - **"Copilot"** means GitHub Models (free daily allowance with a GitHub token, OpenAI-compatible API)
   plus the Copilot CLI for your Copilot plan.
 - **Model catalog.** Claude entries come from Anthropic's current model table. Other providers'

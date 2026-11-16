@@ -30,7 +30,7 @@ def make_home(path: Path, *, role="hub", name="hub", port=8765, hub_url=None, pr
         # Only offline providers in tests: never touch a real API.
         "providers": {n: {"disabled": True} for n in ("anthropic", "openai", "deepseek", "xai", "gemini", "github",
                                                      "openrouter", "mistral", "ollama", "claude-code", "codex",
-                                                     "gemini-cli", "copilot-cli")} | (providers or {"mock": {"kind": "mock"}}),
+                                                     "gemini-cli", "copilot-cli", "grok-build")} | (providers or {"mock": {"kind": "mock"}}),
         "mcp_servers": mcp_servers or {},
         "router": router or {},
         "notify": {"ntfy_topic": ""},
