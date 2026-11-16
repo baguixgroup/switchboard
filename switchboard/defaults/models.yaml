@@ -1,0 +1,72 @@
+# Model catalog used by the router.
+#
+# Model line-ups and prices change monthly. Entries marked `verified: false` are seeds:
+# run `switchboard models sync` on a machine with your keys. It lists the models each key
+# can actually see, flags catalog IDs that do not exist, adds new ones, and pulls current
+# prices from OpenRouter's public price list. Your edits go in models.yaml in the config
+# folder (same format); they override these defaults by provider + id.
+#
+# price: [input, output] USD per 1M tokens (per_call: USD per request, for image models)
+# q: overall quality 1-10; skills: per-category overrides
+#   categories: chat code game_dev writing research reasoning data devops image_edit design_3d mobile_test
+# efforts: the provider's native effort values, lowest to highest ([] = not configurable)
+# features: tools vision image_gen fallbacks cli agentic local
+
+models:
+  # --- Anthropic (prices and IDs from Anthropic's current model table) ---
+  - {provider: anthropic, id: claude-fable-5-2, label: Claude Fable 5.2, tier: frontier, price: [8, 40], context: 1000000,
+     q: 10, skills: {code: 10, reasoning: 10, agentic: 10}, efforts: [low, medium, high, xhigh, max], features: [tools, vision, fallbacks], verified: true}
+  - {provider: anthropic, id: claude-opus-5-5, label: Claude Opus 5.5, tier: frontier, price: [4, 20], context: 1000000,
+     q: 9.5, skills: {code: 10, game_dev: 9.5, agentic: 10, writing: 9.5}, efforts: [low, medium, high, xhigh, max], features: [tools, vision, fallbacks], verified: true}
+  - {provider: anthropic, id: claude-sonnet-5-5, label: Claude Sonnet 5.5, tier: strong, price: [2, 10], context: 1000000,
+     q: 8.5, skills: {code: 9, game_dev: 8.5}, efforts: [low, medium, high, xhigh, max], features: [tools, vision, fallbacks], verified: true}
+  - {provider: anthropic, id: claude-haiku-5-5, label: Claude Haiku 5.5, tier: fast, price: [0.10, 0.50], context: 1000000,
+     q: 6.5, skills: {chat: 7}, efforts: [low, medium, high, xhigh, max], features: [tools, vision], verified: true}
+
+  # --- OpenAI (seed: verify with `switchboard models sync`) ---
+  - {provider: openai, id: gpt-6, label: GPT-6, tier: frontier, price: [10, 50], context: 400000,
+     q: 10, efforts: [minimal, low, medium, high, xhigh], features: [tools, vision], verified: false}
+  - {provider: openai, id: gpt-5.6, label: GPT-5.6, tier: strong, price: [4, 20], context: 400000,
+     q: 9, skills: {code: 9}, efforts: [minimal, low, medium, high, xhigh], features: [tools, vision], verified: false}
+  - {provider: openai, id: gpt-5-mini, label: GPT-5 mini, tier: fast, price: [0.25, 2], context: 400000,
+     q: 7, efforts: [minimal, low, medium, high], features: [tools, vision], verified: false}
+  - {provider: openai, id: gpt-image-1, label: GPT Image, tier: strong, price: [0, 0], per_call: 0.06,
+     q: 9, features: [image_gen], verified: false}
+
+  # --- Google Gemini (seed) ---
+  - {provider: gemini, id: gemini-3-pro-preview, label: Gemini 3 Pro, tier: frontier, price: [2, 12], context: 1000000,
+     q: 9, skills: {research: 9.5, data: 9}, efforts: [low, high], features: [tools, vision], verified: false}
+  - {provider: gemini, id: gemini-2.5-flash, label: Gemini 2.5 Flash, tier: fast, price: [0.30, 2.50], context: 1000000,
+     q: 7, efforts: [low, medium, high], features: [tools, vision], verified: false}
+
+  # --- xAI Grok (seed) ---
+  - {provider: xai, id: grok-4.6, label: Grok 4.6, tier: strong, price: [2, 6], context: 500000,
+     q: 8.5, skills: {research: 9}, efforts: [], features: [tools, vision], verified: false}
+  - {provider: xai, id: grok-build-0.1, label: Grok Build, tier: fast, price: [1, 2], context: 256000,
+     q: 7, skills: {code: 8}, efforts: [], features: [tools], verified: false}
+
+  # --- DeepSeek (seed: these aliases point at DeepSeek's current models) ---
+  - {provider: deepseek, id: deepseek-reasoner, label: DeepSeek Reasoner, tier: strong, price: [1.32, 3.96], context: 128000,
+     q: 8, skills: {reasoning: 9, code: 8.5}, efforts: [], features: [], verified: false}
+  - {provider: deepseek, id: deepseek-chat, label: DeepSeek Chat, tier: fast, price: [0.30, 1.20], context: 128000,
+     q: 7.5, skills: {code: 8}, efforts: [], features: [tools], verified: false}
+
+  # --- GitHub Models (free daily allowance with a GitHub token) ---
+  - {provider: github, id: openai/gpt-4.1, label: GPT-4.1 via GitHub Models, tier: fast, price: [0, 0], context: 128000,
+     q: 7, efforts: [], features: [tools, vision], verified: false}
+
+  # --- Local (Ollama): free, private, slow on a Pi ---
+  - {provider: ollama, id: llama3.2, label: Llama 3.2 (local), tier: local, price: [0, 0], context: 128000,
+     q: 5, efforts: [], features: [local], verified: false}
+
+  # --- Subscription CLIs (spend your plan; they can also edit files in the task folder) ---
+  - {provider: claude-code, id: opus, label: Claude Code - Opus (your Claude plan), tier: frontier, price: [0, 0],
+     q: 9.5, skills: {code: 10, game_dev: 9.5}, efforts: [], features: [cli, agentic], verified: true}
+  - {provider: claude-code, id: sonnet, label: Claude Code - Sonnet (your Claude plan), tier: strong, price: [0, 0],
+     q: 8.5, skills: {code: 9}, efforts: [], features: [cli, agentic], verified: true}
+  - {provider: codex, id: default, label: Codex CLI (your ChatGPT plan), tier: frontier, price: [0, 0],
+     q: 9, skills: {code: 9.5}, efforts: [low, medium, high, xhigh], features: [cli, agentic], verified: false}
+  - {provider: gemini-cli, id: default, label: Gemini CLI (your Google account), tier: strong, price: [0, 0],
+     q: 8.5, efforts: [], features: [cli, agentic], verified: false}
+  - {provider: copilot-cli, id: default, label: Copilot CLI (your Copilot plan), tier: strong, price: [0, 0],
+     q: 8.5, skills: {code: 9}, efforts: [], features: [cli, agentic], verified: false}

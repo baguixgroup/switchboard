@@ -1,0 +1,60 @@
+# Your credits, free tiers and subscriptions.
+#
+# Switchboard combines this file with live balances (DeepSeek and OpenRouter expose them)
+# and its own usage log to decide what to spend first, and to warn you before money or a
+# free quota is lost. Most providers (OpenAI, Anthropic, xAI, Google) do NOT expose prepaid
+# balances or promo expiry through their APIs, so enter those grants here once:
+#
+#   switchboard credits add --provider openai --type prepaid --amount 18 --expires 2026-12-31
+#
+# Types:
+#   prepaid       money already paid / promo grants. Spent first as expiry approaches.
+#   free_tier     a quota that resets (requests or tokens). Warned before unused quota resets.
+#   subscription  a plan used through an official CLI (Claude Code, Codex, Copilot, Gemini CLI).
+#   payg          pay-as-you-go with an optional monthly budget guard.
+#
+# reset: {every: day|week|month|5h|..., at: "HH:MM", weekday: mon, day: 1, tz: America/Los_Angeles}
+
+low_balance_usd: 2.0
+sources: []
+
+# Examples (copy into `sources:` and edit):
+#  - id: openai-promo
+#    provider: openai
+#    type: prepaid
+#    amount: 18.00              # USD remaining when you added it
+#    expires: 2026-12-31
+#  - id: deepseek
+#    provider: deepseek
+#    type: prepaid
+#    auto_balance: true         # read live from the DeepSeek API
+#  - id: gemini-free
+#    provider: gemini
+#    type: free_tier
+#    amount: 250                # requests per period: check your current limits in Google AI Studio
+#    unit: requests
+#    models: ["gemini-*flash*"]
+#    reset: {every: day, at: "00:00", tz: America/Los_Angeles}
+#  - id: github-models-free
+#    provider: github
+#    type: free_tier
+#    amount: 50
+#    unit: requests
+#    reset: {every: day, at: "00:00", tz: UTC}
+#  - id: claude-plan
+#    provider: claude-code
+#    type: subscription
+#    label: Claude Max
+#    unit: requests
+#    reset: {every: 5h}
+#    renews: 2026-12-03
+#  - id: copilot-pro
+#    provider: copilot-cli
+#    type: subscription
+#    unit: premium_requests
+#    amount: 300
+#    reset: {every: month, day: 1, at: "00:00", tz: UTC}
+#  - id: anthropic-payg
+#    provider: anthropic
+#    type: payg
+#    monthly_budget: 30

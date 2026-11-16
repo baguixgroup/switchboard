@@ -1,0 +1,60 @@
+"""Per-OS locations for config, data and the output folder."""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+APP = "Switchboard"
+
+
+def os_family() -> str:
+    if sys.platform.startswith("win"):
+        return "windows"
+    if sys.platform == "darwin":
+        return "macos"
+    return "linux"
+
+
+def is_raspberry_pi() -> bool:
+    try:
+        return "raspberry pi" in Path("/proc/device-tree/model").read_text(errors="ignore").lower()
+    except OSError:
+        return False
+
+
+def platform_tag() -> str:
+    """windows | macos | pi | linux"""
+    fam = os_family()
+    if fam == "linux" and is_raspberry_pi():
+        return "pi"
+    return fam
+
+
+def config_dir() -> Path:
+    env = os.environ.get("SWITCHBOARD_HOME")
+    if env:
+        return Path(env).expanduser()
+    fam = os_family()
+    if fam == "windows":
+        return Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))) / APP
+    if fam == "macos":
+        return Path.home() / "Library" / "Application Support" / APP
+    return Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "switchboard"
+
+
+def data_dir() -> Path:
+    d = config_dir() / "data"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def default_output_dir() -> Path:
+    if os_family() in ("windows", "macos"):
+        return Path.home() / "Switchboard" / "Output"
+    return Path.home() / "switchboard-output"
+
+
+def expand(p: str) -> Path:
+    """Expand ~ and %VARS% / $VARS in a path string."""
+    return Path(os.path.expandvars(os.path.expanduser(p)))

@@ -1,0 +1,95 @@
+# Switchboard node configuration  (one file per machine)
+#
+# One machine is the HUB: it runs the dashboard, the router, the credit ledger and the
+# scheduler. An always-on Raspberry Pi is ideal. Every other machine (Windows PC, Mac)
+# runs an AGENT that executes local things for the hub: MCP servers (Unity, Photoshop,
+# Blender...), connected phones, installs, and a local copy of every output.
+#
+# API keys never go in this file: put them in secrets.env next to it.
+
+node:
+  name: my-machine                 # unique: windows-pc, macbook, pi ...
+  role: hub                        # hub | agent
+  hub_url: http://127.0.0.1:8765   # agents: the hub's LAN address, e.g. http://192.168.1.50:8765
+  mirror_outputs: true             # agents: also write every task's output into this machine's output folder
+
+server:                            # used by the hub only
+  host: 0.0.0.0
+  port: 8765
+
+output_dir: auto                   # auto = ~/Switchboard/Output (Windows, macOS) or ~/switchboard-output (Linux/Pi)
+
+router:
+  mode: balanced                   # balanced | best | cheapest
+  classifier: heuristic            # heuristic | llm  (llm = ask the cheapest funded model to classify the task)
+  auto_downgrade_effort: false     # true = silently lower a manual effort that is overkill for the task
+  confirm_above_usd: 0.50          # ask before running anything estimated above this
+  failover: true                   # on rate limit / out of credit / outage: retry with the next best model
+  max_tool_rounds: 25
+  prefer: {}                       # small score bonus per provider, e.g. {anthropic: 0.5, deepseek: 0.3}
+
+permissions:                       # what MODELS may do on their own through tools (you can always do it yourself)
+  device_actions: read_only        # none | read_only | all   (read_only = list, screenshot, logs)
+  server_actions: read_only        # none | read_only | all   (all = deploy + remote commands)
+  install_tools: false
+  cli_agents_can_edit: false       # let Claude Code / Codex / Copilot / Gemini CLIs edit files in the task folder
+
+providers:
+  anthropic:  {kind: anthropic, api_key_env: ANTHROPIC_API_KEY}
+  openai:     {kind: openai_compat, api_key_env: OPENAI_API_KEY, base_url: "https://api.openai.com/v1", max_tokens_param: max_completion_tokens}
+  deepseek:   {kind: openai_compat, api_key_env: DEEPSEEK_API_KEY, base_url: "https://api.deepseek.com", balance: deepseek}
+  xai:        {kind: openai_compat, api_key_env: XAI_API_KEY, base_url: "https://api.x.ai/v1"}
+  gemini:     {kind: openai_compat, api_key_env: GEMINI_API_KEY, base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"}
+  github:     {kind: openai_compat, api_key_env: GITHUB_TOKEN, base_url: "https://models.github.ai/inference"}   # GitHub Models (Copilot family)
+  openrouter: {kind: openai_compat, api_key_env: OPENROUTER_API_KEY, base_url: "https://openrouter.ai/api/v1", balance: openrouter}
+  mistral:    {kind: openai_compat, api_key_env: MISTRAL_API_KEY, base_url: "https://api.mistral.ai/v1"}
+  ollama:     {kind: openai_compat, api_key: ollama, base_url: "http://localhost:11434/v1", local: true}
+
+  # Subscription CLIs: these spend your Claude / ChatGPT / Google / Copilot PLAN, not API credit.
+  # Install them with `switchboard tools install <id>` and log in once interactively.
+  claude-code:
+    kind: cli
+    command: claude
+    args: ["-p", "{prompt}", "--output-format", "json"]
+    model_args: ["--model", "{model}"]
+    edit_args: ["--permission-mode", "acceptEdits"]
+    json_result: result
+    json_cost: total_cost_usd
+  codex:
+    kind: cli
+    command: codex
+    args: ["exec", "--skip-git-repo-check", "{prompt}"]
+    model_args: ["-m", "{model}"]
+    effort_args: ["-c", "model_reasoning_effort={effort}"]
+    edit_args: ["--full-auto"]
+  gemini-cli:
+    kind: cli
+    command: gemini
+    args: ["-p", "{prompt}"]
+    model_args: ["-m", "{model}"]
+    edit_args: ["--approval-mode", "auto_edit"]
+  copilot-cli:
+    kind: cli
+    command: copilot
+    args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    edit_args: ["--allow-all-tools"]
+
+# MCP servers that run on THIS machine. Browse with `switchboard mcp catalog`,
+# add with `switchboard mcp add <name>`. The hub can use servers on every connected agent.
+mcp_servers: {}
+#  filesystem: {command: npx, args: ["-y", "@modelcontextprotocol/server-filesystem", "~/Projects"]}
+#  blender:    {command: uvx, args: ["blender-mcp"]}
+
+# Network devices that cannot run an agent (consoles, TVs). Reachability is checked; see README for limits.
+devices: {}
+#  ps4: {kind: network, host: 192.168.1.60, probe_port: 9295}
+
+# SSH targets. Uses your normal ssh keys (~/.ssh). Hostinger shared hosting uses port 65002.
+servers: {}
+#  hostinger: {host: 123.45.67.89, user: u123456789, port: 65002, deploy_path: domains/example.com/public_html}
+
+notify:
+  ntfy_topic: ""                   # e.g. switchboard-yourname-8f3k  -> subscribe in the ntfy phone app
+  ntfy_server: "https://ntfy.sh"
+  check_every_minutes: 30
