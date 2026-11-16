@@ -1,0 +1,135 @@
+# Desktop and CLI tools Switchboard can detect, recommend and install per platform.
+# Install commands only ever come from this file and only run when you approve them.
+# On a Raspberry Pi, `sudo` commands need passwordless sudo for remote installs; otherwise
+# Switchboard shows you the command to run yourself.
+
+vscode:
+  name: Visual Studio Code
+  group: editor
+  helps: [code, game_dev, devops, data]
+  detect: {bin: [code], paths: {windows: ["%LOCALAPPDATA%/Programs/Microsoft VS Code/Code.exe"], macos: ["/Applications/Visual Studio Code.app"]}}
+  install: {windows: "winget install -e --id Microsoft.VisualStudioCode", macos: "brew install --cask visual-studio-code", pi: "sudo apt-get install -y code", linux: "sudo snap install code --classic"}
+
+unity_hub:
+  name: Unity Hub
+  helps: [game_dev]
+  detect: {bin: [unityhub], paths: {windows: ["%PROGRAMFILES%/Unity Hub/Unity Hub.exe"], macos: ["/Applications/Unity Hub.app"]}}
+  install: {windows: "winget install -e --id Unity.UnityHub", macos: "brew install --cask unity-hub"}
+  unsupported: {pi: "The Unity Editor does not run on Raspberry Pi."}
+
+photoshop:
+  name: Adobe Photoshop
+  group: image_editor
+  helps: [image_edit]
+  manual: true
+  detect: {paths: {windows: ["%PROGRAMFILES%/Adobe/Adobe Photoshop*"], macos: ["/Applications/Adobe Photoshop*"]}}
+  install: {windows: "Install from Adobe Creative Cloud: https://www.adobe.com/products/photoshop.html", macos: "Install from Adobe Creative Cloud: https://www.adobe.com/products/photoshop.html"}
+  unsupported: {pi: "Photoshop does not run on Raspberry Pi; GIMP is the closest alternative."}
+
+gimp:
+  name: GIMP (free Photoshop alternative)
+  group: image_editor
+  helps: [image_edit]
+  detect: {bin: [gimp, gimp-3.0, gimp-2.10], paths: {windows: ["%PROGRAMFILES%/GIMP*"], macos: ["/Applications/GIMP*.app"]}}
+  install: {windows: "winget install -e --id GIMP.GIMP.3", macos: "brew install --cask gimp", pi: "sudo apt-get install -y gimp", linux: "sudo apt-get install -y gimp"}
+
+blender:
+  name: Blender
+  helps: [design_3d, game_dev]
+  detect: {bin: [blender], paths: {windows: ["%PROGRAMFILES%/Blender Foundation/Blender*"], macos: ["/Applications/Blender.app"]}}
+  install: {windows: "winget install -e --id BlenderFoundation.Blender", macos: "brew install --cask blender", pi: "sudo apt-get install -y blender", linux: "sudo apt-get install -y blender"}
+
+node:
+  name: Node.js (needed by most MCP servers)
+  group: runtime
+  helps: [code, devops]
+  detect: {bin: [node, npx]}
+  install: {windows: "winget install -e --id OpenJS.NodeJS.LTS", macos: "brew install node", pi: "sudo apt-get install -y nodejs npm", linux: "sudo apt-get install -y nodejs npm"}
+
+uv:
+  name: uv (Python runner used by many MCP servers)
+  group: runtime
+  helps: [code]
+  detect: {bin: [uv, uvx]}
+  install: {windows: "winget install -e --id astral-sh.uv", macos: "brew install uv", pi: "curl -LsSf https://astral.sh/uv/install.sh | sh", linux: "curl -LsSf https://astral.sh/uv/install.sh | sh"}
+
+git:
+  name: Git
+  group: vcs
+  helps: [code, devops]
+  detect: {bin: [git]}
+  install: {windows: "winget install -e --id Git.Git", macos: "xcode-select --install", pi: "sudo apt-get install -y git", linux: "sudo apt-get install -y git"}
+
+gh:
+  name: GitHub CLI
+  group: vcs
+  helps: [code, devops]
+  detect: {bin: [gh]}
+  install: {windows: "winget install -e --id GitHub.cli", macos: "brew install gh", pi: "sudo apt-get install -y gh", linux: "sudo apt-get install -y gh"}
+
+adb:
+  name: Android platform tools (adb)
+  helps: [mobile_test]
+  detect: {bin: [adb]}
+  install: {windows: "winget install -e --id Google.PlatformTools", macos: "brew install --cask android-platform-tools", pi: "sudo apt-get install -y adb", linux: "sudo apt-get install -y adb"}
+
+scrcpy:
+  name: scrcpy (mirror and control Android screens)
+  helps: [mobile_test]
+  detect: {bin: [scrcpy]}
+  install: {windows: "winget install -e --id Genymobile.scrcpy", macos: "brew install scrcpy", pi: "sudo apt-get install -y scrcpy", linux: "sudo apt-get install -y scrcpy"}
+
+xcode:
+  name: Xcode (iOS builds, simulators, devices)
+  helps: [mobile_test]
+  manual: true
+  detect: {paths: {macos: ["/Applications/Xcode.app"]}}
+  install: {macos: "Install Xcode from the Mac App Store, then run: sudo xcode-select -s /Applications/Xcode.app"}
+  unsupported: {windows: "Xcode is macOS only.", pi: "Xcode is macOS only.", linux: "Xcode is macOS only."}
+
+ffmpeg:
+  name: FFmpeg
+  helps: [image_edit, data]
+  detect: {bin: [ffmpeg]}
+  install: {windows: "winget install -e --id Gyan.FFmpeg", macos: "brew install ffmpeg", pi: "sudo apt-get install -y ffmpeg", linux: "sudo apt-get install -y ffmpeg"}
+
+rsync:
+  name: rsync (fast deploys to servers)
+  helps: [devops]
+  detect: {bin: [rsync]}
+  install: {macos: "brew install rsync", pi: "sudo apt-get install -y rsync", linux: "sudo apt-get install -y rsync"}
+  unsupported: {windows: "Switchboard falls back to scp on Windows."}
+
+ollama:
+  name: Ollama (free local models)
+  helps: []
+  detect: {bin: [ollama]}
+  install: {windows: "winget install -e --id Ollama.Ollama", macos: "brew install ollama", pi: "curl -fsSL https://ollama.com/install.sh | sh", linux: "curl -fsSL https://ollama.com/install.sh | sh"}
+
+claude_code:
+  name: Claude Code CLI (uses your Claude plan)
+  group: ai_cli
+  helps: [code, game_dev, devops]
+  detect: {bin: [claude]}
+  install: {windows: "npm install -g @anthropic-ai/claude-code", macos: "npm install -g @anthropic-ai/claude-code", pi: "npm install -g @anthropic-ai/claude-code", linux: "npm install -g @anthropic-ai/claude-code"}
+
+codex:
+  name: OpenAI Codex CLI (uses your ChatGPT plan)
+  group: ai_cli
+  helps: [code, game_dev, devops]
+  detect: {bin: [codex]}
+  install: {windows: "npm install -g @openai/codex", macos: "npm install -g @openai/codex", pi: "npm install -g @openai/codex", linux: "npm install -g @openai/codex"}
+
+gemini_cli:
+  name: Gemini CLI (uses your Google account)
+  group: ai_cli
+  helps: [code, research]
+  detect: {bin: [gemini]}
+  install: {windows: "npm install -g @google/gemini-cli", macos: "npm install -g @google/gemini-cli", pi: "npm install -g @google/gemini-cli", linux: "npm install -g @google/gemini-cli"}
+
+copilot_cli:
+  name: GitHub Copilot CLI (uses your Copilot plan)
+  group: ai_cli
+  helps: [code, devops]
+  detect: {bin: [copilot]}
+  install: {windows: "npm install -g @github/copilot", macos: "npm install -g @github/copilot", pi: "npm install -g @github/copilot", linux: "npm install -g @github/copilot"}

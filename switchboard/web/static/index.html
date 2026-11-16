@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Switchboard</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#16181d;--muted:#5f6673;--line:#e3e6eb;--accent:#3a5bd9;--accent-ink:#fff;
+--ok:#1f8a4c;--warn:#b26a00;--crit:#c62f2f;--chip:#eef1f6;--code:#f2f4f7;--radius:10px}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--panel:#171a21;--ink:#e7e9ee;--muted:#9aa2b1;--line:#262b35;
+--accent:#7b96ff;--accent-ink:#0f1115;--ok:#4cc38a;--warn:#f0a43a;--crit:#ff6b6b;--chip:#202532;--code:#1d212a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:16px;margin:0;letter-spacing:.2px}header .node{color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{background:var(--chip);border-radius:999px;padding:2px 9px;font-size:12px;color:var(--muted)}
+.chip.on{color:var(--ok)}.chip.off{opacity:.55}
+main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;padding:16px 20px;max-width:1500px;margin:0 auto}
+@media (max-width:980px){main{grid-template-columns:minmax(0,1fr);padding:12px 16px}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px}
+section h2 span{text-transform:none;letter-spacing:0;overflow-wrap:anywhere;font-weight:400}
+.scroll{overflow-x:auto}.node-card,.alert,.plan{overflow-wrap:anywhere}
+section h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+textarea{width:100%;min-height:120px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg);color:var(--ink);font:inherit}
+select,input{border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:var(--bg);color:var(--ink);font:inherit;max-width:100%}
+button{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:7px;padding:6px 12px;font:inherit;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+button.small{padding:2px 8px;font-size:12px}button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}.grow{flex:1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}.seg button{border:0;border-radius:0;background:transparent}
+.seg button.active{background:var(--accent);color:var(--accent-ink)}
+.muted{color:var(--muted)}.small{font-size:12px}.ok{color:var(--ok)}.warn{color:var(--warn)}.crit{color:var(--crit)}
+.plan{border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin-top:12px}
+.plan .big{font-size:16px;font-weight:600}.plan ul{margin:6px 0 0 18px;padding:0}
+.alert{border-left:3px solid var(--muted);padding:6px 10px;margin:6px 0;background:var(--bg);border-radius:0 6px 6px 0}
+.alert.critical{border-color:var(--crit)}.alert.warning{border-color:var(--warn)}.alert b{display:block}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:12px}
+pre.out{white-space:pre-wrap;word-break:break-word;background:var(--code);padding:12px;border-radius:8px;max-height:560px;overflow:auto;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.node-card{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:6px}.dot.on{background:var(--ok)}
+details summary{cursor:pointer;color:var(--muted)}code{background:var(--code);padding:1px 5px;border-radius:5px;font-size:12px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px}
+.form-grid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.hist{cursor:pointer}.hist:hover{background:var(--bg)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Switchboard</h1><span class="node" id="nodeName"></span>
+  <div class="chips grow" id="providerChips"></div>
+  <span class="chip" id="alertBadge" hidden></span>
+</header>
+<main>
+<div>
+  <section>
+    <h2>Prompt <span class="small muted" id="outDir"></span></h2>
+    <textarea id="prompt" placeholder="Describe the task. Switchboard picks the model, effort and tools, or choose them yourself."></textarea>
+    <div class="row">
+      <div class="seg" id="modeSeg"><button data-v="auto" class="active">Auto</button><button data-v="manual">Manual</button></div>
+      <span id="autoOpts"><select id="routeMode"><option value="balanced">Balanced</option><option value="best">Best quality</option><option value="cheapest">Cheapest</option></select></span>
+      <span id="manualOpts" hidden><select id="provider"></select> <select id="model"></select>
+        <select id="effort"><option value="">effort: auto</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></span>
+    </div>
+    <div class="row"><span class="small muted">Tools:</span><span id="toolsBox" class="chips"></span>
+      <label class="small muted grow" style="text-align:right">Images <input type="file" id="images" accept="image/*" multiple></label></div>
+    <div class="row"><button id="planBtn">Plan</button><button class="primary" id="runBtn">Run</button><span id="busy" class="small muted"></span></div>
+    <div id="planBox"></div>
+  </section>
+  <section id="resultSec" hidden>
+    <h2>Result <span id="resultMeta" class="small muted"></span></h2>
+    <pre class="out" id="resultText"></pre>
+  </section>
+  <section>
+    <h2>History <button class="small" id="histRefresh">Refresh</button></h2>
+    <div class="scroll"><table><thead><tr><th>When</th><th>Task</th><th>Model</th><th>Cost</th><th>Status</th></tr></thead><tbody id="history"></tbody></table></div>
+  </section>
+</div>
+<div>
+  <section><h2>Alerts</h2><div id="alerts" class="small muted">Loading...</div></section>
+  <section>
+    <h2>Credits <span><button class="small" id="balRefresh">Refresh balances</button></span></h2>
+    <table><thead><tr><th>Source</th><th>Left</th><th>Resets / expires</th></tr></thead><tbody id="credits"></tbody></table>
+    <div id="untracked" class="small muted"></div>
+    <details style="margin-top:8px"><summary>Add credit, free tier or subscription</summary>
+      <div class="form-grid">
+        <label>ID<input id="c_id" placeholder="openai-promo"></label>
+        <label>Provider<select id="c_provider"></select></label>
+        <label>Type<select id="c_type"><option>prepaid</option><option>free_tier</option><option>subscription</option><option>payg</option></select></label>
+        <label>Amount<input id="c_amount" type="number" step="any" placeholder="USD or requests"></label>
+        <label>Unit<select id="c_unit"><option value="">auto</option><option>usd</option><option>requests</option><option>tokens</option><option>premium_requests</option></select></label>
+        <label>Expires<input id="c_expires" type="date"></label>
+        <label>Resets every<select id="c_reset"><option value="">never</option><option>day</option><option>week</option><option>month</option><option>5h</option></select></label>
+        <label>Reset time zone<input id="c_tz" value="UTC"></label>
+        <label>Monthly budget<input id="c_budget" type="number" step="any"></label>
+      </div>
+      <div class="row"><button id="c_save" class="primary small">Save</button><span id="c_msg" class="small muted"></span></div>
+    </details>
+  </section>
+  <section><h2>Machines &amp; devices <button class="small" id="nodesRefresh">Rescan</button></h2><div id="nodes" class="small muted">Loading...</div></section>
+  <section><h2>Tool advisor</h2><div id="advisor" class="small muted">Loading...</div></section>
+</div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money = x => x == null ? "-" : (x > 0 && x < 0.0001 ? "<$0.0001" : "$" + Number(x).toFixed(x < 1 ? 4 : 2));
+let TOKEN = new URLSearchParams(location.search).get("token") || localStorage.getItem("sb_token") || "";
+if (new URLSearchParams(location.search).get("token")) { localStorage.setItem("sb_token", TOKEN); history.replaceState(null, "", location.pathname); }
+let MODELS = [], MODE = "auto", lastPlan = null, toolsSel = new Set(), mcpLocs = {};
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", ...(TOKEN ? {Authorization: "Bearer " + TOKEN} : {}), ...(opts.headers || {})}});
+  if (r.status === 401) { const t = prompt("Switchboard token (from secrets.env on the hub):"); if (t) { TOKEN = t; localStorage.setItem("sb_token", t); return api(path, opts); } throw new Error("unauthorized"); }
+  if (r.status === 204) return null;
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok && r.status !== 409) throw new Error(data.detail || r.statusText);
+  return {status: r.status, ...data, _list: Array.isArray(data) ? data : undefined};
+}
+const list = d => d && d._list ? d._list : d;
+function when(iso) { if (!iso) return "-"; const d = new Date(iso); const h = (d - new Date()) / 36e5;
+  const rel = Math.abs(h) < 48 ? (h < 0 ? "" : "in ") + (Math.abs(h) < 1 ? Math.round(Math.abs(h) * 60) + "m" : Math.round(Math.abs(h)) + "h") + (h < 0 ? " ago" : "") : d.toLocaleDateString();
+  return `${rel}`; }
+
+async function loadStatus() {
+  const s = await api("/api/status");
+  $("#nodeName").textContent = "· " + s.node + " (" + s.role + ")";
+  $("#outDir").textContent = "output → " + s.output_dir;
+  const on = s.providers.filter(p => p.available), off = s.providers.filter(p => !p.available);
+  $("#providerChips").innerHTML = on.map(p => `<span class="chip on" title="${esc(p.kind)}">${esc(p.name)}</span>`).join("")
+    + (off.length ? `<span class="chip off" title="Not set up: ${esc(off.map(p => p.name).join(", "))}">+${off.length} not set up</span>` : "");
+  $("#routeMode").value = s.router.mode || "balanced";
+}
+async function loadModels() {
+  MODELS = list(await api("/api/models"));
+  const provs = [...new Set(MODELS.filter(m => m.available).map(m => m.provider))];
+  $("#provider").innerHTML = `<option value="">any provider</option>` + provs.map(p => `<option>${esc(p)}</option>`).join("");
+  $("#c_provider").innerHTML = [...new Set(MODELS.map(m => m.provider))].map(p => `<option>${esc(p)}</option>`).join("");
+  fillModels();
+}
+function fillModels() {
+  const p = $("#provider").value;
+  $("#model").innerHTML = `<option value="">model: auto</option>` + MODELS.filter(m => m.available && (!p || m.provider === p))
+    .map(m => `<option value="${esc(m.key)}">${esc(m.label)} · $${m.price[0]}/$${m.price[1]}${m.verified ? "" : " (unverified)"}</option>`).join("");
+}
+function body() {
+  const manual = MODE === "manual";
+  return { prompt: $("#prompt").value, mode: $("#routeMode").value,
+    provider: manual ? $("#provider").value || null : null, model: manual ? $("#model").value || null : null,
+    effort: manual ? $("#effort").value || null : null, tools: toolsSel.size ? [...toolsSel] : "auto" };
+}
+async function images() {
+  const files = [...$("#images").files];
+  return Promise.all(files.map(f => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); })));
+}
+function renderPlan(p, confirmNeeded) {
+  lastPlan = p;
+  const alts = (p.alternatives || []).map(a => `<li><a href="#" data-key="${esc(a.key)}" class="useAlt">${esc(a.label)}</a> <span class="muted">${money(a.effective_cost_usd)} · ${esc(a.source)}</span></li>`).join("");
+  const sugg = (p.suggestions || []).map(s => s.type === "mcp"
+      ? `<li>${esc(s.name)}: ${esc(s.why)}. <code>${esc(s.command)}</code>${s.setup ? `<div class="muted">${esc(s.setup)}</div>` : ""}</li>`
+      : `<li>${esc(s.name)} (${esc(s.why)}): ${s.install.map(i => `<button class="small install" data-node="${esc(i.node)}" data-tool="${esc(s.id)}" ${i.manual ? "disabled title='manual install'" : ""}>Install on ${esc(i.node)}</button>`).join(" ")}</li>`).join("");
+  $("#planBox").innerHTML = `<div class="plan">
+    <div class="big">${esc(p.model_label)} <span class="muted small">${esc(p.provider)}${p.effort ? " · effort " + esc(p.effort) : ""}${p.tools.length ? " · tools: " + esc(p.tools.join(", ")) : ""}</span></div>
+    <div>Estimated ${money(p.est_cost_usd)} · effective ${money(p.effective_cost_usd)} · paid by <b>${esc(p.source_label)}</b></div>
+    <ul>${p.reasons.map(r => `<li>${esc(r)}</li>`).join("")}</ul>
+    ${p.warnings.length ? `<ul class="warn">${p.warnings.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+    ${alts ? `<details><summary>Alternatives</summary><ul>${alts}</ul></details>` : ""}
+    ${sugg ? `<div style="margin-top:6px"><b class="small">Better tools for this</b><ul>${sugg}</ul></div>` : ""}
+    ${confirmNeeded ? `<div class="row"><span class="warn">Above your confirm limit.</span><button class="primary small" id="confirmRun">Run anyway</button></div>` : ""}
+  </div>`;
+  document.querySelectorAll(".useAlt").forEach(a => a.onclick = e => { e.preventDefault(); setMode("manual"); $("#provider").value = ""; fillModels(); $("#model").value = a.dataset.key; });
+  document.querySelectorAll(".install").forEach(b => b.onclick = () => installTool(b.dataset.node, b.dataset.tool, b));
+  const c = $("#confirmRun"); if (c) c.onclick = () => run(true);
+}
+async function doPlan() {
+  if (!$("#prompt").value.trim()) return;
+  $("#busy").textContent = "planning...";
+  try { const b = body(); b.images = await images(); renderPlan(await api("/api/plan", {method: "POST", body: JSON.stringify(b)})); }
+  catch (e) { $("#planBox").innerHTML = `<div class="plan crit">${esc(e.message)}</div>`; }
+  $("#busy").textContent = "";
+}
+async function run(confirm = false) {
+  if (!$("#prompt").value.trim()) return;
+  $("#runBtn").disabled = true; $("#busy").textContent = "starting...";
+  try {
+    const b = body(); b.images = await images(); b.confirm = confirm;
+    const r = await api("/api/tasks", {method: "POST", body: JSON.stringify(b)});
+    if (r.needs_confirmation) { renderPlan(r.plan, true); return; }
+    renderPlan(r.plan); poll(r.task_id);
+  } catch (e) { $("#planBox").innerHTML = `<div class="plan crit">${esc(e.message)}</div>`; }
+  finally { $("#runBtn").disabled = false; }
+}
+async function poll(id) {
+  $("#resultSec").hidden = false; $("#resultText").textContent = ""; $("#resultMeta").textContent = "running...";
+  const started = Date.now();
+  while (true) {
+    const t = await api("/api/tasks/" + id);
+    $("#busy").textContent = t.status === "running" || t.status === "queued" ? `running ${Math.round((Date.now() - started) / 1000)}s...` : "";
+    if (t.status === "done" || t.status === "failed") { showTask(t); loadHistory(); loadCredits(); return; }
+    await new Promise(r => setTimeout(r, 1500));
+  }
+}
+function showTask(t) {
+  $("#resultSec").hidden = false;
+  const plan = t.plan || {};
+  $("#resultMeta").innerHTML = `${esc(plan.executed || (plan.provider + ":" + plan.model))} · ${money(t.cost_usd)} · <span title="${esc(t.output_path)}">${esc(t.output_path || "")}</span>`;
+  const calls = (plan.tool_calls || []).map(c => `→ ${c.tool} ${c.error ? "(error)" : ""}`).join("\n");
+  $("#resultText").textContent = (t.status === "failed" ? t.error : t.result) + (calls ? "\n\n--- tool calls ---\n" + calls : "");
+}
+async function loadHistory() {
+  const rows = list(await api("/api/tasks?limit=25"));
+  const fmt = ts => new Date(ts * 1000).toLocaleString([], {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"});
+  $("#history").innerHTML = rows.map(t => `<tr class="hist" data-id="${esc(t.id)}"><td class="muted small" style="white-space:nowrap">${esc(fmt(t.ts))}</td>
+    <td>${esc((t.prompt || "").slice(0, 70))}</td><td class="small">${esc((t.plan && (t.plan.executed || t.plan.model)) || "")}</td>
+    <td>${money(t.cost_usd)}</td><td class="${t.status === "failed" ? "crit" : t.status === "done" ? "ok" : "muted"}">${esc(t.status)}</td></tr>`).join("")
+    || `<tr><td colspan=5 class="muted">No tasks yet.</td></tr>`;
+  document.querySelectorAll(".hist").forEach(tr => tr.onclick = async () => showTask(await api("/api/tasks/" + tr.dataset.id)));
+}
+async function loadCredits() {
+  const c = await api("/api/credits");
+  $("#alerts").innerHTML = c.alerts.length ? c.alerts.map(a => `<div class="alert ${esc(a.severity)}"><b>${esc(a.title)}</b>${esc(a.message)}</div>`).join("") : "Nothing urgent. Unused credit and free quotas will show up here before they are lost.";
+  const n = c.alerts.filter(a => a.severity !== "info").length;
+  $("#alertBadge").hidden = !n; $("#alertBadge").textContent = n + " alert" + (n > 1 ? "s" : ""); $("#alertBadge").className = "chip " + (n ? "crit" : "");
+  $("#credits").innerHTML = c.sources.map(s => {
+    const left = s.remaining == null ? (s.amount == null ? "tracking" : "-") : (s.unit === "usd" ? money(s.remaining) : `${s.remaining} ${s.unit}`);
+    const cls = !s.available ? "crit" : s.urgency >= .5 ? "warn" : "";
+    return `<tr><td>${esc(s.label)}<div class="small muted">${esc(s.provider)} · ${esc(s.type)}${s.note ? " · " + esc(s.note) : ""}</div></td>
+      <td class="${cls}">${left}${s.monthly_budget ? `<div class="small muted">of ${money(s.monthly_budget)}/mo</div>` : ""}</td>
+      <td>${s.expires ? "expires " + when(s.expires) : s.resets ? "resets " + when(s.resets) : "-"} <button class="small del" data-id="${esc(s.id)}" title="remove">×</button></td></tr>`;
+  }).join("") || `<tr><td colspan=3 class="muted">No credits tracked yet. Add your promo credits, free tiers and plans below.</td></tr>`;
+  $("#untracked").textContent = c.untracked_providers.length ? "Pay-as-you-go (untracked): " + c.untracked_providers.join(", ") : "";
+  document.querySelectorAll(".del").forEach(b => b.onclick = async () => { if (confirm("Remove " + b.dataset.id + "?")) { await api("/api/credits/sources/" + b.dataset.id, {method: "DELETE"}); loadCredits(); } });
+}
+async function saveCredit() {
+  const g = id => $(id).value;
+  const b = {id: g("#c_id"), provider: g("#c_provider"), type: g("#c_type"), amount: g("#c_amount") ? Number(g("#c_amount")) : null,
+    unit: g("#c_unit") || null, expires: g("#c_expires") || null, monthly_budget: g("#c_budget") ? Number(g("#c_budget")) : null,
+    reset: g("#c_reset") ? {every: g("#c_reset"), tz: g("#c_tz") || "UTC"} : null};
+  if (!b.id) { $("#c_msg").textContent = "ID is required"; return; }
+  try { await api("/api/credits/sources", {method: "POST", body: JSON.stringify(b)}); $("#c_msg").textContent = "Saved."; loadCredits(); }
+  catch (e) { $("#c_msg").textContent = e.message; }
+}
+async function loadNodes(refresh = false) {
+  const nodes = list(await api(refresh ? "/api/nodes/refresh" : "/api/nodes", {method: refresh ? "POST" : "GET"}));
+  mcpLocs = {};
+  nodes.forEach(n => n.online && Object.keys(n.mcp || {}).forEach(s => (mcpLocs[s] = mcpLocs[s] || []).push(n.node)));
+  $("#toolsBox").innerHTML = Object.keys(mcpLocs).length ? Object.entries(mcpLocs).map(([s, ns]) => `<label class="chip"><input type="checkbox" class="toolchk" value="${esc(s)}" ${toolsSel.has(s) ? "checked" : ""}> ${esc(s)} <span class="muted">@${esc(ns[0])}</span></label>`).join("") : `<span class="small muted">auto (no MCP servers connected yet)</span>`;
+  document.querySelectorAll(".toolchk").forEach(c => c.onchange = () => c.checked ? toolsSel.add(c.value) : toolsSel.delete(c.value));
+  $("#nodes").innerHTML = nodes.map(n => `<div class="node-card"><div><span class="dot ${n.online ? "on" : ""}"></span><b>${esc(n.node)}</b> <span class="muted">${esc(n.platform)} · ${esc(n.arch)}${n.local ? " · hub" : ""}</span></div>
+    <div class="small muted">${esc(n.output_dir || "")}</div>
+    ${(n.devices || []).map(d => `<div>📱 ${esc(d.name)} <span class="muted">${esc(d.kind)} · ${esc(d.state)}</span>
+      ${["android", "ios-simulator"].includes(d.kind) ? `<button class="small dev" data-node="${esc(n.node)}" data-dev="${esc(d.id)}" data-act="screenshot">Screenshot</button>` : ""}
+      ${d.kind === "android" ? `<button class="small dev" data-node="${esc(n.node)}" data-dev="${esc(d.id)}" data-act="logs">Logs</button>` : ""}
+      ${d.kind === "server" ? `<button class="small dev" data-node="${esc(n.node)}" data-dev="${esc(d.id)}" data-act="check">Check SSH</button>` : ""}</div>`).join("")}
+    ${Object.entries(n.mcp || {}).map(([s, st]) => `<div>🔌 ${esc(s)} <span class="${st.state === "error" ? "crit" : "muted"}">${esc(st.state)} · ${st.tools} tools${st.error ? " · " + esc(st.error) : ""}</span></div>`).join("")}
+  </div>`).join("") || "No machines yet.";
+  document.querySelectorAll(".dev").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { const r = await api("/api/devices/action", {method: "POST", body: JSON.stringify({node: b.dataset.node, device: b.dataset.dev, action: b.dataset.act})});
+      $("#resultSec").hidden = false; $("#resultMeta").textContent = b.dataset.dev + " · " + b.dataset.act; $("#resultText").textContent = (r.output || "") + (r.files && r.files.length ? "\nSaved: " + r.files.join(", ") : ""); }
+    catch (e) { alert(e.message); } b.disabled = false; });
+}
+async function loadAdvisor() {
+  const rows = list(await api("/api/advisor"));
+  $("#advisor").innerHTML = rows.length ? `<details><summary>${rows.length} useful tools are not installed on every machine</summary><table>${rows.map(t => `<tr><td>${esc(t.name)}<div class="small muted">${esc(t.helps.join(", "))}</div></td>
+    <td>${t.install.map(i => i.manual ? `<div class="small">${esc(i.node)}: ${esc(i.command)}</div>` : `<button class="small install" data-node="${esc(i.node)}" data-tool="${esc(t.id)}" title="${esc(i.command)}">Install on ${esc(i.node)}</button>`).join(" ")}</td></tr>`).join("")}</table></details>` : "Everything in the catalog is installed.";
+  document.querySelectorAll("#advisor .install").forEach(b => b.onclick = () => installTool(b.dataset.node, b.dataset.tool, b));
+}
+async function installTool(node, tool, btn) {
+  const pre = await api("/api/tools/install", {method: "POST", body: JSON.stringify({node, tool, approved: false})});
+  if (pre.manual || (!pre.needs_approval && !pre.ok)) { alert(pre.output || pre.command); return; }
+  if (!confirm(`Run on ${node}?\n\n${pre.command}`)) return;
+  btn.disabled = true; btn.textContent = "Installing...";
+  const r = await api("/api/tools/install", {method: "POST", body: JSON.stringify({node, tool, approved: true})});
+  btn.textContent = r.ok ? "Installed" : "Failed"; if (!r.ok) alert(r.output);
+  loadNodes(true).then(loadAdvisor);
+}
+function setMode(m) { MODE = m; document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("active", b.dataset.v === m)); $("#manualOpts").hidden = m !== "manual"; $("#autoOpts").hidden = m === "manual"; }
+document.querySelectorAll("#modeSeg button").forEach(b => b.onclick = () => setMode(b.dataset.v));
+$("#provider").onchange = fillModels; $("#planBtn").onclick = doPlan; $("#runBtn").onclick = () => run(false);
+$("#histRefresh").onclick = loadHistory; $("#nodesRefresh").onclick = () => loadNodes(true).then(loadAdvisor);
+$("#balRefresh").onclick = async () => { await api("/api/credits/refresh", {method: "POST"}); loadCredits(); };
+$("#c_save").onclick = saveCredit;
+$("#prompt").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") run(false); });
+(async () => { await loadStatus(); await Promise.all([loadModels(), loadCredits(), loadHistory(), loadNodes()]); loadAdvisor(); setInterval(loadCredits, 60000); setInterval(() => loadNodes(), 45000); })()
+  .catch(e => { document.body.insertAdjacentHTML("afterbegin", `<div style="padding:10px;background:#c62f2f;color:#fff">${esc(e.message)}</div>`); });
+</script>
+</body>
+</html>

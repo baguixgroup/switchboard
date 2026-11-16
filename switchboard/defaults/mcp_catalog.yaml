@@ -1,0 +1,75 @@
+# Known MCP servers. `switchboard mcp add <name>` copies an entry into this machine's config.
+# `{output_dir}` is replaced with this machine's output folder; `${VAR}` with a value from secrets.env.
+# Entries with `setup` need a one-time step inside the app (an editor plugin/bridge) first.
+
+filesystem:
+  description: Read and write files in folders you choose
+  command: npx
+  args: ["-y", "@modelcontextprotocol/server-filesystem", "{output_dir}"]
+  requires: [node]
+  hints: [folder, directory, files on my, my files]
+
+playwright:
+  description: Drive a real browser to test web apps and sites (Microsoft)
+  command: npx
+  args: ["-y", "@playwright/mcp@latest"]
+  requires: [node]
+  hints: [browser, website, web app, test the site, playwright]
+
+github:
+  description: GitHub repos, issues and pull requests (official remote server)
+  url: https://api.githubcopilot.com/mcp/
+  headers: {Authorization: "Bearer ${GITHUB_TOKEN}"}
+  hints: [github, repo, pull request, issue]
+
+mobile:
+  description: Control Android/iOS phones, emulators and simulators (tap, type, screenshot)
+  command: npx
+  args: ["-y", "@mobilenext/mobile-mcp@latest"]
+  requires: [node, adb]
+  hints: [android, iphone, ios, my phone, apk, emulator, simulator, mobile app, tap, swipe]
+
+unity:
+  description: Control the Unity Editor (scenes, GameObjects, scripts, play mode)
+  platforms: [windows, macos]
+  repo: https://github.com/CoplayDev/unity-mcp
+  setup: >-
+    In Unity: Window > Package Manager > + > Add package from git URL, paste the URL from the
+    repo README. Open the MCP for Unity window, start the bridge, and copy the server command it
+    shows into mcp_servers.unity in this machine's config.yaml.
+  requires: [unity_hub, uv]
+  hints: [unity, game object, gameobject, prefab, scene, c# script, unity editor]
+
+blender:
+  description: Control Blender (create/modify 3D objects, materials, renders)
+  command: uvx
+  args: ["blender-mcp"]
+  repo: https://github.com/ahujasid/blender-mcp
+  setup: Install the addon.py from the repo in Blender (Edit > Preferences > Add-ons) and click "Connect to MCP server" in the sidebar.
+  requires: [blender, uv]
+  hints: [blender, 3d model, mesh, render, material]
+
+photoshop:
+  description: Control Photoshop through a UXP plugin bridge
+  platforms: [windows, macos]
+  repo: https://github.com/mikechambers/adb-mcp
+  setup: >-
+    Follow the repo README: install the UXP plugin in Photoshop, start the proxy, then copy the
+    MCP server command into mcp_servers.photoshop in this machine's config.yaml.
+  requires: [photoshop, uv, node]
+  hints: [photoshop, psd, layer, retouch, mask, remove background]
+
+hostinger:
+  description: Hostinger API (VPS, domains, DNS, websites). Needs an API token from hPanel.
+  command: npx
+  args: ["-y", "hostinger-api-mcp@latest"]
+  env: {API_TOKEN: "${HOSTINGER_API_TOKEN}"}
+  requires: [node]
+  hints: [hostinger, dns, domain, vps, hosting]
+
+desktop:
+  description: Terminal and file control on this machine. Powerful; enable only where you want it.
+  command: npx
+  args: ["-y", "@wonderwhy-er/desktop-commander@latest"]
+  requires: [node]
+  hints: [terminal, run a command, shell command]
