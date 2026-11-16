@@ -133,3 +133,11 @@ copilot_cli:
   helps: [code, devops]
   detect: {bin: [copilot]}
   install: {windows: "npm install -g @github/copilot", macos: "npm install -g @github/copilot", pi: "npm install -g @github/copilot", linux: "npm install -g @github/copilot"}
+
+grok_cli:
+  name: Grok Build CLI (uses your SuperGrok plan)
+  group: ai_cli
+  helps: [code, research]
+  manual: true
+  detect: {bin: [grok]}
+  install: {windows: "Install Grok Build from xAI's docs (docs.x.ai), then run: grok auth login", macos: "Install Grok Build from xAI's docs (docs.x.ai), then run: grok auth login", pi: "Install Grok Build from xAI's docs (docs.x.ai), then run: grok auth login", linux: "Install Grok Build from xAI's docs (docs.x.ai), then run: grok auth login"}

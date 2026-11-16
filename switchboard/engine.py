@@ -18,13 +18,17 @@ from .executor import Executor
 from .inventory import build_inventory, mcp_catalog
 from .mcp_hub import MCPHub
 from .nodes import NodeRegistry
-from .providers import ProviderError, RunRequest, build_providers
+from .providers import ProviderError, RunRequest, RunResult, build_providers
+from .providers.cli_bridge import CLIProvider
 from .router import PRIORITY, Plan, Router, TaskProfile, classify
 from .store import Store
 from .toolbox import ToolBox
 
 log = logging.getLogger("switchboard.engine")
 MIRROR_MAX_BYTES = 20 * 1024 * 1024
+CLI_TOOL_IDS = {"claude-code": "claude_code", "codex": "codex", "gemini-cli": "gemini_cli",
+                "copilot-cli": "copilot_cli", "grok-build": "grok_cli"}
+GATEWAY_TTL = 3 * 3600
 
 
 class Engine:
@@ -39,6 +43,7 @@ class Engine:
         self.executor = Executor(config, self.mcp)
         self.nodes = NodeRegistry(config.node_name, self.executor)
         self.running: dict[str, asyncio.Task] = {}
+        self.gateways: dict[str, tuple[ToolBox, float]] = {}
         self._avail: tuple[float, set[str]] = (0.0, set())
         self._bg: set[asyncio.Task] = set()
 
@@ -48,7 +53,44 @@ class Engine:
         if refresh or time.time() - ts > 30:
             cached = {n for n, p in self.providers.items() if p.available()}
             self._avail = (time.time(), cached)
-        return cached
+        # Plan CLIs count as available when any online machine has them installed.
+        return cached | {n for n in self.providers if n not in cached and self.cli_location(n)}
+
+    def cli_tool_id(self, provider: str) -> str | None:
+        p = self.providers.get(provider)
+        if not p or p.kind != "cli":
+            return None
+        return p.cfg.get("tool_id") or CLI_TOOL_IDS.get(provider)
+
+    def cli_location(self, provider: str) -> str | None:
+        """Machine to run a plan CLI on: this one if installed, else an online agent that has it."""
+        p = self.providers.get(provider)
+        if not p or p.kind != "cli":
+            return None
+        if p.available():
+            return self.config.node_name
+        tid = self.cli_tool_id(provider)
+        for n in self.nodes.list():
+            if not n["online"] or n["local"]:
+                continue
+            if provider in (n.get("cli_providers") or []) or ((n.get("tools") or {}).get(tid) or {}).get("installed"):
+                return n["node"]
+        return None
+
+    def limits(self) -> dict[str, dict]:
+        return self.store.active_limits()
+
+    def mark_limited(self, provider: str, exc: ProviderError) -> float:
+        until = exc.retry_at
+        if not until:
+            for src in self.ledger.sources:
+                if src.provider == provider and src.reset:
+                    until = src.reset.bounds(datetime.now().astimezone())[1].timestamp()
+                    break
+        until = until or time.time() + 3600
+        self.store.set_limit(provider, until, str(exc)[:300])
+        log.info("%s hit its plan limit until %s", provider, datetime.fromtimestamp(until))
+        return until
 
     async def refresh_local_inventory(self, start_mcp: bool = True) -> dict:
         inv = await build_inventory(self.config, self.mcp, start_mcp=start_mcp)
@@ -94,7 +136,7 @@ class Engine:
 
     async def plan(self, prompt: str, provider: str | None = None, model: str | None = None,
                    effort: str | None = None, mode: str | None = None, tools: str | list | None = "auto",
-                   images: int = 0, history_tokens: int = 0) -> Plan:
+                   images: int = 0, history_tokens: int = 0, billing: str | None = None) -> Plan:
         profile = await self.classify(prompt, images=images, attachments=images, history_tokens=history_tokens)
         hinted = list(profile.tool_servers)
         locations = self.nodes.mcp_locations()
@@ -109,7 +151,8 @@ class Engine:
         if not profile.tool_servers and "tools" in profile.needs:
             profile.needs.remove("tools")
         plan = self.router.plan(prompt, self.available_providers(), profile, provider=provider or None,
-                                model=model or None, effort=effort or None, mode=mode or None)
+                                model=model or None, effort=effort or None, mode=mode or None,
+                                billing=billing or None, limits=self.limits())
         plan.suggestions = advisor.suggest(profile.category, hinted, self.nodes.list())
         missing = [s for s in hinted if s not in locations]
         if missing:
@@ -118,10 +161,11 @@ class Engine:
         return plan
 
     # ---- tools --------------------------------------------------------------------------
-    async def build_toolbox(self, plan: Plan, task_dir: Path) -> ToolBox:
+    async def build_toolbox(self, plan: Plan | None, task_dir: Path, servers: list[str] | None = None,
+                            include_save: bool = True) -> ToolBox:
         tb = ToolBox()
         locations = self.nodes.mcp_locations()
-        for server in plan.tools:
+        for server in (servers if servers is not None else plan.tools):
             node = next((n for n in locations.get(server, []) if self.nodes.online(n)), None)
             if not node:
                 continue
@@ -136,8 +180,22 @@ class Engine:
             for t in tool_list:
                 tb.add(f"{server}__{t['name']}", f"[{server} on {node}] {t.get('description', '')}", t.get("schema"),
                        self._remote_tool(tb, node, server, t["name"]), origin=f"{node}/{server}/{t['name']}")
-        self._add_builtin_tools(tb, task_dir)
+        self._add_builtin_tools(tb, task_dir, include_save)
         return tb
+
+    async def create_gateway(self, servers: list[str], task_rel: str | None) -> tuple[str, ToolBox]:
+        """Tool gateway session for a plan CLI: the CLI's MCP client talks to these tools via the hub."""
+        now = time.time()
+        for gid in [g for g, (_, ts) in self.gateways.items() if now - ts > GATEWAY_TTL]:
+            self.gateways.pop(gid, None)
+        task_dir = self.config.output_dir
+        if task_rel:
+            task_dir = outputs.safe_join(self.config.output_dir, task_rel)
+            task_dir.mkdir(parents=True, exist_ok=True)
+        tb = await self.build_toolbox(None, task_dir, servers=servers, include_save=False)
+        gid = task_rel or uuid.uuid4().hex
+        self.gateways[gid] = (tb, now)
+        return gid, tb
 
     def _remote_tool(self, tb: ToolBox, node: str, server: str, tool: str):
         async def call(args: dict):
@@ -148,17 +206,18 @@ class Engine:
             return payload.get("text", ""), bool(payload.get("is_error"))
         return call
 
-    def _add_builtin_tools(self, tb: ToolBox, task_dir: Path) -> None:
+    def _add_builtin_tools(self, tb: ToolBox, task_dir: Path, include_save: bool = True) -> None:
         async def save_output_file(args: dict):
             target = outputs.safe_join(task_dir / "files", str(args["path"]))
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(str(args.get("content", "")), encoding="utf-8")
             return f"saved {target}"
 
-        tb.add("save_output_file", "Save a text file (code, config, document) into this task's output folder.",
-               {"type": "object", "properties": {"path": {"type": "string", "description": "relative path, e.g. src/main.py"},
-                                                 "content": {"type": "string"}}, "required": ["path", "content"]},
-               save_output_file, origin="switchboard/save_output_file")
+        if include_save:
+            tb.add("save_output_file", "Save a text file (code, config, document) into this task's output folder.",
+                   {"type": "object", "properties": {"path": {"type": "string", "description": "relative path, e.g. src/main.py"},
+                                                     "content": {"type": "string"}}, "required": ["path", "content"]},
+                   save_output_file, origin="switchboard/save_output_file")
 
         async def list_machines(args: dict):
             return [{"node": n["node"], "platform": n.get("platform"), "online": n.get("online"),
@@ -204,7 +263,7 @@ class Engine:
                 try:
                     attempts.append(self.router.plan(prompt, self.available_providers(),
                                                      TaskProfile(**plan.profile.__dict__), model=alt["key"],
-                                                     effort=plan.effort))
+                                                     effort=plan.effort, billing=plan.billing, limits=self.limits()))
                 except ValueError:
                     pass
         errors: list[str] = []
@@ -214,18 +273,35 @@ class Engine:
             prov = self.providers.get(attempt.provider)
             if not m or not prov:
                 continue
-            toolbox = await self.build_toolbox(attempt, task_dir) if ("tools" in m.features and attempt.tools) else None
+            is_cli = prov.kind == "cli"
+            if attempt.provider in self.limits():
+                continue
+            toolbox = None
+            if attempt.tools and "tools" in m.features and not is_cli:
+                toolbox = await self.build_toolbox(attempt, task_dir)
+            task_rel = task_dir.relative_to(self.config.output_dir).as_posix()
             req = RunRequest(prompt=prompt, model=m, effort=attempt.native_effort, max_tokens=attempt.max_tokens,
                              history=history, images=images, workdir=task_dir,
                              allow_edits=bool((self.config.permissions or {}).get("cli_agents_can_edit")),
-                             max_tool_rounds=int(self.config.router.get("max_tool_rounds", 25)))
+                             max_tool_rounds=int(self.config.router.get("max_tool_rounds", 25)),
+                             tool_servers=list(attempt.tools) if (is_cli and "tools" in m.features) else [],
+                             task_rel=task_rel)
             try:
-                result = await prov.run(req, toolbox)
+                if is_cli:
+                    result = await self._run_cli(prov, req, task_dir)
+                    gw = self.gateways.pop(task_rel, None)
+                    if gw:
+                        toolbox = gw[0]
+                else:
+                    result = await prov.run(req, toolbox)
                 used = attempt
                 break
             except ProviderError as exc:
                 errors.append(f"{attempt.provider}:{attempt.model}: {exc}")
                 log.warning("task %s attempt failed: %s", task_id, exc)
+                if exc.kind == "rate_limit" and is_cli:
+                    until = self.mark_limited(attempt.provider, exc)
+                    errors[-1] += f" (plan limit; resets {datetime.fromtimestamp(until):%a %H:%M})"
                 if not exc.failover_ok:
                     break
             except Exception as exc:  # unexpected: record and stop
@@ -256,6 +332,41 @@ class Engine:
         self._spawn(self._mirror(task_dir))
         return self.store.get_task(task_id)
 
+    async def _run_cli(self, prov: CLIProvider, req: RunRequest, task_dir: Path) -> RunResult:
+        """Run a plan CLI here, or on the agent machine where it is installed and logged in."""
+        where = self.cli_location(prov.name)
+        if where is None:
+            raise ProviderError(f"{prov.name} is not installed on any connected machine", "unavailable")
+        if where == self.config.node_name:
+            return await prov.run(req, None)
+        payload = {"provider": prov.name, "cfg": prov.cfg, "prompt": req.prompt, "model": req.model.id,
+                   "effort": req.effort, "allow_edits": req.allow_edits, "tool_servers": req.tool_servers,
+                   "task_rel": req.task_rel, "history": req.history}
+        res = await self.nodes.submit(where, "cli_run", payload, timeout=float(prov.cfg.get("timeout_seconds", 1800)) + 60)
+        if res.get("error"):
+            raise ProviderError(f"{res['error']} (on {where})", res.get("error_kind", "error"), retry_at=res.get("retry_at"))
+        files = [(f"files-from-{where}/{f['path']}", base64.b64decode(f["b64"])) for f in res.get("files") or []]
+        text = res["text"]
+        if res.get("created"):
+            text += f"\n\n[{len(res['created'])} file(s) written on {where}: {', '.join(res['created'][:10])}]"
+        return RunResult(text=text, provider=prov.name, model=req.model.id, input_tokens=res.get("input_tokens", 0),
+                         output_tokens=res.get("output_tokens", 0), cost_usd=0.0, requests=1, stop_reason="cli",
+                         files=files, notional_cost_usd=res.get("notional_cost_usd"))
+
+    def plans_status(self) -> list[dict]:
+        limits = self.limits()
+        out = []
+        for name, p in self.providers.items():
+            if p.kind != "cli":
+                continue
+            where = self.cli_location(name)
+            lim = limits.get(name)
+            status = "limit reached" if lim else "ready" if where else "not installed"
+            out.append({"provider": name, "label": next((m.label for m in self.catalog.for_provider(name)), name),
+                        "where": where, "status": status, "resets": lim["until"] if lim else None,
+                        "detail": lim["reason"] if lim else None})
+        return out
+
     async def _mirror(self, task_dir: Path) -> None:
         rel_root = task_dir.relative_to(self.config.output_dir)
         for n in self.nodes.list():
@@ -282,10 +393,11 @@ class Engine:
         avail = self.available_providers()
         statuses = [st.to_dict() for st in self.ledger.statuses()]
         tracked = {s["provider"] for s in statuses}
-        untracked = sorted(p for p in avail if p not in tracked and self.providers[p].kind != "mock")
+        untracked = sorted(p for p in avail if p not in tracked and self.providers[p].kind not in ("mock", "cli"))
         month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
         return {"sources": statuses, "alerts": [a.to_dict() for a in self.ledger.alerts()],
-                "untracked_providers": untracked, "spend_this_month": self.store.usage_summary(month_start)}
+                "untracked_providers": untracked, "spend_this_month": self.store.usage_summary(month_start),
+                "plans": self.plans_status(), "billing": self.config.router.get("billing", "plans_first")}
 
     async def refresh_balances(self) -> dict:
         return await balances.refresh_all(self.config, self.store)

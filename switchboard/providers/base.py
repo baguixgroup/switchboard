@@ -18,10 +18,11 @@ DEFAULT_SYSTEM = (
 class ProviderError(Exception):
     """kind: rate_limit | credit | auth | unavailable | bad_request | not_found | refused | error"""
 
-    def __init__(self, message: str, kind: str = "error", retryable: bool = False):
+    def __init__(self, message: str, kind: str = "error", retryable: bool = False, retry_at: float | None = None):
         super().__init__(message)
         self.kind = kind
         self.retryable = retryable
+        self.retry_at = retry_at  # epoch seconds when a plan/daily limit resets, if known
 
     @property
     def failover_ok(self) -> bool:
@@ -40,6 +41,9 @@ class RunRequest:
     workdir: Path | None = None
     allow_edits: bool = False
     max_tool_rounds: int = 25
+    # Plan CLIs reach Switchboard's tools (MCP servers on every machine) through this gateway.
+    tool_servers: list[str] = field(default_factory=list)
+    task_rel: str | None = None  # task folder relative to the output folder
 
 
 @dataclass

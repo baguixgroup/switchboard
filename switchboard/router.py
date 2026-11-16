@@ -44,6 +44,17 @@ COMPLEXITY_OUT = [0.5, 0.8, 1.0, 1.6, 2.5]
 REQUIRED_QUALITY = {1: 4.0, 2: 5.5, 3: 7.0, 4: 8.5, 5: 9.5}
 EFFORT_BY_COMPLEXITY = {1: "low", 2: "low", 3: "medium", 4: "high", 5: "xhigh"}
 MODE_WEIGHTS = {"balanced": (2.0, 1.0), "best": (3.0, 0.25), "cheapest": (1.0, 3.0)}
+BILLING = ("plans_only", "plans_first", "any")
+PLAN_BONUS = 4.0
+
+
+def is_plan_or_free(m: ModelInfo, source: SourceStatus | None) -> bool:
+    """True when a call costs no API credit: plan CLIs, $0 models (local, GitHub Models), or a free-tier source."""
+    if "cli" in m.features or "local" in m.features:
+        return True
+    if m.price_in == 0 and m.price_out == 0 and m.per_call == 0:
+        return True
+    return bool(source and source.source.type in ("free_tier", "subscription"))
 
 
 @dataclass
@@ -76,6 +87,7 @@ class Plan:
     alternatives: list[dict] = field(default_factory=list)
     tools: list[str] = field(default_factory=list)
     manual: bool = False
+    billing: str = "plans_first"
     needs_confirmation: bool = False
     suggestions: list[dict] = field(default_factory=list)
 
@@ -105,6 +117,14 @@ def _pattern(word: str) -> re.Pattern:
 
 def _hits(text: str, words: Iterable[str]) -> list[str]:
     return [w.rstrip("*") for w in words if _pattern(w).search(text)]
+
+
+def _when(ts: float) -> str:
+    from datetime import datetime
+    dt = datetime.fromtimestamp(ts)
+    today = datetime.now().date()
+    day = "today" if dt.date() == today else "tomorrow" if (dt.date() - today).days == 1 else dt.strftime("%a %d %b")
+    return f"{day} at {dt.strftime('%H:%M')}"
 
 
 def money(x: float) -> str:
@@ -219,8 +239,12 @@ class Router:
         return score, est_cost, eff_cost, reasons
 
     def plan(self, prompt: str, available: set[str], profile: TaskProfile, provider: str | None = None,
-             model: str | None = None, effort: str | None = None, mode: str | None = None) -> Plan:
+             model: str | None = None, effort: str | None = None, mode: str | None = None,
+             billing: str | None = None, limits: dict[str, dict] | None = None) -> Plan:
         mode = mode or self.cfg.get("mode", "balanced")
+        billing = billing if billing in BILLING else self.cfg.get("billing", "plans_first")
+        limits = limits or {}
+        available = set(available) - set(limits)
         rec_effort = recommended_effort(profile.complexity, mode)
         manual = bool(model or provider or effort)
         warnings: list[str] = []
@@ -229,6 +253,8 @@ class Router:
             m = self.catalog.find(model, provider)
             if not m:
                 raise ValueError(f"Unknown model '{model}'. See `switchboard models list`.")
+            if m.provider in limits:
+                raise ValueError(f"{m.provider} has hit its plan limit; it resets {_when(limits[m.provider]['until'])}.")
             if m.provider not in available:
                 raise ValueError(f"{m.provider} is not available here (missing API key or CLI not installed).")
             candidates = [m]
@@ -248,7 +274,8 @@ class Router:
                 profile.category = "writing"
                 candidates = [m for m in self.catalog.all() if self._eligible(m, profile, available)]
         if not candidates:
-            raise ValueError("No usable model: add at least one API key to secrets.env or install a subscription CLI.")
+            raise ValueError(self._nothing_left(limits) or
+                             "No usable model: add an API key to secrets.env or install and log in to a plan CLI.")
 
         scored = []
         for m in candidates:
@@ -258,9 +285,20 @@ class Router:
                 if model:
                     raise ValueError(f"{m.provider} is over its monthly budget.")
                 continue
+            free = is_plan_or_free(m, src)
+            if billing == "plans_only" and not free and not model:
+                continue
             score, est, eff, reasons = self._evaluate(m, profile, use_effort, mode, src)
+            if free and billing != "any":
+                score += PLAN_BONUS
+                if "cli" in m.features:
+                    reasons.append("uses your plan's limits, not credit")
             scored.append((score, m, src, est, eff, reasons))
         if not scored:
+            if billing == "plans_only":
+                raise ValueError(self._nothing_left(limits) or
+                                 "No plan or free model can do this task here (for example, image generation needs a "
+                                 "paid image model). Install/log in to a plan CLI, or allow credit with billing=plans_first.")
             raise ValueError("Every candidate provider is over budget or out of credit.")
         scored.sort(key=lambda x: x[0], reverse=True)
         score, m, src, est, eff, reasons = scored[0]
@@ -281,6 +319,11 @@ class Router:
             warnings.append(f"'{effort}' effort may be too low for this task; '{rec_effort}' is recommended.")
         if src.note:
             warnings.append(f"{src.source.label}: {src.note}")
+        if billing == "plans_only" and not is_plan_or_free(m, src):
+            warnings.append(f"You picked {m.label or m.id}, which spends API credit (billing is plans_only).")
+        hit = sorted(limits.items(), key=lambda kv: kv[1]["until"])
+        if hit:
+            warnings.append("Plan limits reached: " + ", ".join(f"{p} (resets {_when(v['until'])})" for p, v in hit))
 
         if manual and len(scored) == 1:
             better = self._best_alternative(prompt, available, profile, mode, exclude=m.key)
@@ -308,13 +351,21 @@ class Router:
             source_id=src.source.id, source_label=src.source.label, est_cost_usd=round(est, 5),
             effective_cost_usd=round(eff, 5), score=round(score, 2), profile=profile, reasons=why,
             warnings=warnings, alternatives=alternatives, tools=list(profile.tool_servers), manual=manual,
-            needs_confirmation=eff > confirm_above,
+            billing=billing, needs_confirmation=eff > confirm_above,
         )
+
+    @staticmethod
+    def _nothing_left(limits: dict[str, dict]) -> str | None:
+        if not limits:
+            return None
+        p, v = min(limits.items(), key=lambda kv: kv[1]["until"])
+        return (f"All usable plans have hit their limits. The first to reset is {p}, {_when(v['until'])}. "
+                f"Wait, or allow API credit for this task (billing=plans_first or any).")
 
     def _best_alternative(self, prompt: str, available: set[str], profile: TaskProfile, mode: str,
                           exclude: str) -> dict | None:
         try:
-            auto = self.plan(prompt, available, TaskProfile(**asdict(profile)), mode=mode)
+            auto = self.plan(prompt, available, TaskProfile(**asdict(profile)), mode=mode, billing="any")
         except ValueError:
             return None
         if f"{auto.provider}:{auto.model}" == exclude:

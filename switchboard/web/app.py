@@ -32,7 +32,18 @@ class PlanIn(BaseModel):
     effort: str | None = None
     mode: str | None = None
     tools: Any = "auto"
+    billing: str | None = None  # plans_only | plans_first | any
     images: list[str] = Field(default_factory=list)  # data URLs
+
+
+class GatewayIn(BaseModel):
+    servers: list[str] = Field(default_factory=list)
+    task: str | None = None
+
+
+class GatewayCallIn(BaseModel):
+    name: str
+    arguments: dict = Field(default_factory=dict)
 
 
 class TaskIn(PlanIn):
@@ -154,7 +165,7 @@ def create_app(engine) -> FastAPI:
     async def plan(body: PlanIn) -> dict:
         try:
             p = await engine.plan(body.prompt, body.provider, body.model, body.effort, body.mode, body.tools,
-                                  images=len(body.images))
+                                  images=len(body.images), billing=body.billing)
         except ValueError as exc:
             raise HTTPException(400, str(exc))
         return p.to_dict()
@@ -163,7 +174,8 @@ def create_app(engine) -> FastAPI:
     async def create_task(body: TaskIn):
         try:
             p = Plan.from_dict(body.plan) if body.plan else await engine.plan(
-                body.prompt, body.provider, body.model, body.effort, body.mode, body.tools, images=len(body.images))
+                body.prompt, body.provider, body.model, body.effort, body.mode, body.tools, images=len(body.images),
+                billing=body.billing)
         except (ValueError, TypeError, KeyError) as exc:
             raise HTTPException(400, str(exc))
         if p.needs_confirmation and not body.confirm:
@@ -268,6 +280,32 @@ def create_app(engine) -> FastAPI:
         return {"locations": engine.nodes.mcp_locations(),
                 "catalog": {k: {kk: v.get(kk) for kk in ("description", "platforms", "setup", "repo", "requires")}
                             for k, v in mcp_catalog().items()}}
+
+    # ---- tool gateway for plan CLIs ---------------------------------------------------------
+    @app.post("/api/gateway", dependencies=[Depends(auth)])
+    async def gateway_open(body: GatewayIn) -> dict:
+        try:
+            gid, tb = await engine.create_gateway(body.servers, body.task)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        return {"id": gid, "tools": [{"name": t.name, "description": t.description, "schema": t.schema} for t in tb.specs()]}
+
+    @app.post("/api/gateway/{gid:path}/call", dependencies=[Depends(auth)])
+    async def gateway_call(gid: str, body: GatewayCallIn) -> dict:
+        entry = engine.gateways.get(gid)
+        if not entry:
+            raise HTTPException(404, "gateway session expired")
+        text, is_error = await entry[0].call(body.name, body.arguments)
+        return {"text": text, "is_error": is_error}
+
+    @app.get("/api/plans", dependencies=[Depends(auth)])
+    async def plans() -> list[dict]:
+        return engine.plans_status()
+
+    @app.delete("/api/plans/{provider}/limit", dependencies=[Depends(auth)])
+    async def clear_limit(provider: str) -> dict:
+        engine.store.clear_limit(provider)
+        return {"ok": True}
 
     # ---- agents ----------------------------------------------------------------------------
     @app.post("/api/agent/heartbeat", dependencies=[Depends(auth)])

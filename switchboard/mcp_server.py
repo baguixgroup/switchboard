@@ -83,3 +83,38 @@ def build_server(config):
 
 async def serve_stdio(config) -> None:
     await build_server(config).run_stdio_async()
+
+
+async def serve_gateway(config, servers: list[str], task_rel: str | None) -> None:
+    """MCP server for plan CLIs (Claude Code, Codex, Gemini CLI, Copilot CLI): exposes the MCP tools of every
+    connected machine, plus device actions, by forwarding calls to the hub."""
+    import mcp_types as types
+    from mcp.server.lowlevel import Server
+    from mcp.server.stdio import stdio_server
+
+    headers = {"Authorization": f"Bearer {config.token}"} if config.token else {}
+    http = httpx.AsyncClient(base_url=config.hub_url, headers=headers, timeout=900)
+    r = await http.post("/api/gateway", json={"servers": servers, "task": task_rel})
+    r.raise_for_status()
+    session = r.json()
+    gid, tools = session["id"], session["tools"]
+
+    async def list_tools(ctx, params):
+        return types.ListToolsResult(tools=[types.Tool(name=t["name"], description=t["description"],
+                                                       input_schema=t["schema"]) for t in tools])
+
+    async def call_tool(ctx, params):
+        res = await http.post(f"/api/gateway/{gid}/call", json={"name": params.name, "arguments": params.arguments or {}})
+        if res.status_code != 200:
+            return types.CallToolResult(content=[types.TextContent(type="text", text=f"hub error {res.status_code}: {res.text[:500]}")],
+                                        is_error=True)
+        d = res.json()
+        return types.CallToolResult(content=[types.TextContent(type="text", text=d["text"])], is_error=d["is_error"])
+
+    server = Server("switchboard", instructions="Tools on the user's machines and devices, via Switchboard.",
+                    on_list_tools=list_tools, on_call_tool=call_tool)
+    try:
+        async with stdio_server() as (read, write):
+            await server.run(read, write, server.create_initialization_options())
+    finally:
+        await http.aclose()

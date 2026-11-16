@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import time
 
 from . import devices
 from .inventory import build_inventory, run_shell, tools_catalog
@@ -31,6 +32,8 @@ class Executor:
             return await devices.device_action(self.config, payload["device"], payload["action"], payload.get("args"))
         if kind == "install_tool":
             return await self.install_tool(payload["tool"], bool(payload.get("approved")))
+        if kind == "cli_run":
+            return await self.cli_run(payload)
         if kind == "write_output":
             target = safe_join(self.config.output_dir, payload["path"])
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -58,3 +61,33 @@ class Executor:
         if rc != 0 and "a password is required" in err:
             text += f"\n\nThis needs your password. Run it yourself on {self.config.node_name}:\n  {command[8:]}"
         return {"ok": rc == 0, "command": command, "output": text}
+
+    async def cli_run(self, p: dict) -> dict:
+        """Run a plan CLI on this machine (where it is installed and logged in) for the hub."""
+        from .catalog import ModelInfo
+        from .providers import ProviderError, RunRequest
+        from .providers.cli_bridge import CLIProvider, new_files
+
+        local = self.config.providers.get(p["provider"]) or {}
+        prov = CLIProvider(p["provider"], {**p["cfg"], **local}, self.config)  # this machine's CLI settings win
+        workdir = safe_join(self.config.output_dir, p["task_rel"]) if p.get("task_rel") else self.config.output_dir
+        workdir.mkdir(parents=True, exist_ok=True)
+        started = time.time()
+        req = RunRequest(prompt=p["prompt"], model=ModelInfo(provider=p["provider"], id=p["model"]), effort=p.get("effort"),
+                         workdir=workdir, allow_edits=bool(p.get("allow_edits")), history=p.get("history") or [],
+                         tool_servers=p.get("tool_servers") or [], task_rel=p.get("task_rel"))
+        try:
+            res = await prov.run(req, None)
+        except ProviderError as exc:
+            return {"error": str(exc), "error_kind": exc.kind, "retry_at": exc.retry_at}
+        created = new_files(workdir, started)
+        files, total = [], 0
+        for f in created:
+            size = f.stat().st_size
+            if total + size > 20_000_000:
+                break
+            total += size
+            files.append({"path": f.relative_to(workdir).as_posix(), "b64": base64.b64encode(f.read_bytes()).decode("ascii")})
+        return {"text": res.text, "input_tokens": res.input_tokens, "output_tokens": res.output_tokens,
+                "notional_cost_usd": res.notional_cost_usd, "files": files,
+                "created": [f.relative_to(workdir).as_posix() for f in created]}

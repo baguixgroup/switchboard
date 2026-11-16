@@ -39,6 +39,11 @@ CREATE TABLE IF NOT EXISTS balances (
   ts REAL NOT NULL,
   data TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS limits (
+  provider TEXT PRIMARY KEY,
+  until_ts REAL NOT NULL,
+  reason TEXT
+);
 CREATE TABLE IF NOT EXISTS alerts_sent (
   key TEXT PRIMARY KEY,
   ts REAL NOT NULL
@@ -144,6 +149,18 @@ class Store:
         if not rows:
             return None
         return rows[0]["ts"], json.loads(rows[0]["data"])
+
+    # ---- plan / daily limits -----------------------------------------------------------
+    def set_limit(self, provider: str, until_ts: float, reason: str = "") -> None:
+        self._exec("INSERT OR REPLACE INTO limits(provider, until_ts, reason) VALUES (?,?,?)", (provider, until_ts, reason))
+
+    def clear_limit(self, provider: str) -> None:
+        self._exec("DELETE FROM limits WHERE provider=?", (provider,))
+
+    def active_limits(self, now: float | None = None) -> dict[str, dict]:
+        now = now or time.time()
+        rows = self._exec("SELECT provider, until_ts, reason FROM limits WHERE until_ts > ?", (now,))
+        return {r["provider"]: {"until": r["until_ts"], "reason": r["reason"]} for r in rows}
 
     # ---- alerts --------------------------------------------------------------------
     def alert_sent(self, key: str) -> bool:
