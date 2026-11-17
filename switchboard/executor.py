@@ -34,6 +34,10 @@ class Executor:
             return await self.install_tool(payload["tool"], bool(payload.get("approved")))
         if kind == "cli_run":
             return await self.cli_run(payload)
+        if kind in ("mcp_add", "mcp_remove", "mcp_restart"):
+            return await self.mcp_config(kind, payload)
+        if kind == "cli_login":
+            return await self.cli_login(payload)
         if kind == "write_output":
             target = safe_join(self.config.output_dir, payload["path"])
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -91,3 +95,65 @@ class Executor:
         return {"text": res.text, "input_tokens": res.input_tokens, "output_tokens": res.output_tokens,
                 "notional_cost_usd": res.notional_cost_usd, "files": files,
                 "created": [f.relative_to(workdir).as_posix() for f in created]}
+
+    async def mcp_config(self, kind: str, p: dict) -> dict:
+        """Add, remove or restart an MCP server on this machine, then return a fresh inventory."""
+        name = p["name"]
+        servers = dict(self.config.user_raw.get("mcp_servers") or {})
+        await self.mcp.stop(name)
+        if kind == "mcp_add":
+            servers[name] = p["entry"]
+            self.config.set_section("mcp_servers", servers)
+        elif kind == "mcp_remove":
+            servers.pop(name, None)
+            self.config.set_section("mcp_servers", servers)
+        if kind != "mcp_remove":
+            await self.mcp.ensure(name, timeout=120)
+        return await build_inventory(self.config, self.mcp, start_mcp=False)
+
+    async def cli_login(self, p: dict) -> dict:
+        """Start a plan app's sign-in on this machine (it opens the browser here) and report any code/link it prints."""
+        import asyncio
+        import re
+        import shutil
+
+        local = self.config.providers.get(p["provider"]) or {}
+        cfg = {**p["cfg"], **local}
+        exe = shutil.which(cfg.get("command", p["provider"]))
+        if not exe:
+            return {"ok": False, "message": f"{cfg.get('command')} is not installed on {self.config.node_name}."}
+        proc = await asyncio.create_subprocess_exec(exe, *cfg["login_args"], stdin=asyncio.subprocess.PIPE,
+                                                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        try:
+            proc.stdin.write(b"\n")  # some flows wait for Enter before opening the browser
+            await proc.stdin.drain()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        lines: list[str] = []
+
+        async def read_some(deadline: float) -> None:
+            while asyncio.get_running_loop().time() < deadline:
+                try:
+                    line = await asyncio.wait_for(proc.stdout.readline(), 1)
+                except asyncio.TimeoutError:
+                    continue
+                if not line:
+                    return
+                lines.append(re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", line.decode(errors="replace")).rstrip())
+
+        await read_some(asyncio.get_running_loop().time() + 12)
+
+        async def finish() -> None:  # keep the sign-in running in the background for up to 10 minutes
+            try:
+                await asyncio.wait_for(proc.wait(), 600)
+            except asyncio.TimeoutError:
+                proc.kill()
+
+        if proc.returncode is None:
+            asyncio.get_running_loop().create_task(finish())
+        text = "\n".join(ln for ln in lines if ln.strip())[-3000:]
+        done = proc.returncode == 0
+        return {"ok": True, "finished": done, "output": text,
+                "message": ("Signed in." if done else
+                            f"Sign-in started on {self.config.node_name}. Finish it in the browser window that opened "
+                            f"there (or use the link/code below).")}

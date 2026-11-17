@@ -175,7 +175,7 @@ def cmd_init(cfg: Config, a) -> None:
     if role == "hub":
         print(f"\nNext:\n  1. Add your API keys to {sec}\n  2. Add credits/free tiers: switchboard credits add --help"
               f"\n  3. Start it: switchboard serve   (or: switchboard service install --role hub)"
-              f"\n  4. Open http://localhost:{cfg.server.get('port', 8765)}"
+              f"\n  4. Open http://localhost:{cfg.server.get('port', 8765)} (everything else can be done there)"
               f"\n\nAgents need this token:  {cfg.token}")
     else:
         if not a.token:
@@ -208,6 +208,16 @@ def cmd_agent(cfg: Config, a) -> None:
 
     with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(run_agent(cfg))
+
+
+def cmd_tray(cfg: Config, a) -> None:
+    _need_config(cfg)
+    _setup_logging(cfg, "tray", a.service)
+    from .tray import run_tray, tray_available
+
+    if not tray_available():
+        raise SystemExit("The tray icon needs extra packages: pip install \"switchboard-ai[tray]\"")
+    run_tray(cfg)
 
 
 def _plan_body(a, prompt: str) -> dict:
@@ -557,6 +567,9 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("agent", help="run this machine as an agent of the hub")
     s.add_argument("--service", action="store_true", help=argparse.SUPPRESS)
 
+    s = sub.add_parser("tray", help="tray/menu-bar icon (on agents it also runs the agent)")
+    s.add_argument("--service", action="store_true", help=argparse.SUPPRESS)
+
     for name, help_ in (("ask", "run a task"), ("plan", "show which model/effort/credit a task would use")):
         s = sub.add_parser(name, help=help_)
         s.add_argument("prompt", nargs="*", help="the prompt ('-' or nothing: read stdin)")
@@ -638,7 +651,7 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-COMMANDS = {"init": cmd_init, "serve": cmd_serve, "agent": cmd_agent, "ask": cmd_ask, "plan": cmd_plan,
+COMMANDS = {"init": cmd_init, "serve": cmd_serve, "agent": cmd_agent, "tray": cmd_tray, "ask": cmd_ask, "plan": cmd_plan,
             "credits": cmd_credits, "alerts": cmd_alerts, "models": cmd_models, "nodes": cmd_nodes,
             "device": cmd_device, "tools": cmd_tools, "mcp": cmd_mcp, "service": cmd_service, "doctor": cmd_doctor}
 

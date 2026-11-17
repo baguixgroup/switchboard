@@ -27,7 +27,7 @@ fi
 mkdir -p "$BASE"
 "$PY" -m venv "$BASE/venv"
 "$BASE/venv/bin/pip" install --upgrade pip --quiet
-"$BASE/venv/bin/pip" install "$SRC" --quiet
+"$BASE/venv/bin/pip" install "$SRC[tray]" --quiet
 
 mkdir -p "$HOME/.local/bin"
 ln -sf "$BASE/venv/bin/switchboard" "$HOME/.local/bin/switchboard"

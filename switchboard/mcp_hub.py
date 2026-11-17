@@ -176,6 +176,15 @@ class MCPHub:
             }
         return out
 
+    async def stop(self, name: str) -> None:
+        w = self.workers.pop(name, None)
+        if w and w.task and not w.task.done():
+            await w.queue.put(None)
+            try:
+                await asyncio.wait_for(w.task, 5)
+            except (asyncio.TimeoutError, Exception):
+                w.task.cancel()
+
     async def close(self) -> None:
         for w in self.workers.values():
             if w.task and not w.task.done():

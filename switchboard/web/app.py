@@ -13,10 +13,10 @@ from importlib import resources
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response as RawResponse
 from pydantic import BaseModel, Field
 
-from .. import advisor
+from .. import __version__, advisor
 from ..credits import CreditSource
 from ..inventory import mcp_catalog
 from ..router import Plan
@@ -110,7 +110,19 @@ def create_app(engine) -> FastAPI:
         sched.cancel()
         await engine.close()
 
-    app = FastAPI(title="Switchboard", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Switchboard", version="0.2.0", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def local_guard(request: Request, call_next):
+        # Token-less access is allowed from this machine only, and only for its own pages: block other
+        # websites (cross-site requests) and DNS-rebinding tricks from using it.
+        from ..localproxy import local_request_ok
+
+        host = request.client.host if request.client else ""
+        if host in LOCAL_HOSTS and host != "testclient" and not request.headers.get("authorization") \
+                and not local_request_ok(request):
+            return JSONResponse({"detail": "Refused: cross-site request"}, status_code=403)
+        return await call_next(request)
 
     def auth(request: Request) -> None:
         host = request.client.host if request.client else ""
@@ -123,9 +135,34 @@ def create_app(engine) -> FastAPI:
             raise HTTPException(401, "Missing or wrong Switchboard token")
 
     # ---- dashboard ------------------------------------------------------------------
+    static = resources.files("switchboard").joinpath("web", "static")
+    types = {".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".svg": "image/svg+xml",
+             ".webmanifest": "application/manifest+json", ".html": "text/html"}
+
     @app.get("/", response_class=HTMLResponse)
     async def index() -> str:
-        return resources.files("switchboard").joinpath("web", "static", "index.html").read_text(encoding="utf-8")
+        return static.joinpath("index.html").read_text(encoding="utf-8")
+
+    @app.get("/static/{name}")
+    async def static_file(name: str):
+        if "/" in name or "\\" in name or name.startswith("."):
+            raise HTTPException(404)
+        f = static.joinpath(name)
+        if not f.is_file():
+            raise HTTPException(404)
+        ext = "." + name.rsplit(".", 1)[-1]
+        return RawResponse(f.read_bytes(), media_type=types.get(ext, "application/octet-stream"),
+                           headers={"Cache-Control": "no-cache"})
+
+    @app.get("/manifest.webmanifest")
+    async def manifest():
+        return RawResponse(static.joinpath("manifest.webmanifest").read_bytes(), media_type="application/manifest+json")
+
+    @app.get("/sw.js")
+    async def service_worker():
+        # Served from the root so it can control the whole dashboard.
+        return RawResponse(static.joinpath("sw.js").read_bytes(), media_type="text/javascript",
+                           headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
     @app.get("/healthz")
     async def healthz() -> dict:
@@ -136,7 +173,7 @@ def create_app(engine) -> FastAPI:
     async def status() -> dict:
         avail = engine.available_providers(refresh=True)
         return {
-            "node": cfg.node_name, "role": cfg.role, "output_dir": str(cfg.output_dir),
+            "node": cfg.node_name, "role": cfg.role, "output_dir": str(cfg.output_dir), "version": __version__,
             "providers": [dict(p.describe(), available=n in avail) for n, p in engine.providers.items()],
             "nodes_online": sum(1 for n in engine.nodes.list() if n["online"]),
             "running_tasks": len(engine.running), "router": cfg.router,
@@ -335,4 +372,7 @@ def create_app(engine) -> FastAPI:
     async def job_result(job_id: str, body: JobResultIn) -> dict:
         return {"accepted": engine.nodes.complete(job_id, body.model_dump())}
 
+    from .manage import register as register_manage
+
+    register_manage(app, engine, auth)
     return app
