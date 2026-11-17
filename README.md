@@ -41,16 +41,41 @@ your output folder on every machine.
 | Test on phones, PS4, servers like Hostinger | Android (adb: screenshot, logs, install, launch, open URL), iOS devices and simulators (Xcode tools on the Mac), SSH servers (check, deploy with rsync/scp, run), and reachability checks for network devices. See limits below |
 | Use it from other AI apps | `switchboard mcp serve` makes Switchboard an MCP server. `switchboard mcp export` registers it with Claude Desktop, Claude Code, VS Code, Cursor, Codex or Gemini CLI |
 
-## Accessing Switchboard
+## Using it: the app
 
-| From | How |
+After installing, everything happens in the **Switchboard app**, a dashboard you open in any browser that
+you can also install like a normal app. No terminal needed.
+
+| Where | How |
 |---|---|
-| **Any browser at home** (PC, Mac, phone, tablet) | `http://<pi-ip>:8765`. The Pi installer prints the address; on the Pi, `hostname -I` shows the IP. The first visit from another device asks for the token (`SWITCHBOARD_TOKEN` in the hub's `secrets.env`), then remembers it. On a phone, use "Add to Home Screen" for an app icon |
-| **The hub itself** | `http://localhost:8765` (no token needed) |
-| **Away from home** | Install [Tailscale](https://tailscale.com) on the Pi and on your phone/laptop, then open `http://<pi-tailscale-name>:8765`. Don't port-forward 8765 on your router |
-| **Terminal, any machine** | `switchboard ask "..."`, `switchboard credits`, `switchboard nodes` (agents forward to the hub) |
-| **Inside your AI apps** | `switchboard mcp export --target claude-desktop --write` (also `vscode`, `cursor`, `claude-code`, `codex`, `gemini-cli`). Then chat in that app as usual, using that app's own daily limits, and it can call Switchboard's tools |
-| **Phone alerts** | Set `notify.ntfy_topic` and subscribe in the ntfy app (expiring credit, unused free quota, limits) |
+| **Your Windows PC or Mac** (with the agent) | Click the **Switchboard icon** in the system tray / menu bar, then **Open Switchboard**. It opens `http://localhost:8766`, which needs no token. Use the browser's **Install** button (Chrome/Edge address bar) to get it as its own app window with an icon |
+| **The hub itself** | `http://localhost:8765` |
+| **Phone, tablet, any other device at home** | `http://<pi-ip>:8765` (the Pi installer prints it). Enter the token once (*Settings → About* shows it). On iPhone: Share → *Add to Home Screen*; on Android: menu → *Install app / Add to Home screen* |
+| **Away from home** | Install [Tailscale](https://tailscale.com) on the Pi and your phone/laptop, then open the Pi's Tailscale address. Never port-forward 8765 on your router |
+| **Inside your AI apps** | `switchboard mcp export --target claude-desktop --write` (also `vscode`, `cursor`, `claude-code`, `codex`, `gemini-cli`), then chat in that app as usual |
+
+What's in the app:
+
+- **Ask**: a chat. Type a task and Switchboard picks the AI (or tap **Automatic** to choose one yourself),
+  shows "will use Claude, your plan, no credit" before you send, and asks before anything expensive or
+  when you picked more effort than the task needs. Follow-up questions continue the conversation.
+  Answers show code with copy buttons, images, and downloadable files.
+- **History**: every task with its answer and files; search it, ask again, or continue a chat.
+- **Plans & credits**: each plan's status ("Ready on win-pc", "At its limit, resets 15:00"), with
+  **Set up** (installs the plan app on the computer you choose) and **Sign in** buttons. Also your credits,
+  free limits and budgets with progress bars and expiry dates, an **Add** wizard, and spending this month.
+- **Machines & apps**: your computers and their phones, consoles and servers (screenshots, logs, SSH
+  checks). **Connected apps** adds Unity, Photoshop, Blender, browser testing, phones, GitHub, Hostinger and
+  more to any computer, with setup steps shown where needed. **Install apps** gives one-click installs per
+  computer. **Connect a computer** shows the exact command for Windows, Mac or Pi with your token filled in.
+- **Settings**: API keys (paste, saved only on the hub, never shown again), default spending,
+  quality vs cost, what AI may do on its own, phone alerts (with a test button), checking for new models
+  and prices, and light/dark appearance.
+
+The **tray / menu-bar icon** (Windows, Mac) turns green when all is good, amber or red when credit is
+about to be lost or a plan hits its limit, and grey when the hub can't be reached. It shows a desktop
+notification for each new alert, and has shortcuts to the app and the output folder. On a PC or Mac it
+also runs the agent, so it is the only thing that needs to run there.
 
 ## Running on your plans' daily limits (no API credit)
 
@@ -66,6 +91,9 @@ which signs in with your plan account:
 | GitHub Copilot (Free / Pro) | Copilot CLI (`copilot`) | `switchboard tools install copilot_cli`, then run `copilot` and `/login` |
 | SuperGrok / X Premium+ | Grok Build (`grok`, beta) | install from xAI's docs, then `grok auth login` |
 
+Easiest: in the app, open **Plans & credits**, click **Set up** on a plan (it installs the plan app on the
+computer you pick), then **Sign in** (Claude, ChatGPT, Copilot and Grok open their sign-in on that
+computer; Gemini asks you to run `gemini` once there). The commands above do the same from a terminal.
 Install them on whichever machine you like (the PC and Mac where you are already logged in are fine).
 The hub runs each one **on the machine where it is installed**. Your MCP tools (Unity, Photoshop,
 phones...) are passed to them through Switchboard's tool gateway, and files they create come back to
@@ -118,9 +146,10 @@ powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1 -Role agent
 ./scripts/install-macos.sh agent http://<pi-ip>:8765 <token>
 ```
 
-Each installer creates a virtualenv, writes the config files, and registers a background service
-(Task Scheduler at logon on Windows, launchd on macOS, systemd on Linux/Pi). Check any machine with
-`switchboard doctor`.
+Each installer creates a virtualenv, writes the config files, and sets Switchboard to start at login:
+the tray app on Windows (Task Scheduler) and macOS (launchd), and a background service on Linux/Pi
+(systemd). After that, use the app. Adding API keys, plans, credits, apps and computers can all be done
+there. `switchboard doctor` checks a machine from the terminal if something seems wrong.
 
 Config lives in `%APPDATA%\Switchboard` (Windows), `~/Library/Application Support/Switchboard` (macOS)
 or `~/.config/switchboard` (Linux/Pi):
@@ -132,7 +161,9 @@ or `~/.config/switchboard` (Linux/Pi):
 | `credits.yaml` | your credits, free tiers, subscriptions, budgets |
 | `models.yaml` | your catalog overrides (written by `models sync`) |
 
-## Use it
+## Command line (optional)
+
+Everything below can also be done in the app; the commands are there if you prefer a terminal.
 
 Dashboard: `http://<hub>:8765` (on another device it asks for the token once).
 

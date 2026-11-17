@@ -35,7 +35,7 @@ New-Item -ItemType Directory -Force -Path $Base | Out-Null
 & cmd /c "$py -m venv ""$Base\venv"""
 $VenvPy = Join-Path $Base "venv\Scripts\python.exe"
 & $VenvPy -m pip install --upgrade pip --quiet
-& $VenvPy -m pip install "$Src" --quiet
+& $VenvPy -m pip install "$Src[tray]" --quiet
 $Sb = Join-Path $Base "venv\Scripts\switchboard.exe"
 
 $initArgs = @("init", "--role", $Role, "--name", $Name)

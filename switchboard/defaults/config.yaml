@@ -12,6 +12,7 @@ node:
   role: hub                        # hub | agent
   hub_url: http://127.0.0.1:8765   # agents: the hub's LAN address, e.g. http://192.168.1.50:8765
   mirror_outputs: true             # agents: also write every task's output into this machine's output folder
+  local_dashboard_port: 8766       # agents: open the dashboard at http://localhost:8766 on this machine (no token needed)
 
 server:                            # used by the hub only
   host: 0.0.0.0
@@ -61,6 +62,7 @@ providers:
     json_result: result
     json_cost: total_cost_usd
     mcp_style: claude
+    login_args: ["auth", "login"]
   codex:
     kind: cli
     tool_id: codex
@@ -69,6 +71,7 @@ providers:
     prompt_last: true
     auth_check: ["login", "status"]        # fail fast instead of hanging when not logged in
     auth_check_fail: "not logged in"
+    login_args: ["login"]
     model_args: ["-m", "{model}"]
     effort_args: ["-c", "model_reasoning_effort={effort}"]
     image_args: ["-i", "{image}"]
@@ -92,12 +95,14 @@ providers:
     model_args: ["--model", "{model}"]
     edit_args: ["--allow-tool", "write"]
     mcp_style: copilot
+    login_args: ["login"]
   grok-build:                      # xAI's Grok Build CLI (SuperGrok / X Premium+). Check flags with `grok --help`.
     kind: cli
     tool_id: grok_cli
     command: grok
     args: ["-p", "{prompt}"]
     model_args: ["--model", "{model}"]
+    login_args: ["auth", "login"]
 
 # MCP servers that run on THIS machine. Browse with `switchboard mcp catalog`,
 # add with `switchboard mcp add <name>`. The hub can use servers on every connected agent.

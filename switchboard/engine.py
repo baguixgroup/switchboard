@@ -353,6 +353,10 @@ class Engine:
                          output_tokens=res.get("output_tokens", 0), cost_usd=0.0, requests=1, stop_reason="cli",
                          files=files, notional_cost_usd=res.get("notional_cost_usd"))
 
+    def reload_catalog(self) -> None:
+        self.catalog = Catalog.load(self.config)
+        self.router.catalog = self.catalog
+
     def plans_status(self) -> list[dict]:
         limits = self.limits()
         out = []
@@ -364,7 +368,9 @@ class Engine:
             status = "limit reached" if lim else "ready" if where else "not installed"
             out.append({"provider": name, "label": next((m.label for m in self.catalog.for_provider(name)), name),
                         "where": where, "status": status, "resets": lim["until"] if lim else None,
-                        "detail": lim["reason"] if lim else None})
+                        "detail": lim["reason"] if lim else None, "tool_id": self.cli_tool_id(name),
+                        "can_sign_in": bool(p.cfg.get("login_args")) or name in ("gemini-cli",),
+                        "command": p.cfg.get("command")})
         return out
 
     async def _mirror(self, task_dir: Path) -> None:

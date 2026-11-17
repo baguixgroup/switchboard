@@ -28,6 +28,9 @@ async def run_agent(config) -> None:
     state = {"inv": await build_inventory(config, mcp), "inv_ts": time.time()}
     headers = {"Authorization": f"Bearer {config.token}", "Content-Type": "application/json"}
     log.info("agent %s -> hub %s", config.node_name, config.hub_url)
+    from .localproxy import serve_local_dashboard
+
+    relay = asyncio.create_task(serve_local_dashboard(config))  # http://localhost:8766 on this machine
 
     async with httpx.AsyncClient(base_url=config.hub_url, headers=headers,
                                  timeout=httpx.Timeout(75, connect=10)) as http:
@@ -94,6 +97,7 @@ async def run_agent(config) -> None:
                 await asyncio.sleep(backoff)
                 backoff = min(60.0, backoff * 2)
         finally:
+            relay.cancel()
             hb.cancel()
             for t in jobs:
                 t.cancel()

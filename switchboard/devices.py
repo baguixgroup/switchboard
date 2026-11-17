@@ -5,6 +5,7 @@ Device ids: android:<serial>  ios:<udid>  sim:<udid>  net:<name>  server:<name>
 from __future__ import annotations
 
 import asyncio
+import base64
 import shlex
 import shutil
 import time
@@ -63,7 +64,9 @@ async def device_action(config, device_id: str, action: str, args: dict | None =
             if proc.returncode != 0 or not out:
                 return _fail(err.decode(errors="replace"))
             target.write_bytes(out)
-            return _ok(f"Saved {target}", [str(target)])
+            res = _ok(f"Saved {target}", [str(target)])
+            res["images"] = [{"name": target.name, "b64": base64.b64encode(out).decode("ascii")}] if len(out) < 8_000_000 else []
+            return res
         if action == "logs":
             return await _run(adb + ["logcat", "-d", "-t", str(int(args.get("lines", 300)))])
         if action == "install":
@@ -88,6 +91,8 @@ async def device_action(config, device_id: str, action: str, args: dict | None =
             res = await _run(["xcrun", "simctl", "io", ident, "screenshot", str(target)])
             if res["ok"]:
                 res["files"] = [str(target)]
+                if target.exists() and target.stat().st_size < 8_000_000:
+                    res["images"] = [{"name": target.name, "b64": base64.b64encode(target.read_bytes()).decode("ascii")}]
             return res
         if action == "install":
             return await _run(["xcrun", "simctl", "install", ident, str(args["path"])], 600)
