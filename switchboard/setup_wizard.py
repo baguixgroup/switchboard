@@ -142,14 +142,20 @@ def build_app(key: str, home: Path | None = None, remote: bool = False, on_done=
 
 def run_browser_wizard(home: Path | None = None, remote: bool = False, open_browser: bool = True,
                        port: int | None = None, idle_minutes: int = 30) -> None:
+    """Serve the wizard; show it in the app window when there is one, else in the browser."""
     import uvicorn
 
+    from .window import open_window, window_available
+
+    in_window = open_browser and not remote and window_available()
     key = secrets.token_urlsafe(16)
     server_box: dict = {}
 
     def done() -> None:
-        # Let the page get its answer, then stop.
-        threading.Timer(1.5, lambda: setattr(server_box["server"], "should_exit", True)).start()
+        # In the browser: let the page get its answer, then stop. In the window the page moves on to the
+        # dashboard and the server stops when the window closes.
+        if not in_window:
+            threading.Timer(1.5, lambda: setattr(server_box["server"], "should_exit", True)).start()
 
     app = build_app(key, home, remote=remote, on_done=done)
     host = "0.0.0.0" if remote else "127.0.0.1"
@@ -158,8 +164,16 @@ def run_browser_wizard(home: Path | None = None, remote: bool = False, open_brow
     url = f"http://{shown}:{port}/?k={key}"
     server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_config=None, access_log=False))
     server_box["server"] = server
-    threading.Timer(idle_minutes * 60, lambda: setattr(server, "should_exit", True)).start()
     print(f"Switchboard setup: {url}", flush=True)
+    if in_window:
+        t = threading.Thread(target=server.run, daemon=True)
+        t.start()
+        while not server.started and t.is_alive():
+            time.sleep(0.05)
+        open_window(url, "Switchboard")  # blocks until the window is closed (main thread: needed on macOS)
+        server.should_exit = True
+        os._exit(0)
+    threading.Timer(idle_minutes * 60, lambda: setattr(server, "should_exit", True)).start()
     if remote:
         print("Open that address on your phone or computer (same network) to finish setting up this machine.", flush=True)
     if open_browser:
