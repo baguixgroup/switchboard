@@ -141,6 +141,18 @@ def open_path(path: str) -> None:
         subprocess.Popen(["xdg-open", path])
 
 
+def open_setup() -> None:
+    """Open the setup wizard in its own process (it may re-register this tray app when the role changes)."""
+    from .paths import self_command
+
+    kw: dict = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    if os_family() == "windows":
+        kw["creationflags"] = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+    else:
+        kw["start_new_session"] = True
+    subprocess.Popen(self_command("setup", gui=True), **kw)
+
+
 async def _poll(config, state: TrayState, on_change, stop: asyncio.Event) -> None:
     headers = {"Authorization": f"Bearer {config.token}"} if config.token else {}
     async with httpx.AsyncClient(base_url=config.hub_url, headers=headers, timeout=15) as http:
@@ -182,6 +194,7 @@ def run_tray(config) -> None:
         pystray.MenuItem("Alerts", pystray.Menu(alert_items)),
         pystray.MenuItem("Plans", pystray.Menu(plan_items)),
         pystray.MenuItem("Open output folder", lambda *_: open_path(str(config.output_dir))),
+        pystray.MenuItem("Change setup…", lambda *_: open_setup()),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit Switchboard", lambda icon, _: (icon.stop(), _stop_loop())),
     )

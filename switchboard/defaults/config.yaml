@@ -18,6 +18,7 @@ node:
 server:                            # used by the hub only
   host: 0.0.0.0
   port: 8765
+  discovery: true                  # answer "where is the hub?" from computers being set up (UDP, same port)
 
 output_dir: auto                   # auto = ~/Switchboard/Output (Windows, macOS) or ~/switchboard-output (Linux/Pi)
 

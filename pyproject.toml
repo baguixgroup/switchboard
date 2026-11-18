@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "switchboard-ai"
-version = "0.2.0"
+version = "0.3.0"
 description = "One control plane for all your AI models, credits, MCP tools, devices and machines (Windows, macOS, Raspberry Pi)."
 readme = "README.md"
 requires-python = ">=3.10"

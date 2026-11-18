@@ -876,16 +876,48 @@ async function deviceAction(node, dev, act, btn) {
 }
 async function connectWizard() {
   const c = await api("/api/connect");
-  const os = { windows: "Windows", macos: "Mac", pi: "Raspberry Pi / Linux" };
   const m = modal({ title: "Connect a computer", wide: true, body: "" });
+  const os = { windows: "Windows", macos: "Mac", pi: "Raspberry Pi / Linux" };
+  let code = null, timer = null, adv = false;
+  const dl = (k) => (c.downloads || {})[k];
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const draw = (k) => {
+    const file = dl(k);
     m.setBody(`<div class="tabs">${Object.entries(os).map(([id, l]) => `<button data-os="${id}" class="${id === k ? "on" : ""}">${l}</button>`).join("")}</div>
-      <ol class="steps">${c.steps[k].map((s, i) => `<li>${i === 1 ? "Run this (it installs everything, connects to this hub and starts at login):" + copyBox(s) : esc(s)}</li>`).join("")}
-      <li>That's it. The computer appears here within a minute${k === "pi" ? "" : ", and a Switchboard icon appears in its " + (k === "windows" ? "system tray" : "menu bar")}.</li></ol>
-      <p class="tiny muted">Hub address: ${c.hub_urls.map(esc).join(", ")}. The token in the command lets that computer join; keep it private.</p>`);
+      <ol class="steps">
+        <li>${file ? `Download and install <a href="${esc(file.url)}" download>${esc(file.name)}</a> on that computer.`
+          : `Install the Switchboard app on that computer${c.releases_url ? ` (<a href="${esc(c.releases_url)}" target="_blank" rel="noopener">download it here</a>)` : ""}.`}
+          ${k === "macos" ? '<div class="tiny muted">First open: right-click Switchboard in Applications, then Open (it isn\'t from the App Store).</div>'
+            : k === "windows" ? '<div class="tiny muted">If Windows SmartScreen appears: More info, then Run anyway.</div>'
+            : `<div class="tiny muted">Then run <span class="mono">switchboard setup</span> in its terminal.</div>`}</li>
+        <li>Open Switchboard, choose <b>Connect to my hub</b>. It finds this hub on its own.</li>
+        <li>Enter this pairing code:
+          <div class="row" style="margin-top:8px">${code && code.code
+            ? `<span class="mono" style="font-size:28px;font-weight:700;letter-spacing:8px">${esc(code.code)}</span><span class="small muted" id="pairLeft">valid ${fmt(code.expires_in)}</span>`
+            : `<button class="primary" id="newCode">Show a pairing code</button>`}</div>
+          <div class="tiny muted" style="margin-top:6px">Works once, for 10 minutes. If it doesn't find the hub, type the address ${c.hub_urls.map(esc).join(" or ")}.</div></li>
+        <li>That's it. The computer appears here within a minute${k === "pi" ? "" : ", with a Switchboard icon in its " + (k === "windows" ? "system tray" : "menu bar")}.</li></ol>
+      <details ${adv ? "open" : ""} id="advanced"><summary class="small muted">Install from the command line instead</summary>
+        <p class="small" style="margin-top:8px">${esc(c.steps[k][0])}</p>${copyBox(c.steps[k][1])}
+        <p class="tiny muted">The token in the command lets that computer join; keep it private.</p></details>`);
     $$("[data-os]", m.el).forEach((b) => (b.onclick = () => draw(b.dataset.os)));
+    $("#advanced", m.el).ontoggle = (e) => (adv = e.target.open);
+    const nb = $("#newCode", m.el);
+    if (nb) nb.onclick = async () => {
+      code = await api("/api/pair/code", { method: "POST", body: {} });
+      clearInterval(timer);
+      timer = setInterval(() => {
+        if (!document.body.contains(m.el)) return clearInterval(timer);
+        code.expires_in -= 1;
+        if (code.expires_in <= 0) { code = null; clearInterval(timer); draw(k); return; }
+        const left = $("#pairLeft", m.el); if (left) left.textContent = "valid " + fmt(code.expires_in);
+      }, 1000);
+      draw(k);
+    };
   };
-  draw(navigator.platform && /mac/i.test(navigator.platform) ? "macos" : "windows");
+  const cur = await api("/api/pair/code");
+  if (cur.code) code = cur;
+  draw(navigator.platform && /mac/i.test(navigator.platform) ? "macos" : /linux|arm/i.test(navigator.platform) ? "pi" : "windows");
 }
 async function renderApps() {
   const me = rid;
