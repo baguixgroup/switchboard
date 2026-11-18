@@ -1,6 +1,7 @@
 """Executes jobs on THIS machine. Used in-process by the hub and by every agent."""
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 import time
@@ -38,6 +39,10 @@ class Executor:
             return await self.mcp_config(kind, payload)
         if kind == "cli_login":
             return await self.cli_login(payload)
+        if kind == "open_app":
+            return await self.open_app(payload)
+        if kind == "watch_folder":
+            return await self.watch_folder(payload)
         if kind == "write_output":
             target = safe_join(self.config.output_dir, payload["path"])
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -74,12 +79,14 @@ class Executor:
 
         local = self.config.providers.get(p["provider"]) or {}
         prov = CLIProvider(p["provider"], {**p["cfg"], **local}, self.config)  # this machine's CLI settings win
+        prompt = p["prompt"].replace("{OUTPUT}", str(self.config.output_dir))
         workdir = safe_join(self.config.output_dir, p["task_rel"]) if p.get("task_rel") else self.config.output_dir
         workdir.mkdir(parents=True, exist_ok=True)
         started = time.time()
-        req = RunRequest(prompt=p["prompt"], model=ModelInfo(provider=p["provider"], id=p["model"]), effort=p.get("effort"),
+        req = RunRequest(prompt=prompt, model=ModelInfo(provider=p["provider"], id=p["model"]), effort=p.get("effort"),
                          workdir=workdir, allow_edits=bool(p.get("allow_edits")), history=p.get("history") or [],
-                         tool_servers=p.get("tool_servers") or [], task_rel=p.get("task_rel"))
+                         tool_servers=p.get("tool_servers") or [], task_rel=p.get("task_rel"),
+                         read_dirs=[str(self.config.output_dir)] if p.get("read_output_dir") else [])
         try:
             res = await prov.run(req, None)
         except ProviderError as exc:
@@ -157,3 +164,84 @@ class Executor:
                 "message": ("Signed in." if done else
                             f"Sign-in started on {self.config.node_name}. Finish it in the browser window that opened "
                             f"there (or use the link/code below).")}
+
+    # ---- handing image tasks to ChatGPT / Grok --------------------------------------------------
+    async def open_app(self, h: dict) -> dict:
+        """Copy the prompt to this computer's clipboard and open the plan's desktop app (or its website)."""
+        import os
+        import shutil
+
+        from .inventory import run_cmd
+        from .paths import os_family
+
+        fam = os_family()
+        prompt = h.get("prompt", "")
+        env = dict(os.environ, SB_PROMPT=prompt, SB_APP=h.get("windows_app") or h.get("label", ""))
+        copied = False
+        try:
+            if fam == "windows":
+                p = await asyncio.create_subprocess_exec("powershell", "-NoProfile", "-Command", "Set-Clipboard -Value $env:SB_PROMPT", env=env)
+                copied = (await asyncio.wait_for(p.wait(), 20)) == 0
+            elif fam == "macos":
+                p = await asyncio.create_subprocess_exec("pbcopy", stdin=asyncio.subprocess.PIPE)
+                await asyncio.wait_for(p.communicate(prompt.encode()), 10)
+                copied = p.returncode == 0
+            elif shutil.which("wl-copy") or shutil.which("xclip"):
+                argv = ["wl-copy"] if shutil.which("wl-copy") else ["xclip", "-selection", "clipboard"]
+                p = await asyncio.create_subprocess_exec(*argv, stdin=asyncio.subprocess.PIPE)
+                await asyncio.wait_for(p.communicate(prompt.encode()), 10)
+                copied = p.returncode == 0
+        except (OSError, asyncio.TimeoutError):
+            copied = False
+        opened = None
+        if fam == "windows":
+            script = ("$a = Get-StartApps | Where-Object { $_.Name -like ($env:SB_APP + '*') } | Select-Object -First 1; "
+                      "if ($a) { Start-Process ('shell:AppsFolder\\' + $a.AppID); exit 0 } else { exit 3 }")
+            p = await asyncio.create_subprocess_exec("powershell", "-NoProfile", "-Command", script, env=env)
+            if (await asyncio.wait_for(p.wait(), 30)) == 0:
+                opened = "app"
+        elif fam == "macos":
+            rc, _, _ = await run_cmd(["open", "-a", h.get("mac_app") or h.get("label", "")], timeout=20)
+            if rc == 0:
+                opened = "app"
+        if not opened and h.get("url"):
+            if fam == "windows":
+                os.startfile(h["url"])  # type: ignore[attr-defined]
+            else:
+                await run_cmd(["open" if fam == "macos" else "xdg-open", h["url"]], timeout=20)
+            opened = "browser"
+        where = f"the {h.get('label')} app" if opened == "app" else f"{h.get('label')} in the browser" if opened else "nothing"
+        return {"opened": opened, "copied": copied,
+                "message": f"Opened {where} on {self.config.node_name}." + (" The prompt is on the clipboard: paste it." if copied else "")}
+
+    def watch_dir(self):
+        from pathlib import Path
+
+        from .paths import expand
+
+        val = self.config.node.get("watch_folder") or "auto"
+        return Path.home() / "Downloads" if val == "auto" else expand(str(val))
+
+    async def watch_folder(self, p: dict) -> dict:
+        """Wait for a new image to appear in the watch folder (default: Downloads) and return it."""
+        folder = self.watch_dir()
+        started = time.time() - 5
+        deadline = time.time() + float(p.get("timeout", 1200))
+        exts = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+        sizes: dict = {}
+        while time.time() < deadline:
+            if folder.exists():
+                for f in folder.iterdir():
+                    try:
+                        st = f.stat()
+                    except OSError:
+                        continue
+                    if f.suffix.lower() not in exts or st.st_mtime < started or not f.is_file():
+                        continue
+                    if sizes.get(f) == st.st_size and st.st_size > 0:  # finished writing
+                        if st.st_size > 25_000_000:
+                            return {"error": f"{f.name} is larger than 25 MB; add it by hand."}
+                        return {"name": f.name, "b64": base64.b64encode(f.read_bytes()).decode("ascii"), "folder": folder.name}
+                    sizes[f] = st.st_size
+            await asyncio.sleep(2)
+        return {"timeout": True}

@@ -50,7 +50,7 @@ PLAN_BONUS = 4.0
 
 def is_plan_or_free(m: ModelInfo, source: SourceStatus | None) -> bool:
     """True when a call costs no API credit: plan CLIs, $0 models (local, GitHub Models), or a free-tier source."""
-    if "cli" in m.features or "local" in m.features:
+    if {"cli", "local", "handoff"} & m.features:
         return True
     if m.price_in == 0 and m.price_out == 0 and m.per_call == 0:
         return True
@@ -289,6 +289,10 @@ class Router:
             if billing == "plans_only" and not free and not model:
                 continue
             score, est, eff, reasons = self._evaluate(m, profile, use_effort, mode, src)
+            if "handoff" in m.features:
+                reasons.append("made in the app on your plan (one manual step)")
+                if billing == "any":
+                    score -= 3.0  # the manual step counts against it when cost doesn't matter most
             if free and billing != "any":
                 score += PLAN_BONUS
                 if "cli" in m.features:

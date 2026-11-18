@@ -44,6 +44,7 @@ class RunRequest:
     # Plan CLIs reach Switchboard's tools (MCP servers on every machine) through this gateway.
     tool_servers: list[str] = field(default_factory=list)
     task_rel: str | None = None  # task folder relative to the output folder
+    read_dirs: list[str] = field(default_factory=list)  # extra folders plan CLIs may read (earlier tasks)
 
 
 @dataclass
@@ -58,6 +59,7 @@ class RunResult:
     stop_reason: str = ""
     files: list[tuple[str, bytes]] = field(default_factory=list)
     notional_cost_usd: float | None = None
+    handoff: dict | None = None  # set when the task continues in a plan's own app (see providers/handoff.py)
 
 
 def image_data_url(path: Path) -> tuple[str, str]:

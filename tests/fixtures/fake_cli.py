@@ -11,6 +11,7 @@ from pathlib import Path
 
 argv = sys.argv[1:]
 prompt = argv[argv.index("-p") + 1] if "-p" in argv else ""
+prompt = prompt.split("\n\n---\n")[0]  # ignore Switchboard's "earlier work" note
 Path("argv.json").write_text(json.dumps(argv))
 
 if "LIMIT" in prompt:

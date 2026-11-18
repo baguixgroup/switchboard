@@ -70,6 +70,15 @@ class LoginIn(BaseModel):
     node: str | None = None
 
 
+class FileIn(BaseModel):
+    name: str
+    b64: str
+
+
+class OpenIn(BaseModel):
+    node: str
+
+
 def _lan_addresses() -> list[str]:
     ips: list[str] = []
     try:
@@ -320,6 +329,30 @@ def register(app: FastAPI, engine, auth) -> None:
                 kind = "image" if f.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp") else "file"
                 out.append({"path": rel, "size": f.stat().st_size, "kind": kind})
         return out
+
+    @app.post("/api/tasks/{task_id}/files", dependencies=dep)
+    async def add_task_file(task_id: str, body: FileIn) -> dict:
+        import base64 as b64mod
+
+        try:
+            data = b64mod.b64decode(body.b64.split(",", 1)[-1], validate=False)
+        except ValueError:
+            raise HTTPException(400, "file data is not valid")
+        if len(data) > 25_000_000:
+            raise HTTPException(400, "Files up to 25 MB can be added.")
+        try:
+            return engine.attach_file(task_id, body.name, data)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc))
+
+    @app.post("/api/tasks/{task_id}/handoff/open", dependencies=dep)
+    async def handoff_open(task_id: str, body: OpenIn) -> dict:
+        try:
+            return await engine.handoff_open(task_id, body.node)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        except Exception as exc:
+            raise HTTPException(502, f"{body.node}: {exc}")
 
     @app.get("/api/tasks/{task_id}/file", dependencies=dep)
     async def task_file(task_id: str, path: str):

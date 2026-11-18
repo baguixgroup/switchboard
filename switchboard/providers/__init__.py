@@ -9,10 +9,11 @@ def _kinds() -> dict:
     if not KINDS:
         from .anthropic_provider import AnthropicProvider
         from .cli_bridge import CLIProvider
+        from .handoff import HandoffProvider
         from .mock import MockProvider
         from .openai_compat import OpenAICompatProvider
 
-        KINDS.update({"anthropic": AnthropicProvider, "openai_compat": OpenAICompatProvider, "cli": CLIProvider,
+        KINDS.update({"anthropic": AnthropicProvider, "openai_compat": OpenAICompatProvider, "cli": CLIProvider, "handoff": HandoffProvider,
                       "mock": MockProvider})
     return KINDS
 

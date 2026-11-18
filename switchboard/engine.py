@@ -280,12 +280,18 @@ class Engine:
             if attempt.tools and "tools" in m.features and not is_cli:
                 toolbox = await self.build_toolbox(attempt, task_dir)
             task_rel = task_dir.relative_to(self.config.output_dir).as_posix()
-            req = RunRequest(prompt=prompt, model=m, effort=attempt.native_effort, max_tokens=attempt.max_tokens,
+            remote_cli = is_cli and self.cli_location(attempt.provider) not in (None, self.config.node_name)
+            note = self.recent_work_note(exclude=task_id) if is_cli else ""  # only apps that can open files
+            run_prompt = prompt + (f"\n\n---\n{note}" if note else "")
+            if not remote_cli:  # remote agents fill in their own output folder path
+                run_prompt = run_prompt.replace("{OUTPUT}", str(self.config.output_dir))
+            req = RunRequest(prompt=run_prompt, model=m, effort=attempt.native_effort, max_tokens=attempt.max_tokens,
                              history=history, images=images, workdir=task_dir,
                              allow_edits=bool((self.config.permissions or {}).get("cli_agents_can_edit")),
                              max_tool_rounds=int(self.config.router.get("max_tool_rounds", 25)),
                              tool_servers=list(attempt.tools) if (is_cli and "tools" in m.features) else [],
-                             task_rel=task_rel)
+                             task_rel=task_rel,
+                             read_dirs=[str(self.config.output_dir)] if (is_cli and note and not remote_cli) else [])
             try:
                 if is_cli:
                     result = await self._run_cli(prov, req, task_dir)
@@ -326,6 +332,11 @@ class Engine:
                 "finished": datetime.now().isoformat(timespec="seconds")}
         files = list(result.files) + (list(toolbox.artifacts) if toolbox else [])
         outputs.save_task_output(task_dir, prompt, result.text, meta, files)
+        if result.handoff:
+            self.store.save_task(task_id, "waiting", result=result.text, output_path=str(task_dir), cost_usd=0.0,
+                                 plan=dict(plan.to_dict(), executed=f"{used.provider}:{used.model}", tool_calls=[],
+                                           handoff=dict(result.handoff, watching=None)))
+            return self.store.get_task(task_id)
         final = result.text + (f"\n\n[Failover: {len(errors)} earlier attempt(s) failed]" if errors else "")
         self.store.save_task(task_id, "done", result=final, output_path=str(task_dir), cost_usd=result.cost_usd,
                              plan=dict(plan.to_dict(), executed=f"{used.provider}:{used.model}", tool_calls=meta["tool_calls"]))
@@ -341,7 +352,7 @@ class Engine:
             return await prov.run(req, None)
         payload = {"provider": prov.name, "cfg": prov.cfg, "prompt": req.prompt, "model": req.model.id,
                    "effort": req.effort, "allow_edits": req.allow_edits, "tool_servers": req.tool_servers,
-                   "task_rel": req.task_rel, "history": req.history}
+                   "task_rel": req.task_rel, "history": req.history, "read_output_dir": "{OUTPUT}" in req.prompt}
         res = await self.nodes.submit(where, "cli_run", payload, timeout=float(prov.cfg.get("timeout_seconds", 1800)) + 60)
         if res.get("error"):
             raise ProviderError(f"{res['error']} (on {where})", res.get("error_kind", "error"), retry_at=res.get("retry_at"))
@@ -352,6 +363,90 @@ class Engine:
         return RunResult(text=text, provider=prov.name, model=req.model.id, input_tokens=res.get("input_tokens", 0),
                          output_tokens=res.get("output_tokens", 0), cost_usd=0.0, requests=1, stop_reason="cli",
                          files=files, notional_cost_usd=res.get("notional_cost_usd"))
+
+    # ---- shared work, handoffs, attached files -------------------------------------------------
+    def recent_work_note(self, exclude: str | None = None, limit: int = 5, days: int = 14) -> str:
+        """Where earlier tasks put their files, so the next app can pick up where another left off."""
+        if not self.config.router.get("share_recent_work", True):
+            return ""
+        lines = []
+        cutoff = time.time() - days * 86400
+        for t in self.store.recent_tasks(40):
+            if t["id"] == exclude or t["status"] not in ("done", "waiting") or t["ts"] < cutoff or not t.get("output_path"):
+                continue
+            folder = Path(t["output_path"])
+            try:
+                rel = folder.relative_to(self.config.output_dir).as_posix()
+            except ValueError:
+                continue
+            names = [p.relative_to(folder).as_posix() for p in sorted(folder.rglob("*"))
+                     if p.is_file() and p.name not in ("prompt.md", "response.md", "meta.json", "error.txt")
+                     and not p.relative_to(folder).as_posix().startswith(".")][:6] if folder.exists() else []
+            when = datetime.fromtimestamp(t["ts"]).strftime("%d %b %H:%M")
+            lines.append(f"- {when} \"{(t.get('prompt') or '')[:80]}\" -> {{OUTPUT}}/{rel}/" +
+                         (f" (files: {', '.join(names)})" if names else ""))
+            if len(lines) >= limit:
+                break
+        if not lines:
+            return ""
+        return ("Earlier work in the user's Switchboard output folder (each folder has prompt.md and response.md). "
+                "If this task continues earlier work, read those files first:\n" + "\n".join(lines))
+
+    def _task_dir(self, task_id: str) -> Path:
+        t = self.store.get_task(task_id)
+        if not t or not t.get("output_path"):
+            raise ValueError("no such task")
+        return Path(t["output_path"])
+
+    def attach_file(self, task_id: str, name: str, data: bytes, source: str = "you") -> dict:
+        """Add a file to a task (an image saved from ChatGPT/Grok, or anything made in another app)."""
+        folder = self._task_dir(task_id)
+        safe = re.sub(r"[^A-Za-z0-9._ -]", "_", Path(name).name).strip() or "file"
+        target = outputs.safe_join(folder, f"files/{safe}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        n = 2
+        while target.exists():
+            target = target.with_name(f"{Path(safe).stem}-{n}{Path(safe).suffix}")
+            n += 1
+        target.write_bytes(data)
+        t = self.store.get_task(task_id)
+        if t["status"] == "waiting":
+            plan = dict(t.get("plan") or {})
+            plan["handoff"] = dict(plan.get("handoff") or {}, watching=None, received=target.name)
+            text = (t.get("result") or "") + f"\n\n**Image received** from {source}: `{target.name}`"
+            self.store.save_task(task_id, "done", result=text, plan=plan)
+            (folder / "response.md").write_text(text, encoding="utf-8")
+        self._spawn(self._mirror(folder))
+        return {"path": target.relative_to(folder).as_posix(), "size": len(data)}
+
+    async def handoff_open(self, task_id: str, node: str) -> dict:
+        """Open the plan's app on one of your computers with the prompt copied, then watch for the image."""
+        t = self.store.get_task(task_id)
+        h = ((t or {}).get("plan") or {}).get("handoff")
+        if not h:
+            raise ValueError("this task isn't waiting for an app")
+        res = await self.nodes.submit(node, "open_app", h, timeout=60)
+        plan = dict(t["plan"])
+        plan["handoff"] = dict(h, watching=node, watch_started=time.time())
+        self.store.save_task(task_id, t["status"], plan=plan)
+        self._spawn(self._watch_for_image(task_id, node))
+        return res
+
+    async def _watch_for_image(self, task_id: str, node: str, minutes: int = 20) -> None:
+        try:
+            res = await self.nodes.submit(node, "watch_folder", {"timeout": minutes * 60}, timeout=minutes * 60 + 60)
+        except Exception as exc:
+            res = {"error": str(exc)}
+        t = self.store.get_task(task_id)
+        if not t or t["status"] != "waiting":
+            return
+        if res.get("b64"):
+            self.attach_file(task_id, res["name"], base64.b64decode(res["b64"]), source=f"{res.get('folder', 'Downloads')} on {node}")
+            return
+        plan = dict(t["plan"])
+        plan["handoff"] = dict(plan.get("handoff") or {}, watching=None,
+                               watch_note=res.get("error") or f"No new image appeared on {node} within {minutes} minutes.")
+        self.store.save_task(task_id, "waiting", plan=plan)
 
     def reload_catalog(self) -> None:
         self.catalog = Catalog.load(self.config)
