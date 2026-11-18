@@ -141,6 +141,28 @@ def open_path(path: str) -> None:
         subprocess.Popen(["xdg-open", path])
 
 
+def open_app(url: str) -> None:
+    """The app window when available (packaged app), otherwise the browser."""
+    from .window import open_app_detached, window_available
+
+    if window_available():
+        open_app_detached()
+    else:
+        webbrowser.open(url)
+
+
+def open_setup() -> None:
+    """Open the setup wizard in its own process (it may re-register this tray app when the role changes)."""
+    from .paths import self_command
+
+    kw: dict = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    if os_family() == "windows":
+        kw["creationflags"] = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+    else:
+        kw["start_new_session"] = True
+    subprocess.Popen(self_command("setup", gui=True), **kw)
+
+
 async def _poll(config, state: TrayState, on_change, stop: asyncio.Event) -> None:
     headers = {"Authorization": f"Bearer {config.token}"} if config.token else {}
     async with httpx.AsyncClient(base_url=config.hub_url, headers=headers, timeout=15) as http:
@@ -176,15 +198,24 @@ def run_tray(config) -> None:
         return [pystray.MenuItem(line[:90], None, enabled=False) for line in state.plan_lines()]
 
     menu = pystray.Menu(
-        pystray.MenuItem("Open Switchboard", lambda *_: webbrowser.open(url), default=True),
+        pystray.MenuItem("Open Switchboard", lambda *_: open_app(url), default=True),
         pystray.MenuItem(lambda _: state.status_line, None, enabled=False),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Alerts", pystray.Menu(alert_items)),
         pystray.MenuItem("Plans", pystray.Menu(plan_items)),
         pystray.MenuItem("Open output folder", lambda *_: open_path(str(config.output_dir))),
+        pystray.MenuItem("Change setup…", lambda *_: open_setup()),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit Switchboard", lambda icon, _: (icon.stop(), _stop_loop())),
     )
+    if os_family() == "macos":
+        # Menu-bar only: no Dock icon for this background process (the app window has its own).
+        try:
+            from AppKit import NSApplication, NSApplicationActivationPolicyAccessory
+
+            NSApplication.sharedApplication().setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+        except Exception:  # noqa: BLE001
+            log.debug("could not hide the Dock icon", exc_info=True)
     icon = pystray.Icon("switchboard", make_icon(64, "off"), "Switchboard", menu)
     last = {"status": None}
 

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Set up Switchboard</title>
+<style>
+:root {
+  --bg: #f4f6f9; --panel: #fff; --panel-2: #f8f9fb; --ink: #151821; --ink-2: #3c4250; --muted: #6a7282;
+  --line: #e4e7ec; --line-2: #d5dae2; --accent: #3a5bd9; --accent-ink: #fff; --accent-soft: #eaefff;
+  --ok: #18804a; --ok-soft: #e5f5ec; --crit: #c42f2f; --crit-soft: #fdeaea;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; --mono: ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0e1015; --panel: #161920; --panel-2: #1b1f27; --ink: #e8eaf0; --ink-2: #c3c8d3; --muted: #959cab;
+    --line: #262b35; --line-2: #323845; --accent: #7d97ff; --accent-ink: #0e1015; --accent-soft: #1d2540;
+    --ok: #4cc38a; --ok-soft: #14271d; --crit: #ff7070; --crit-soft: #301818; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font);
+  display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px; -webkit-font-smoothing: antialiased; }
+.card { width: 100%; max-width: 560px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(16,24,40,.07); padding: 28px; }
+.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; font-weight: 650; }
+.brand svg { width: 30px; height: 30px; }
+.steps { margin-left: auto; display: flex; gap: 6px; }
+.steps i { width: 22px; height: 4px; border-radius: 2px; background: var(--line-2); }
+.steps i.on { background: var(--accent); }
+h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -.2px; }
+p { margin: 0 0 12px; color: var(--ink-2); }
+.muted { color: var(--muted); } .small { font-size: 13px; } .hide { display: none !important; }
+.choices { display: grid; gap: 10px; margin: 18px 0; }
+.choice { text-align: left; display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border-radius: 12px;
+  border: 1.5px solid var(--line-2); background: var(--panel); color: inherit; font: inherit; cursor: pointer; width: 100%; }
+.choice:hover { border-color: var(--accent); }
+.choice.on { border-color: var(--accent); background: var(--accent-soft); }
+.choice b { display: block; font-size: 15.5px; }
+.choice .ic { width: 38px; height: 38px; border-radius: 10px; background: var(--accent-soft); color: var(--accent);
+  display: grid; place-items: center; flex: none; }
+.choice .ic svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.badge { font-size: 11.5px; font-weight: 600; color: var(--ok); background: var(--ok-soft); padding: 1px 8px; border-radius: 99px; margin-left: 6px; vertical-align: 1px; }
+label { display: block; font-weight: 600; font-size: 13.5px; margin: 16px 0 6px; }
+input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--line-2); background: var(--panel-2);
+  color: var(--ink); font: inherit; }
+input:focus { outline: none; border-color: var(--accent); }
+input.code { font: 600 26px/1 var(--mono); letter-spacing: 10px; text-align: center; padding: 14px; }
+.actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; align-items: center; }
+button.btn { font: inherit; font-weight: 600; padding: 10px 18px; border-radius: 10px; border: 1px solid var(--line-2);
+  background: var(--panel); color: var(--ink); cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: .55; cursor: default; }
+.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
+.err { background: var(--crit-soft); color: var(--crit); border-radius: 10px; padding: 10px 12px; margin-top: 14px; font-size: 14px; }
+.okbox { background: var(--ok-soft); color: var(--ok); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.spin { width: 18px; height: 18px; border: 2.5px solid var(--line-2); border-top-color: var(--accent); border-radius: 50%;
+  animation: s .8s linear infinite; display: inline-block; vertical-align: -4px; margin-right: 8px; }
+@keyframes s { to { transform: rotate(360deg); } }
+.hub { display: flex; align-items: center; gap: 10px; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+ol { padding-left: 20px; color: var(--ink-2); } li { margin: 4px 0; }
+@media (max-width: 480px) { body { padding: 16px; } .card { padding: 20px; } }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="4" width="56" height="56" rx="14" fill="#3a5bd9"/>
+      <g stroke="rgba(255,255,255,.6)" stroke-width="3.5" stroke-linecap="round"><line x1="14" y1="16" x2="50" y2="16"/><line x1="14" y1="32" x2="50" y2="32"/><line x1="14" y1="48" x2="50" y2="48"/></g>
+      <g fill="#fff"><circle cx="38" cy="16" r="5.5"/><circle cx="25" cy="32" r="5.5"/><circle cx="34" cy="48" r="5.5"/></g></svg>
+    Switchboard
+    <div class="steps" id="dots"></div>
+  </div>
+  <div id="view"><p class="muted"><span class="spin"></span>Loading…</p></div>
+</main>
+<script>
+"use strict";
+const KEY = new URLSearchParams(location.search).get("k") || "";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ICON = {
+  hub: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>',
+  agent: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+};
+async function api(path, body) {
+  const r = await fetch(path, { method: body ? "POST" : "GET", headers: { "X-Setup-Key": KEY, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined });
+  const data = r.status === 204 ? {} : await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || `Something went wrong (${r.status})`);
+  return data;
+}
+const S = { info: null, hubs: null, role: null, hub: null, name: "", useToken: false };
+function dots(n) { $("#dots").innerHTML = [1, 2, 3].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join(""); }
+function show(html, step) { $("#view").innerHTML = html; dots(step); const f = $("#view [autofocus]"); if (f) f.focus(); }
+function err(e) { const box = $("#err"); if (box) { box.textContent = e.message || e; box.classList.remove("hide"); } }
+
+async function start() {
+  try { S.info = await api("/api/info"); } catch (e) { show(`<h1>Can't start setup</h1><p>${esc(e.message)}</p>`, 0); return; }
+  S.name = S.info.current.name || S.info.default_name;
+  api("/api/discover").then((d) => { S.hubs = d.hubs; if (S.view === "role") roleStep(); if (S.view === "hub") hubStep(); }).catch(() => (S.hubs = []));
+  const c = S.info.current;
+  if (c.configured) {
+    S.view = "welcome";
+    show(`<h1>Switchboard is already set up</h1>
+      <p>This ${esc(S.info.platform_label)} is the <b>${esc(c.role)}</b> “${esc(c.name)}”${c.role === "agent" ? ` connected to <span class="mono">${esc(c.hub_url)}</span>` : ""}.</p>
+      <p class="muted small">Changing it keeps your API keys, credits and connected apps.</p>
+      <div class="actions"><button class="btn" id="close">Keep it</button><button class="btn primary" id="go">Change setup</button></div>`, 0);
+    $("#go").onclick = roleStep;
+    $("#close").onclick = () => { api("/api/bye", {}).catch(() => {}); show(`<h1>All set</h1><p>Nothing changed. You can close this tab.</p>`, 0); };
+  } else roleStep();
+}
+
+function roleStep() {
+  S.view = "role";
+  const found = (S.hubs || []).length;
+  const rec = found ? "agent" : S.info.recommended;
+  S.role = S.role || rec;
+  const card = (id, title, text) => `<button class="choice ${S.role === id ? "on" : ""}" data-role="${id}">
+      <span class="ic">${ICON[id]}</span><span><b>${title}${rec === id ? '<span class="badge">Recommended</span>' : ""}</b>
+      <span class="muted small">${text}</span></span></button>`;
+  show(`<h1>Set up this ${esc(S.info.platform_label)}</h1>
+    <p>Switchboard has one <b>hub</b> (the always-on brain) and any number of <b>agents</b> (your other computers).</p>
+    ${S.hubs === null ? '<p class="muted small"><span class="spin"></span>Looking for a hub on your network…</p>'
+      : found ? `<div class="okbox">Found your hub “${esc(S.hubs[0].name)}” on this network.</div>` : ""}
+    <div class="choices">
+      ${card("agent", "Connect to my hub", "Agent: lets AI use this computer's apps, phones and files, and keeps a copy of every result here.")}
+      ${card("hub", "Make this the hub", "Pick this on the computer that stays on (a Raspberry Pi is ideal). You need exactly one.")}
+    </div>
+    <div class="actions"><button class="btn primary" id="next">Continue</button></div>`, 1);
+  document.querySelectorAll("[data-role]").forEach((b) => (b.onclick = () => { S.role = b.dataset.role; roleStep(); }));
+  $("#next").onclick = () => (S.role === "hub" ? nameStep() : hubStep());
+}
+
+function hubStep() {
+  S.view = "hub";
+  const hubs = S.hubs || [];
+  if (!S.hub && hubs.length) S.hub = hubs[0].url;
+  show(`<h1>Connect to your hub</h1>
+    ${S.hubs === null ? '<p class="muted"><span class="spin"></span>Looking for your hub…</p>' : ""}
+    ${hubs.length ? `<div class="choices">${hubs.map((h) => `<button class="choice ${S.hub === h.url ? "on" : ""}" data-hub="${esc(h.url)}">
+        <span class="ic">${ICON.hub}</span><span><b>${esc(h.name)}</b><span class="muted small mono">${esc(h.url)}</span></span></button>`).join("")}</div>
+        <button class="link small" id="manual">The hub isn't listed</button>`
+      : S.hubs !== null ? `<p>No hub answered on this network. Type its address (shown on the hub, for example <span class="mono">192.168.1.50</span>).</p>` : ""}
+    <div id="manualBox" class="${hubs.length ? "hide" : ""}"><label for="addr">Hub address</label>
+      <input id="addr" placeholder="192.168.1.50" value="${esc(hubs.some((h) => h.url === S.hub) ? "" : S.hub || "")}" autocomplete="off"></div>
+    <label for="code">${S.useToken ? "Hub token" : "Pairing code"}</label>
+    <input id="code" class="${S.useToken ? "mono" : "code"}" ${S.useToken ? 'placeholder="paste the token"' : 'inputmode="numeric" maxlength="7" placeholder="000000"'} autocomplete="off" ${hubs.length ? "autofocus" : ""}>
+    <p class="muted small" style="margin-top:8px">${S.useToken ? "Settings → About on the hub's dashboard shows the token."
+      : "On the hub's dashboard: <b>Machines → Connect a computer</b> shows a 6-digit code."}
+      <button class="link small" id="swap">${S.useToken ? "Use a pairing code instead" : "Use the token instead"}</button></p>
+    <label for="name">Name for this computer</label>
+    <input id="name" value="${esc(S.name)}" autocomplete="off">
+    <div id="err" class="err hide"></div>
+    <div class="actions"><button class="btn" id="back">Back</button><button class="btn primary" id="next">Connect</button></div>`, 2);
+  document.querySelectorAll("[data-hub]").forEach((b) => (b.onclick = () => { S.hub = b.dataset.hub; hubStep(); }));
+  const m = $("#manual"); if (m) m.onclick = () => { $("#manualBox").classList.remove("hide"); $("#addr").focus(); };
+  $("#swap").onclick = () => { S.useToken = !S.useToken; hubStep(); };
+  $("#back").onclick = roleStep;
+  $("#next").onclick = async () => {
+    const addr = $("#addr").value.trim(), secret = $("#code").value.trim();
+    const hub = addr || S.hub;
+    S.name = $("#name").value.trim();
+    if (!hub) return err("Choose your hub or type its address.");
+    if (!secret) return err(S.useToken ? "Paste the hub's token." : "Enter the 6-digit code from the hub's dashboard.");
+    finish({ role: "agent", name: S.name, hub_url: hub, [S.useToken ? "token" : "code"]: secret });
+  };
+}
+
+function nameStep() {
+  S.view = "name";
+  show(`<h1>Make this the hub</h1>
+    <p>The hub keeps your AI keys, credits and history, runs the dashboard and hands work to your other computers.
+    It should stay on and connected.</p>
+    ${(S.hubs || []).length ? `<div class="err">There's already a hub on this network (“${esc(S.hubs[0].name)}”). You normally need only one.</div>` : ""}
+    <label for="name">Name for this hub</label><input id="name" value="${esc(S.name)}" autocomplete="off" autofocus>
+    <div id="err" class="err hide"></div>
+    <div class="actions"><button class="btn" id="back">Back</button><button class="btn primary" id="next">Set up hub</button></div>`, 2);
+  $("#back").onclick = roleStep;
+  $("#next").onclick = () => finish({ role: "hub", name: $("#name").value.trim() });
+}
+
+async function finish(body) {
+  const btn = $("#next"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Setting up…';
+  let res;
+  try { res = await api("/api/finish", body); } catch (e) { btn.disabled = false; btn.textContent = body.role === "hub" ? "Set up hub" : "Connect"; return err(e); }
+  S.view = "done";
+  show(`<h1><span class="spin"></span>Starting Switchboard…</h1><p class="muted">This takes a few seconds.</p>`, 3);
+  let ready = false;
+  for (let i = 0; i < 12 && !ready; i++) { try { ready = (await api("/api/ready")).ready; } catch { break; } }
+  const where = S.info.platform === "windows" ? "system tray" : S.info.platform === "macos" ? "menu bar" : "";
+  show(`<h1>${ready ? "You're all set" : "Almost there"}</h1>
+    ${ready ? `<div class="okbox">“${esc(res.name)}” is running as your ${res.role === "hub" ? "hub" : "agent"}.</div>`
+      : `<div class="err">Setup finished, but Switchboard hasn't answered yet. Give it a minute${where ? `, or look for its icon in the ${where}` : ""}.</div>`}
+    <ol>
+      ${where ? `<li>Switchboard starts by itself when you log in. Its icon is in the ${where}.</li>` : "<li>Switchboard starts by itself when this computer boots.</li>"}
+      ${res.role === "hub"
+        ? `<li>Add your PC and Mac: install Switchboard on them. They find this hub on their own; enter the code from <b>Machines → Connect a computer</b>.</li>
+           <li>Add your AI keys or sign in to your plans under <b>Settings</b> and <b>Plans &amp; credits</b>.</li>`
+        : `<li>This computer now shows up under <b>Machines</b> on your hub.</li>`}
+    </ol>
+    <div class="actions"><button class="btn primary" id="open">Open Switchboard</button></div>`, 3);
+  // Set up from another device (headless Pi): the dashboard lives on the machine that served this page.
+  const dash = res.dashboard_url.replace("//localhost", "//" + location.hostname);
+  $("#open").onclick = () => { api("/api/bye", {}).catch(() => {}); location.href = dash; };
+}
+start();
+</script>
+</body>
+</html>

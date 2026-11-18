@@ -106,11 +106,18 @@ def create_app(engine) -> FastAPI:
         except Exception:
             log.exception("initial inventory failed")
         sched = asyncio.create_task(engine.scheduler())
+        beacon = None
+        if cfg.server.get("discovery", True) and cfg.server.get("host", "0.0.0.0") not in ("127.0.0.1", "localhost"):
+            from ..discovery import start_responder
+
+            beacon = await start_responder(cfg.node_name, int(cfg.server.get("port", 8765)))
         yield
+        if beacon:
+            beacon.close()
         sched.cancel()
         await engine.close()
 
-    app = FastAPI(title="Switchboard", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="Switchboard", version=__version__, lifespan=lifespan)
 
     @app.middleware("http")
     async def local_guard(request: Request, call_next):
@@ -373,6 +380,8 @@ def create_app(engine) -> FastAPI:
         return {"accepted": engine.nodes.complete(job_id, body.model_dump())}
 
     from .manage import register as register_manage
+    from .pairing import register as register_pairing
 
     register_manage(app, engine, auth)
+    register_pairing(app, engine, auth)
     return app

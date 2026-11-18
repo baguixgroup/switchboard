@@ -134,6 +134,44 @@ be used this way; DeepSeek's API is very cheap instead.
 
 ## Install
 
+Download the app for each computer from the [releases page](https://github.com/baguixgroup/switchboard/releases)
+(Python is included; nothing else to install):
+
+| Computer | File | Install |
+|---|---|---|
+| **Mac** (Apple Silicon or Intel) | `Switchboard-<version>-macos-arm64.dmg` / `-x86_64.dmg` | Open the DMG, drag Switchboard to Applications. First time: right-click it, **Open** (it isn't from the App Store) |
+| **Windows** 10/11 | `Switchboard-<version>-Setup.exe` | Run it (no admin needed). If SmartScreen appears: **More info**, **Run anyway** |
+| **Raspberry Pi** (64-bit) / Debian / Ubuntu | `switchboard_<version>_arm64.deb` (`_amd64` for PCs) | `sudo apt install ./switchboard_<version>_arm64.deb` |
+
+**Then open Switchboard.** The setup wizard asks one question: is this computer the **hub** or does it
+**connect to your hub**?
+
+1. **Set up the hub first**, on the computer that stays on (a Raspberry Pi is ideal). On a Pi without a screen,
+   run `switchboard setup` over SSH (it asks the same questions in the terminal), or `switchboard setup --web`
+   to finish it from your phone's browser.
+2. **On every other computer**, open Switchboard and choose **Connect to my hub**. It finds the hub on your
+   network by itself and asks for a **pairing code**: the hub's dashboard shows one under
+   **Machines > Connect a computer** (6 digits, works once, 10 minutes). No long token to copy.
+
+That's it: Switchboard starts at login (tray / menu-bar icon on Windows and Mac, a background service on the
+Pi). To change a computer's role later, use **Change setup...** in the tray menu, or run `switchboard setup`.
+The hub can also hand out the installers itself: put them in its config folder under `downloads/` and the
+**Connect a computer** dialog links to them.
+
+Command line on each computer: `switchboard` (Pi/Linux), `switchboard-cli` (Windows),
+`/Applications/Switchboard.app/Contents/MacOS/Switchboard` (Mac). Non-interactive setup:
+`switchboard setup --role agent --hub 192.168.1.50 --code 123456`.
+
+### Building the installers
+
+Push a tag (`git tag v0.3.0 && git push --tags`) and GitHub Actions builds all of them
+(`.github/workflows/release.yml`) and attaches them to a release. To build one on its own platform:
+`bash packaging/macos/build.sh`, `powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1`
+(needs Inno Setup 6), or `bash packaging/linux/build-deb.sh` (build on the oldest Pi OS you support).
+The builds are unsigned: see the first-open notes above. Set `DEVELOPER_ID` for `build.sh` to sign the Mac app.
+
+### From source (developers)
+
 You need Python 3.10+ on each machine. Get this folder onto each machine (`git clone` of your repo, or unzip it).
 
 **1. Hub (Raspberry Pi; any machine works)**

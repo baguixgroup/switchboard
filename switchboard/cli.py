@@ -23,24 +23,7 @@ import httpx
 from . import __version__, paths
 from .config import Config, default_text, write_env_value
 
-SECRETS_TEMPLATE = """# Switchboard secrets for this machine. Never commit or share this file.
-# The token must be identical on the hub and every agent.
-SWITCHBOARD_TOKEN={token}
-
-# API keys: only needed on the HUB (it makes all model calls). Add the ones you have.
-# ANTHROPIC_API_KEY=
-# OPENAI_API_KEY=
-# DEEPSEEK_API_KEY=
-# XAI_API_KEY=
-# GEMINI_API_KEY=
-# GITHUB_TOKEN=            # GitHub Models (needs the models:read scope)
-# OPENROUTER_API_KEY=
-# MISTRAL_API_KEY=
-
-# Tool credentials used by MCP servers (on the machine that runs them)
-# HOSTINGER_API_TOKEN=
-# NTFY_TOKEN=              # only for a protected ntfy topic
-"""
+from .setup import SECRETS_TEMPLATE  # noqa: E402,F401  (kept importable from here)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -143,44 +126,67 @@ def _yes(question: str, default: bool = False) -> bool:
 
 # ---------------------------------------------------------------------------------------------
 def cmd_init(cfg: Config, a) -> None:
-    home = cfg.home
-    home.mkdir(parents=True, exist_ok=True)
-    role = a.role or "hub"
-    name = a.name or re.sub(r"[^a-z0-9-]", "-", socket.gethostname().split(".")[0].lower()) or "my-machine"
-    if cfg.path.exists() and not a.force:
-        print(f"Config already exists: {cfg.path} (use --force to overwrite)")
-    else:
-        text = default_text("config.yaml")
-        text = re.sub(r"^(  name: )my-machine", rf"\g<1>{name}", text, count=1, flags=re.M)
-        text = re.sub(r"^(  role: )hub", rf"\g<1>{role}", text, count=1, flags=re.M)
-        if a.hub_url:
-            text = re.sub(r"^(  hub_url: )\S+", rf"\g<1>{a.hub_url}", text, count=1, flags=re.M)
-        cfg.path.write_text(text, encoding="utf-8")
-        print(f"Wrote {cfg.path}")
-    credits = home / "credits.yaml"
-    if not credits.exists():
-        credits.write_text(default_text("credits.yaml"), encoding="utf-8")
-        print(f"Wrote {credits}")
-    sec = home / "secrets.env"
-    token = a.token or (secrets.token_urlsafe(32) if role == "hub" else "PASTE-THE-HUB-TOKEN-HERE")
-    if not sec.exists():
-        sec.write_text(SECRETS_TEMPLATE.format(token=token), encoding="utf-8")
-        with contextlib.suppress(OSError):
-            os.chmod(sec, 0o600)
-        print(f"Wrote {sec}")
-    elif a.token:
-        write_env_value(sec, "SWITCHBOARD_TOKEN", a.token)
-    cfg = Config(home)
+    from . import setup
+
+    role = a.role or (cfg.role if cfg.exists else "hub")
+    name = setup.clean_name(a.name) if (a.name or not cfg.exists) else cfg.node_name
+    if cfg.exists and not a.force and not a.token:
+        print(f"Config already exists: {cfg.path} (use --force to change it, or `switchboard setup`)")
+        return
+    res = setup.write_config(role, name, a.hub_url, a.token, cfg.home)
+    for f in res["written"]:
+        print(f"Wrote {f}")
+    cfg = Config(cfg.home)
     print(f"\nNode '{name}' ({role}). Output folder: {cfg.output_dir}")
     if role == "hub":
-        print(f"\nNext:\n  1. Add your API keys to {sec}\n  2. Add credits/free tiers: switchboard credits add --help"
+        print(f"\nNext:\n  1. Add your API keys to {cfg.home / 'secrets.env'}\n  2. Add credits/free tiers: switchboard credits add --help"
               f"\n  3. Start it: switchboard serve   (or: switchboard service install --role hub)"
               f"\n  4. Open http://localhost:{cfg.server.get('port', 8765)} (everything else can be done there)"
               f"\n\nAgents need this token:  {cfg.token}")
     else:
-        if not a.token:
-            print(f"\n! Put the hub's token into {sec} (SWITCHBOARD_TOKEN=...)")
-        print(f"\nNext:\n  switchboard doctor\n  switchboard agent   (or: switchboard service install --role agent)")
+        if res["token"] == setup.PLACEHOLDER:
+            print(f"\n! Put the hub's token into {cfg.home / 'secrets.env'} (SWITCHBOARD_TOKEN=...)")
+        print("\nNext:\n  switchboard doctor\n  switchboard agent   (or: switchboard service install --role agent)")
+
+
+def cmd_setup(cfg: Config, a) -> None:
+    """Set this computer up as hub or agent: browser wizard, terminal questions, or flags."""
+    from . import setup_wizard
+
+    flags = a.role or a.hub or a.code or a.token
+    if a.web:
+        setup_wizard.run_browser_wizard(cfg.home, remote=True, open_browser=False, port=a.port)
+    elif a.text or flags or not setup_wizard.has_display():
+        setup_wizard.run_text_wizard(cfg.home, a.role, a.name, a.hub, a.code, a.token, start=not a.no_start)
+    else:
+        setup_wizard.run_browser_wizard(cfg.home)
+
+
+def cmd_launch(cfg: Config, a) -> None:
+    """What opening the app does: the setup wizard the first time, the dashboard after that."""
+    import webbrowser
+
+    from . import setup, setup_wizard
+
+    if not cfg.exists or cfg.role not in ("hub", "agent") or (cfg.role == "agent" and cfg.token in ("", setup.PLACEHOLDER)):
+        if setup_wizard.has_display():
+            setup_wizard.run_browser_wizard(cfg.home)
+        else:
+            setup_wizard.run_text_wizard(cfg.home)
+        return
+    url = setup.dashboard_url(cfg.role, cfg.home)
+    if not setup_wizard.wait_ready(url, timeout=2):
+        from . import service
+
+        with contextlib.suppress(Exception):
+            print(service.install(cfg.role))  # started at login normally; start it now if it isn't running
+        setup_wizard.wait_ready(url, timeout=20)
+    if setup_wizard.has_display():
+        from .window import open_window
+
+        open_window(url)  # app window (Windows/macOS), else the browser
+    else:
+        print(f"Switchboard is set up as {cfg.role} '{cfg.node_name}'. Dashboard: {url}")
 
 
 def cmd_serve(cfg: Config, a) -> None:
@@ -559,6 +565,19 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--token", help="agents: the hub's SWITCHBOARD_TOKEN")
     s.add_argument("--force", action="store_true")
 
+    s = sub.add_parser("setup", help="set this computer up as hub or agent (opens the setup wizard)")
+    s.add_argument("--text", action="store_true", help="ask in the terminal instead of the browser")
+    s.add_argument("--web", action="store_true", help="serve the wizard to other devices on the network (headless Pi)")
+    s.add_argument("--port", type=int, help="port for --web (default 8767)")
+    s.add_argument("--role", choices=["hub", "agent"])
+    s.add_argument("--name", help="name for this computer (default: its hostname)")
+    s.add_argument("--hub", help="agents: hub address, e.g. 192.168.1.50 (default: find it on the network)")
+    s.add_argument("--code", help="agents: pairing code from the hub's dashboard (Machines > Connect a computer)")
+    s.add_argument("--token", help="agents: the hub's token, instead of a pairing code")
+    s.add_argument("--no-start", action="store_true", help="only write the config; don't register start-at-login")
+
+    sub.add_parser("launch", help="open Switchboard: the setup wizard the first time, then the dashboard")
+
     s = sub.add_parser("serve", help="run the hub (dashboard, API, router, scheduler)")
     s.add_argument("--host")
     s.add_argument("--port", type=int)
@@ -651,12 +670,18 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-COMMANDS = {"init": cmd_init, "serve": cmd_serve, "agent": cmd_agent, "tray": cmd_tray, "ask": cmd_ask, "plan": cmd_plan,
+COMMANDS = {"init": cmd_init, "setup": cmd_setup, "launch": cmd_launch, "serve": cmd_serve, "agent": cmd_agent, "tray": cmd_tray, "ask": cmd_ask, "plan": cmd_plan,
             "credits": cmd_credits, "alerts": cmd_alerts, "models": cmd_models, "nodes": cmd_nodes,
             "device": cmd_device, "tools": cmd_tools, "mcp": cmd_mcp, "service": cmd_service, "doctor": cmd_doctor}
 
 
 def main(argv: list[str] | None = None) -> None:
+    if argv is None:
+        argv = sys.argv[1:]
+    # Opening the packaged app (double-click, Start menu) passes no arguments, or a macOS -psn_ one.
+    argv = [x for x in argv if not x.startswith("-psn_")]
+    if paths.is_frozen() and not argv:
+        argv = ["launch"]
     args = build_parser().parse_args(argv)
     if args.home:
         os.environ["SWITCHBOARD_HOME"] = str(Path(args.home).expanduser())

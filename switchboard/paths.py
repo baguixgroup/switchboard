@@ -58,3 +58,24 @@ def default_output_dir() -> Path:
 def expand(p: str) -> Path:
     """Expand ~ and %VARS% / $VARS in a path string."""
     return Path(os.path.expandvars(os.path.expanduser(p)))
+
+
+def is_frozen() -> bool:
+    """True inside the packaged app (PyInstaller), where there is no `python -m switchboard`."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def self_command(*args: str, gui: bool = False) -> list[str]:
+    """argv that runs this Switchboard with `args`, from source or from the packaged app.
+
+    gui=True picks the window-less program on Windows (Switchboard.exe, no console flash) for
+    background services; terminal use and MCP stdio servers need the console one.
+    """
+    if not is_frozen():
+        return [sys.executable, "-m", "switchboard", *args]
+    exe = Path(sys.executable)
+    if os_family() == "windows":
+        want = exe.with_name("Switchboard.exe" if gui else "switchboard-cli.exe")
+        if want.exists():
+            exe = want
+    return [str(exe), *args]

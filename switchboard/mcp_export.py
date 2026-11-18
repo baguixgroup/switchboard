@@ -8,13 +8,14 @@ import shutil
 import sys
 from pathlib import Path
 
-from .paths import os_family
+from .paths import os_family, self_command
 
 TARGETS = ["claude-desktop", "claude-code", "vscode", "cursor", "codex", "gemini-cli"]
 
 
 def switchboard_entry(config) -> dict:
-    entry = {"command": sys.executable, "args": ["-m", "switchboard", "mcp", "serve"]}
+    cmd = self_command("mcp", "serve")
+    entry = {"command": cmd[0], "args": cmd[1:]}
     if os.environ.get("SWITCHBOARD_HOME"):
         entry["env"] = {"SWITCHBOARD_HOME": str(config.home)}
     return entry
