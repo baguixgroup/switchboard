@@ -112,6 +112,20 @@ that plan until then (the dashboard's Plans panel shows "limit reached · resets
 to the next plan. Set `permissions.cli_agents_can_edit: true` to let these CLIs write files in the
 task folder.
 
+**Images on your ChatGPT or SuperGrok plan.** The plan CLIs can't make images, so image requests are
+handed to the ChatGPT or Grok app instead (both enabled by default; set `enabled: false` under
+`providers:` for a plan you don't have). The task shows **Open ChatGPT on win-pc** (or Grok): Switchboard
+opens the desktop app on that computer, or the website if the app isn't installed, with the prompt on
+the clipboard. Paste it, make the image, and save it to that computer's Downloads folder. The agent
+notices the new image and attaches it to the task, with a link in the dashboard and a copy in your output
+folders. You can also add any file to a task with **Add a file**. In `any` mode, a paid image model is
+used instead, since that needs no manual step.
+
+**Apps continue each other's work.** Each plan app (Claude Code, Codex, Gemini, Copilot) is told where
+the last few tasks saved their files and can read them. Claude Code, Gemini and Copilot get read access
+to the output folder. So "now add tests to that script" works even if a different app wrote the script.
+Turn it off with `router.share_recent_work: false`.
+
 **Why not drive the chat websites directly?** claude.ai, chatgpt.com, gemini.google.com, grok.com and
 copilot.microsoft.com don't allow scripted use. Automating them breaks their terms and gets accounts
 banned, and it stops working whenever they change their pages. The CLIs above are the official way to use

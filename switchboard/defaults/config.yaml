@@ -13,6 +13,7 @@ node:
   hub_url: http://127.0.0.1:8765   # agents: the hub's LAN address, e.g. http://192.168.1.50:8765
   mirror_outputs: true             # agents: also write every task's output into this machine's output folder
   local_dashboard_port: 8766       # agents: open the dashboard at http://localhost:8766 on this machine (no token needed)
+  watch_folder: auto               # where to look for images you save from ChatGPT/Grok (auto = your Downloads folder)
 
 server:                            # used by the hub only
   host: 0.0.0.0
@@ -30,6 +31,7 @@ router:
   confirm_above_usd: 0.50          # ask before running anything estimated above this
   failover: true                   # on rate limit / out of credit / outage: retry with the next best model
   max_tool_rounds: 25
+  share_recent_work: true          # tell each task where earlier tasks saved their files, so apps can continue each other's work
   prefer: {}                       # small score bonus per provider, e.g. {anthropic: 0.5, deepseek: 0.3}
 
 permissions:                       # what MODELS may do on their own through tools (you can always do it yourself)
@@ -54,6 +56,7 @@ providers:
   # on any machine, run the CLI once there to log in, and the hub will use it from that machine.
   claude-code:
     kind: cli
+    read_dir_args: ["--add-dir", "{dir}"]        # lets it read earlier tasks' files
     tool_id: claude_code
     command: claude
     args: ["-p", "{prompt}", "--output-format", "json"]
@@ -80,6 +83,7 @@ providers:
     mcp_style: codex
   gemini-cli:
     kind: cli
+    read_dir_args: ["--include-directories", "{dir}"]        # lets it read earlier tasks' files
     tool_id: gemini_cli
     command: gemini
     args: ["-p", "{prompt}", "--output-format", "json", "--skip-trust"]   # trust only the task folder, this run
@@ -89,6 +93,7 @@ providers:
     mcp_style: gemini
   copilot-cli:
     kind: cli
+    read_dir_args: ["--add-dir", "{dir}"]        # lets it read earlier tasks' files
     tool_id: copilot_cli
     command: copilot
     args: ["-p", "{prompt}", "--silent", "--no-color"]
@@ -96,6 +101,10 @@ providers:
     edit_args: ["--allow-tool", "write"]
     mcp_style: copilot
     login_args: ["login"]
+  # Plans whose images are made in their own app: Switchboard opens the app with the prompt copied,
+  # then picks up the image you save. Set enabled: false if you don't have that plan.
+  chatgpt-app: {kind: handoff, label: ChatGPT, url: "https://chatgpt.com/", windows_app: ChatGPT, mac_app: ChatGPT, enabled: true}
+  grok-app:    {kind: handoff, label: Grok, url: "https://grok.com/", windows_app: Grok, mac_app: Grok, enabled: true}
   grok-build:                      # xAI's Grok Build CLI (SuperGrok / X Premium+). Check flags with `grok --help`.
     kind: cli
     tool_id: grok_cli

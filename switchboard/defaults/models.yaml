@@ -71,5 +71,9 @@ models:
      q: 8.5, skills: {research: 9}, efforts: [], features: [cli, agentic, tools, vision], verified: true}
   - {provider: copilot-cli, id: default, label: Copilot CLI (your Copilot plan), tier: strong, price: [0, 0],
      q: 8.5, skills: {code: 9}, efforts: [], features: [cli, agentic, tools], verified: true}
+  - {provider: chatgpt-app, id: images, label: ChatGPT images (your ChatGPT plan), tier: strong, price: [0, 0],
+     q: 9, features: [image_gen, handoff], verified: true}
+  - {provider: grok-app, id: images, label: Grok Imagine (your SuperGrok plan), tier: strong, price: [0, 0],
+     q: 8.5, features: [image_gen, handoff], verified: true}
   - {provider: grok-build, id: default, label: Grok Build (your SuperGrok plan), tier: strong, price: [0, 0],
      q: 8.5, skills: {code: 8.5, research: 9}, efforts: [], features: [cli, agentic], verified: false}

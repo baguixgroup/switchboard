@@ -143,6 +143,8 @@ class CLIProvider(Provider):
             if self.cfg.get("image_args"):
                 argv += _fill(self.cfg["image_args"], image=str(img))
         argv += list(self.cfg.get("edit_args") or []) if req.allow_edits else list(self.cfg.get("readonly_args") or [])
+        for d in req.read_dirs:
+            argv += _fill(self.cfg.get("read_dir_args") or [], dir=d)
         self._attach_gateway(argv, req)
         if tail_prompt is not None:
             argv.append(tail_prompt)

@@ -236,7 +236,7 @@ async function loadSettings() { S.settings = await api("/api/settings"); }
 const modelByKey = (k) => S.models.find((m) => m.key === k);
 function costKind(plan) {
   const m = modelByKey(plan.provider + ":" + plan.model);
-  if (m && m.features.includes("cli")) return "plan";
+  if (m && (m.features.includes("cli") || m.features.includes("handoff"))) return "plan";
   if ((m && m.price[0] === 0 && m.price[1] === 0 && !m.per_call) || plan.effective_cost_usd === 0) return "free";
   return "paid";
 }
@@ -401,6 +401,8 @@ function msgHtml(m, i) {
     const plan = S.credits && (S.credits.plans || []).find((x) => x.provider === p.provider);
     body = `<div class="row"><span class="typing"><i></i><i></i><i></i></span><span class="muted small" data-elapsed="${m.startedAt}">Working…</span>
       ${plan && plan.where ? `<span class="badge">on ${esc(plan.where)}</span>` : ""}</div>`;
+  } else if (m.state === "waiting") {
+    body = `<div class="md">${md(m.task.result)}</div>${handoffHtml(m.task)}`;
   } else if (m.state === "failed") {
     body = `<div class="alert critical">${I("alert")}<div class="grow"><div class="t">That didn't work</div><div class="m" style="white-space:pre-wrap">${esc(m.error)}</div></div></div>
       <div class="row" style="margin-top:10px"><button class="sm" data-retry="${i}">${I("refresh")} Try again</button></div>`;
@@ -414,6 +416,76 @@ function msgHtml(m, i) {
   const meta = m.state === "done" ? `<span>· ${money(t.cost_usd)}</span>` : "";
   return `<div class="msg ai"><div class="body"><div class="msg-head"><span class="who">${esc(label)}</span>${p.provider ? kindBadge(p) : ""}${p.effort ? `<span class="badge">${I("bolt")} ${esc(p.effort)}</span>` : ""}${meta}${where}</div>${body}</div></div>`;
 }
+const addFileBtn = (id, label = "Add a file") => `<label class="btn sm ghost" style="cursor:pointer">${I("plus")} ${label}<input type="file" hidden data-addfile="${esc(id)}"></label>`;
+function handoffHtml(t) {
+  const h = (t.plan || {}).handoff || {};
+  const desks = S.nodes.filter((n) => n.online && ["windows", "macos"].includes(n.platform));
+  const status = h.watching
+    ? `<div class="row small muted" style="margin-top:10px"><span class="typing"><i></i><i></i><i></i></span>Watching the Downloads folder on <b>${esc(h.watching)}</b> for your image…</div>`
+    : h.watch_note ? `<p class="small warn" style="margin:10px 0 0">${esc(h.watch_note)} Open the app again, or add the image with Add a file.</p>` : "";
+  return `<div class="row" style="margin-top:12px">
+      ${desks.map((n) => `<button class="sm primary" data-open="${esc(n.node)}" data-task="${esc(t.id)}">${I("external")} Open ${esc(h.label)} on ${esc(n.node)}</button>`).join("")}
+      <button class="sm" data-copy="${esc(h.prompt || "")}">${I("copy")} Copy prompt</button>
+      ${h.url ? `<a class="btn sm" href="${esc(h.url)}" target="_blank" rel="noopener">${esc(h.label)} website ${I("external")}</a>` : ""}
+      ${addFileBtn(t.id)}</div>${status}`;
+}
+function followWaiting(msg) {
+  const id = msg.task.id, until = Date.now() + 30 * 60e3;
+  let last = JSON.stringify(msg.task.plan.handoff);
+  const tick = async () => {
+    if (!ASK.messages.includes(msg) || Date.now() > until) return;
+    try {
+      const t = await api("/api/tasks/" + encodeURIComponent(id));
+      if (t.status === "done") {
+        msg.state = "done"; msg.task = t;
+        msg.files = await api("/api/tasks/" + encodeURIComponent(id) + "/files").catch(() => []);
+        ASK.history.push({ role: "user", content: msg.body.prompt }, { role: "assistant", content: t.result });
+        toast("Image received");
+        if (onPage("ask")) renderThread();
+        return;
+      }
+      const now = JSON.stringify((t.plan || {}).handoff);
+      if (now !== last) { last = now; msg.task = t; if (onPage("ask")) renderThread(); }
+    } catch (e) { /* keep waiting */ }
+    setTimeout(tick, 3000);
+  };
+  setTimeout(tick, 3000);
+}
+const onPage = (name) => (location.hash.slice(1).split("/")[0] || "ask") === name;
+async function refreshTask(id) {
+  const t = await api("/api/tasks/" + encodeURIComponent(id));
+  const msg = ASK.messages.find((m) => m.task && m.task.id === id);
+  if (msg) {
+    msg.task = t;
+    if (t.status === "done" && msg.state === "waiting") ASK.history.push({ role: "user", content: msg.body.prompt }, { role: "assistant", content: t.result });
+    msg.state = t.status === "waiting" ? "waiting" : t.status === "failed" ? "failed" : "done";
+    msg.files = await api("/api/tasks/" + encodeURIComponent(id) + "/files").catch(() => []);
+  }
+  if (onPage("ask")) renderThread();
+  else if (location.hash.startsWith("#history/")) route();
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-open]");
+  if (!b) return;
+  guard(async () => {
+    const r = await api(`/api/tasks/${encodeURIComponent(b.dataset.task)}/handoff/open`, { body: { node: b.dataset.open } });
+    toast(r.message || "Opened");
+    refreshTask(b.dataset.task);
+  }, b);
+});
+document.addEventListener("change", (e) => {
+  const inp = e.target.closest("input[data-addfile]");
+  if (!inp || !inp.files.length) return;
+  const f = inp.files[0], id = inp.dataset.addfile;
+  if (f.size > 25e6) { toast("Files up to 25 MB can be added.", true); return; }
+  const r = new FileReader();
+  r.onload = () => guard(async () => {
+    await api(`/api/tasks/${encodeURIComponent(id)}/files`, { body: { name: f.name, b64: String(r.result) } });
+    toast(`Added ${f.name}`);
+    refreshTask(id);
+  });
+  r.readAsDataURL(f);
+});
 function filesHtml(id, files) {
   const list = (files || []).filter((f) => !["prompt.md", "response.md"].includes(f.path));
   if (!id || !list.length) return "";
@@ -428,7 +500,8 @@ function detailsHtml(t, p) {
     <ul>${(p.reasons || []).map((r) => `<li>${esc(r)}</li>`).join("")}
     ${(p.warnings || []).map((w) => `<li class="warn">${esc(w)}</li>`).join("")}
     ${calls.length ? `<li>Used ${calls.length} tool call(s): ${calls.slice(0, 6).map((c) => esc(c.tool)).join(", ")}</li>` : ""}
-    ${t.output_path ? `<li>Saved to <span class="mono">${esc(t.output_path)}</span></li>` : ""}</ul></details>`;
+    ${t.output_path ? `<li>Saved to <span class="mono">${esc(t.output_path)}</span></li>` : ""}</ul>
+    ${t.id ? `<div style="margin-top:6px">${addFileBtn(t.id, "Add a file to this task")}</div>` : ""}</details>`;
 }
 function wireThread(th) {
   $$(".confirm", th).forEach((box) => {
@@ -489,9 +562,10 @@ async function runPlan(body, plan) {
     for (;;) {
       await new Promise((res) => setTimeout(res, 1500));
       t = await api("/api/tasks/" + encodeURIComponent(r.task_id));
-      if (t.status === "done" || t.status === "failed") break;
+      if (t.status === "done" || t.status === "failed" || t.status === "waiting") break;
     }
-    if (t.status === "failed") { msg.state = "failed"; msg.error = t.error; }
+    if (t.status === "waiting") { msg.state = "waiting"; msg.task = t; msg.files = []; followWaiting(msg); }
+    else if (t.status === "failed") { msg.state = "failed"; msg.error = t.error; }
     else {
       msg.state = "done"; msg.task = t;
       msg.files = await api("/api/tasks/" + encodeURIComponent(t.id) + "/files").catch(() => []);
@@ -592,7 +666,7 @@ PAGES.history = async function renderHistory(arg) {
   const draw = (q = "") => {
     const list = tasks.filter((t) => !q || (t.prompt || "").toLowerCase().includes(q.toLowerCase()));
     $("#hList").innerHTML = list.length ? list.map((t) => {
-      const st = t.status === "done" ? `<span class="badge ok">${I("check")} done</span>` : t.status === "failed" ? '<span class="badge crit">failed</span>' : `<span class="badge info">${esc(t.status)}</span>`;
+      const st = t.status === "done" ? `<span class="badge ok">${I("check")} done</span>` : t.status === "failed" ? '<span class="badge crit">failed</span>' : t.status === "waiting" ? '<span class="badge warn">waiting for your image</span>' : `<span class="badge info">${esc(t.status)}</span>`;
       const exec = (t.plan && (t.plan.executed || (t.plan.provider + ":" + t.plan.model))) || "";
       const ml = (modelByKey(exec) || { label: (t.plan && t.plan.model_label) || exec }).label;
       return `<a class="list-row" href="#history/${encodeURIComponent(t.id)}" style="color:inherit;text-decoration:none">
@@ -613,6 +687,7 @@ async function renderTask(id) {
     <div class="msg user"><div class="bubble">${esc(t.prompt)}</div></div>
     <div class="msg ai"><div class="body"><div class="msg-head"><span class="who">${esc(p.model_label || "")}</span>${p.provider ? kindBadge(p) : ""}<span>· ${money(t.cost_usd)} · ${ago(t.ts)}</span></div>
       ${t.status === "failed" ? `<div class="alert critical">${I("alert")}<div class="m" style="white-space:pre-wrap">${esc(t.error)}</div></div>` : `<div class="md">${md(t.result)}</div>`}
+      ${t.status === "waiting" ? handoffHtml(t) : ""}
       ${filesHtml(t.id, files)}${detailsHtml(t, p)}</div></div>`;
   $("#again").onclick = () => { ASK.draft = t.prompt; location.hash = "#ask"; };
   $("#cont").onclick = () => {
