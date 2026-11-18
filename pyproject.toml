@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tray = ["pystray>=0.19", "pillow>=10"]
+tray = ["pystray>=0.19", "pillow>=10", "pywebview>=5; sys_platform != 'linux'"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 
 [project.scripts]

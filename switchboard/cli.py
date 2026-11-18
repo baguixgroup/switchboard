@@ -182,7 +182,9 @@ def cmd_launch(cfg: Config, a) -> None:
             print(service.install(cfg.role))  # started at login normally; start it now if it isn't running
         setup_wizard.wait_ready(url, timeout=20)
     if setup_wizard.has_display():
-        webbrowser.open(url)
+        from .window import open_window
+
+        open_window(url)  # app window (Windows/macOS), else the browser
     else:
         print(f"Switchboard is set up as {cfg.role} '{cfg.node_name}'. Dashboard: {url}")
 

@@ -13,7 +13,7 @@ ICONS = ROOT / "build" / "icons"
 WIN, MAC = sys.platform.startswith("win"), sys.platform == "darwin"
 
 hidden = (collect_submodules("switchboard") + collect_submodules("uvicorn") + collect_submodules("mcp", filter=lambda n: not n.startswith("mcp.cli"))
-          + collect_submodules("pystray"))
+          + collect_submodules("pystray") + (collect_submodules("webview") if (WIN or MAC) else []))
 datas = collect_data_files("switchboard")
 for dist in ("switchboard-ai", "mcp", "fastapi", "starlette", "pydantic", "anthropic", "openai", "httpx", "uvicorn"):
     try:
@@ -43,7 +43,7 @@ elif MAC:
                  info_plist={
                      "CFBundleName": "Switchboard", "CFBundleDisplayName": "Switchboard",
                      "CFBundleShortVersionString": VERSION, "CFBundleVersion": VERSION,
-                     "LSUIElement": True,  # menu-bar app: no Dock icon
+                     # Dock icon while the window is open; the background menu-bar process hides itself.
                      "LSMinimumSystemVersion": "11.0",
                      "NSHumanReadableCopyright": "Switchboard",
                      # macOS asks once before the app may talk to the hub on your network.
