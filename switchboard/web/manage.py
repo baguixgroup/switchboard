@@ -201,8 +201,11 @@ def register(app: FastAPI, engine, auth) -> None:
         urls = [f"http://{ip}:{port}" for ip in _lan_addresses()] or [f"http://<this-machine-ip>:{port}"]
         hub = urls[0]
         token = cfg.token
+        from .pairing import available_downloads
+
         return {
-            "hub_urls": urls, "token": token,
+            "hub_urls": urls, "token": token, "downloads": available_downloads(cfg),
+            "releases_url": cfg.server.get("downloads_url", ""),
             "steps": {
                 "windows": [
                     "Download the project (git clone or ZIP) and open PowerShell in its folder.",

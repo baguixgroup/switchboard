@@ -11,15 +11,21 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .paths import os_family
+from .paths import is_frozen, os_family, self_command
 from .tray import tray_available
 
 COMMAND = {"hub": "serve", "agent": "agent", "tray": "tray"}
 
 
-def _args(kind: str) -> list[str]:
+def _argv(kind: str) -> list[str]:
+    """Full command line for a background program (works from source and from the packaged app)."""
     home = ["--home", os.environ["SWITCHBOARD_HOME"]] if os.environ.get("SWITCHBOARD_HOME") else []
-    return ["-m", "switchboard", *home, COMMAND[kind], "--service"]
+    argv = self_command(*home, COMMAND[kind], "--service", gui=True)
+    if not is_frozen() and os_family() == "windows":
+        pyw = Path(argv[0]).with_name("pythonw.exe")  # no console window
+        if pyw.exists():
+            argv[0] = str(pyw)
+    return argv
 
 
 def _run(argv: list[str], check: bool = True) -> str:
@@ -39,10 +45,7 @@ def _plan(role: str) -> list[str]:
 
 # ---- Windows -----------------------------------------------------------------------------------
 def _win_install(kind: str) -> str:
-    exe = Path(sys.executable)
-    pyw = exe.with_name("pythonw.exe")
-    runner = pyw if pyw.exists() else exe
-    tr = f'"{runner}" ' + " ".join(f'"{a}"' if " " in a else a for a in _args(kind))
+    tr = " ".join(f'"{a}"' if (" " in a or i == 0) else a for i, a in enumerate(_argv(kind)))
     name = f"Switchboard {kind}"
     _run(["schtasks", "/Create", "/TN", name, "/TR", tr, "/SC", "ONLOGON", "/RL", "LIMITED", "/F"])
     _run(["schtasks", "/Run", "/TN", name], check=False)
@@ -63,7 +66,7 @@ def _mac_install(kind: str) -> str:
     label = f"com.switchboard.{kind}"
     plist = _plist_path(kind)
     plist.parent.mkdir(parents=True, exist_ok=True)
-    args = "\n".join(f"    <string>{a}</string>" for a in [sys.executable, *_args(kind)])
+    args = "\n".join(f"    <string>{a}</string>" for a in _argv(kind))
     env = ""
     if os.environ.get("SWITCHBOARD_HOME"):
         env = (f"  <key>EnvironmentVariables</key><dict><key>SWITCHBOARD_HOME</key>"
@@ -105,7 +108,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart={sys.executable} {' '.join(_args(kind))}
+ExecStart={' '.join(_argv(kind))}
 {env}Restart=always
 RestartSec=5
 

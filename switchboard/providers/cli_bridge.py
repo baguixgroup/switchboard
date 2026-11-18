@@ -81,11 +81,13 @@ def parse_reset(text: str, now: datetime | None = None) -> float | None:
 
 
 def gateway_command(config, servers: list[str], task_rel: str | None) -> tuple[str, list[str], dict]:
-    args = ["-m", "switchboard", "mcp", "gateway", "--servers", ",".join(servers)]
+    from ..paths import self_command
+
+    cmd = self_command("mcp", "gateway", "--servers", ",".join(servers))
     if task_rel:
-        args += ["--task", task_rel]
+        cmd += ["--task", task_rel]
     env = {"SWITCHBOARD_HOME": str(config.home)}
-    return sys.executable, args, env
+    return cmd[0], cmd[1:], env
 
 
 class CLIProvider(Provider):
