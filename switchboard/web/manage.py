@@ -79,6 +79,10 @@ class OpenIn(BaseModel):
     node: str
 
 
+class WritingResultIn(BaseModel):
+    text: str = Field(min_length=1, max_length=200_000)
+
+
 def _lan_addresses() -> list[str]:
     ips: list[str] = []
     try:
@@ -356,6 +360,13 @@ def register(app: FastAPI, engine, auth) -> None:
             raise HTTPException(400, str(exc))
         except Exception as exc:
             raise HTTPException(502, f"{body.node}: {exc}")
+
+    @app.post("/api/tasks/{task_id}/handoff/text", dependencies=dep)
+    async def writing_result(task_id: str, body: WritingResultIn) -> dict:
+        try:
+            return engine.complete_writing(task_id, body.text)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
 
     @app.get("/api/tasks/{task_id}/file", dependencies=dep)
     async def task_file(task_id: str, path: str):

@@ -73,6 +73,10 @@ models:
      q: 8.5, skills: {code: 9}, efforts: [], features: [cli, agentic, tools], verified: true}
   - {provider: chatgpt-app, id: images, label: ChatGPT images (your ChatGPT plan), tier: strong, price: [0, 0],
      q: 9, features: [image_gen, handoff], verified: true}
+  - {provider: grammarly-app, id: writing, label: Grammarly (manual handoff), price: [0, 0], features: [handoff, writing, manual_only]}
+  - {provider: quillbot-app, id: writing, label: QuillBot (manual handoff), price: [0, 0], features: [handoff, writing, manual_only]}
+  - {provider: prowritingaid-app, id: writing, label: ProWritingAid (manual handoff), price: [0, 0], features: [handoff, writing, manual_only]}
+  - {provider: languagetool-app, id: writing, label: LanguageTool (manual handoff), price: [0, 0], features: [handoff, writing, manual_only]}
   - {provider: grok-app, id: images, label: Grok Imagine (your SuperGrok plan), tier: strong, price: [0, 0],
      q: 8.5, features: [image_gen, handoff], verified: true}
   - {provider: grok-build, id: default, label: Grok Build (your SuperGrok plan), tier: strong, price: [0, 0],

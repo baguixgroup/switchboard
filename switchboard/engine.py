@@ -429,8 +429,25 @@ class Engine:
         plan = dict(t["plan"])
         plan["handoff"] = dict(h, watching=node, watch_started=time.time())
         self.store.save_task(task_id, t["status"], plan=plan)
-        self._spawn(self._watch_for_image(task_id, node))
+        if h.get("task_type") != "writing":
+            self._spawn(self._watch_for_image(task_id, node))
         return res
+
+    def complete_writing(self, task_id: str, text: str) -> dict:
+        """Save a user-reviewed writing-service result; never scrape the service's account."""
+        task = self.store.get_task(task_id)
+        handoff = ((task or {}).get("plan") or {}).get("handoff") or {}
+        if not task or task["status"] != "waiting" or handoff.get("task_type") != "writing":
+            raise ValueError("This task is not waiting for edited text.")
+        if not text.strip():
+            raise ValueError("Paste the edited text first.")
+        folder = self._task_dir(task_id)
+        plan = dict(task["plan"])
+        plan["handoff"] = dict(handoff, watching=None, received="edited-text.md")
+        (folder / "response.md").write_text(text, encoding="utf-8")
+        self.store.save_task(task_id, "done", result=text, plan=plan)
+        self._spawn(self._mirror(folder))
+        return {"ok": True}
 
     async def _watch_for_image(self, task_id: str, node: str, minutes: int = 20) -> None:
         try:

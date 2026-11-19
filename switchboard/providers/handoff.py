@@ -29,7 +29,16 @@ class HandoffProvider(Provider):
 
     async def run(self, req: RunRequest, toolbox: ToolBox | None = None) -> RunResult:
         label = self.cfg.get("label", self.name)
-        prompt = image_prompt(req.prompt)
+        writing = self.cfg.get("task_type") == "writing"
+        prompt = (req.prompt.partition("Text to edit:\n")[2] or req.prompt) if writing else image_prompt(req.prompt)
+        if writing:
+            text = (f"Edit this text with **{label}** using your own account. This is a manual handoff, "
+                    "not an API connection. Your subscription's features and limits apply.\n\n"
+                    f"Open {label} below, paste the copied text, and make your edits. "
+                    "Then use **Paste edited text** here to save the result and finish the task.")
+            return RunResult(text=text, provider=self.name, model=req.model.id, stop_reason="handoff",
+                             handoff={"app": self.name, "label": label, "prompt": prompt, "task_type": "writing",
+                                      "url": self.cfg.get("url", ""), "windows_app": label, "mac_app": label})
         text = (f"This will be made with your **{label}** plan, so it uses no API credit.\n\n"
                 f"Prompt (copied for you when you open {label}):\n\n> {prompt}\n\n"
                 f"Open {label} on one of your computers below, create the image, and save it to that computer's "

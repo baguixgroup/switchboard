@@ -30,7 +30,7 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "research": ["research", "compare", "latest", "news", "sources", "market", "find out", "what are the best",
                  "review of"],
     "writing": ["write", "email", "essay", "blog", "article", "story", "rewrite", "summarize", "summary",
-                "translate", "letter", "caption"],
+                "translate", "letter", "caption", "grammar", "proofread", "paraphrase", "spelling", "tone"],
 }
 PRIORITY = list(CATEGORY_KEYWORDS) + ["chat"]
 UP_WORDS = ["architecture", "entire", "full app", "complete app", "production", "from scratch", "complex",
@@ -197,6 +197,8 @@ class Router:
         self.cfg = router_cfg or {}
 
     def _eligible(self, m: ModelInfo, profile: TaskProfile, available: set[str]) -> bool:
+        if "manual_only" in m.features:
+            return False  # writing services require an explicit choice, never surprise automatic handoffs
         if m.provider not in available:
             return False
         if "image_gen" in profile.needs:

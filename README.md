@@ -213,6 +213,25 @@ or `~/.config/switchboard` (Linux/Pi):
 | `credits.yaml` | your credits, free tiers, subscriptions, budgets |
 | `models.yaml` | your catalog overrides (written by `models sync`) |
 
+## Writing assistant and writing services
+
+In chat, click **Writing** to proofread, improve clarity, paraphrase, shorten, summarize or translate.
+Choose a tone and language, then prepare and review the request before sending it. Built-in writing
+uses your connected AI models and the chat's spending settings; it requires a configured provider.
+
+The same dialog offers **Grammarly, QuillBot, ProWritingAid and LanguageTool** through your own accounts.
+These are explicitly labelled **manual handoffs**, not API connections: send the prepared request,
+open the service on an online Mac/Windows agent with the source text copied, paste and edit there,
+then click **Paste edited text** in Switchboard to finish the task. You can also copy the text and open
+the service's website yourself. Apply tone/translation choices in the service where supported.
+Features, subscriptions and quotas are managed by each service; Switchboard does not read passwords,
+check account balances or automate their websites. These services are never chosen by automatic routing.
+The reviewed result is saved in the task's `response.md` and mirrored like other task output.
+
+Grammarly's former editor SDK was [retired in January 2024](https://www.grammarly.com/blog/company/general-availability-grammarly-text-editor-sdk/).
+LanguageTool's [public HTTP API rules](https://dev.languagetool.org/public-http-api.html) prohibit automated
+requests, so Switchboard uses its editor instead of sending background proofreading requests there.
+
 ## Command line (optional)
 
 Everything below can also be done in the app; the commands are there if you prefer a terminal.
