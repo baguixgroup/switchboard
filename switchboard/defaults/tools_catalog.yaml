@@ -43,26 +43,42 @@ claude_desktop:
   name: Claude desktop app
   desktop: true
   helps: [writing, research]
-  manual: true
+  aliases: [claude, claude-app, claude desktop]
+  installer: macos_app
+  download_macos: "https://claude.ai/api/desktop/darwin/universal/dmg/latest/redirect"
+  bundle_name: Claude.app
+  bundle_ids: [com.anthropic.claudefordesktop]
   detect:
     app_names: [Claude, Claude Desktop]
     paths:
       macos: ["/Applications/Claude.app", "~/Applications/Claude.app"]
       windows: ["%LOCALAPPDATA%/AnthropicClaude/claude.exe", "%LOCALAPPDATA%/AnthropicClaude/app-*/claude.exe", "%LOCALAPPDATA%/Programs/Claude/Claude.exe"]
-  install: {windows: "Install Claude from https://claude.ai/download", macos: "Install Claude from https://claude.ai/download"}
-  unsupported: {pi: "Claude desktop is available for Mac and Windows; use the web app or Claude Code here.", linux: "Use Claude's web app or Claude Code on Linux."}
+  install: {windows: "winget install --id Anthropic.Claude --exact --source winget --silent --disable-interactivity", macos: "Download, verify and install the official Claude app in ~/Applications"}
+  unsupported: {pi: "Desktop installation is not automated on Raspberry Pi; Claude's Linux app requires Debian 12+ with a desktop. Use Claude Code or the web app here.", linux: "See https://support.claude.com/en/articles/10065433-install-claude-desktop for supported Linux packages."}
 
 chatgpt_desktop:
   name: ChatGPT desktop app
   desktop: true
   helps: [writing, research]
-  manual: true
+  aliases: [chatgpt, chatgpt-app, chatgpt desktop]
+  installer: macos_app
+  download_macos: "https://persistent.oaistatic.com/codex-app-prod/Codex.dmg"
+  bundle_name: ChatGPT.app
+  windows_package: OpenAI.Codex
+  download_windows:
+    x64: https://persistent.oaistatic.com/codex-app-prod/ChatGPT-x64.msix
+    arm64: https://persistent.oaistatic.com/codex-app-prod/ChatGPT-arm64.msix
+  bundle_ids: [com.openai.codex, com.openai.chat]
+  agreements:
+    windows:
+      - {label: Microsoft Store transaction terms, url: "https://aka.ms/microsoft-store-terms-of-transaction"}
+      - {label: Microsoft Store license terms, url: "https://aka.ms/microsoft-store-license"}
   detect:
-    app_names: [ChatGPT]
+    app_names: [ChatGPT, OpenAI.Codex]
     paths:
       macos: ["/Applications/ChatGPT.app", "~/Applications/ChatGPT.app"]
       windows: ["%LOCALAPPDATA%/Programs/ChatGPT/ChatGPT.exe", "%PROGRAMFILES%/ChatGPT/ChatGPT.exe"]
-  install: {windows: "Install ChatGPT from https://chatgpt.com/download", macos: "Install ChatGPT from https://chatgpt.com/download"}
+  install: {windows: "winget install --id 9PLM9XGG6VKS --exact --source msstore --silent --disable-interactivity", macos: "Download, verify and install the official ChatGPT app in ~/Applications"}
   unsupported: {pi: "Use ChatGPT's web app or the Codex CLI on Raspberry Pi.", linux: "Use ChatGPT's web app or the Codex CLI on Linux."}
 
 node:

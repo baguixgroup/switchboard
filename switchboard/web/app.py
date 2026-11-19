@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from .. import __version__, advisor
 from ..credits import CreditSource
-from ..inventory import mcp_catalog
+from ..inventory import mcp_catalog, resolve_tool_id
 from ..router import Plan
 
 log = logging.getLogger("switchboard.web")
@@ -72,6 +72,7 @@ class InstallIn(BaseModel):
     node: str
     tool: str
     approved: bool = False
+    accept_agreements: bool = False
 
 
 class CreditIn(BaseModel):
@@ -101,6 +102,9 @@ def create_app(engine) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        for task in engine.store.recent_tasks(limit=10000):
+            if task["status"] in ("queued", "running") and (task.get("plan") or {}).get("kind") == "installation":
+                engine.store.save_task(task["id"], "failed", error="Hub restarted before installation status was received. Rescan the target before retrying; its installer may still be running.")
         try:
             await engine.refresh_local_inventory()
         except Exception:
@@ -314,8 +318,16 @@ def create_app(engine) -> FastAPI:
     @app.post("/api/tools/install", dependencies=[Depends(auth)])
     async def install(body: InstallIn) -> dict:
         try:
-            return await engine.nodes.submit(body.node, "install_tool", {"tool": body.tool, "approved": body.approved},
-                                             timeout=1900)
+            node = engine.resolve_node(body.node)
+            tool = resolve_tool_id(body.tool)
+            if not tool:
+                raise ValueError("Unknown app. Choose one from Install apps.")
+            if body.approved:
+                return JSONResponse({"task_id": engine.start_install(node, tool, body.accept_agreements),
+                                     "status": "queued"}, status_code=202)
+            return await engine.nodes.submit(node, "install_tool", {"tool": tool, "approved": False}, timeout=60)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
         except Exception as exc:
             raise HTTPException(502, str(exc))
 

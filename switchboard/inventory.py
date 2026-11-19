@@ -54,6 +54,18 @@ def tools_catalog() -> dict:
     return load_default("tools_catalog.yaml")
 
 
+def resolve_tool_id(value: str) -> str | None:
+    catalog = tools_catalog()
+    if value in catalog:
+        return value
+    normalized = re.sub(r"[^a-z0-9]", "", value.casefold())
+    for name, entry in catalog.items():
+        aliases = [name, entry.get("name", name), *entry.get("aliases", [])]
+        if any(re.sub(r"[^a-z0-9]", "", alias.casefold()) == normalized for alias in aliases):
+            return name
+    return None
+
+
 def mcp_catalog() -> dict:
     return load_default("mcp_catalog.yaml")
 
@@ -61,8 +73,8 @@ def mcp_catalog() -> dict:
 def _windows_desktop_apps() -> dict[str, str]:
     """App registration catches Microsoft Store apps even when their executables are protected."""
     script = ("$ErrorActionPreference='SilentlyContinue'; "
-              "$start=@(Get-StartApps | Where-Object {$_.Name -match 'Claude|ChatGPT'} | Select-Object Name,AppID); "
-              "$packages=@(Get-AppxPackage | Where-Object {$_.Name -match 'Claude|ChatGPT'} | Select-Object Name,InstallLocation); "
+              "$start=@(Get-StartApps | Where-Object {$_.Name -match 'Claude|ChatGPT|Codex'} | Select-Object Name,AppID); "
+              "$packages=@(Get-AppxPackage | Where-Object {$_.Name -match 'Claude|ChatGPT|^OpenAI.Codex'} | Select-Object Name,InstallLocation); "
               "@{start=$start;packages=$packages}|ConvertTo-Json -Compress -Depth 3")
     try:
         result = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True,

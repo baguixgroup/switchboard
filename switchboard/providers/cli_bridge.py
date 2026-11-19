@@ -143,7 +143,8 @@ class CLIProvider(Provider):
             env_toml = "{ " + ", ".join(f"{k} = {json.dumps(v)}" for k, v in env.items()) + " }"
             argv += ["-c", f"mcp_servers.switchboard.command={json.dumps(cmd)}",
                      "-c", f"mcp_servers.switchboard.args={json.dumps(args)}",
-                     "-c", f"mcp_servers.switchboard.env={env_toml}"]
+                     "-c", f"mcp_servers.switchboard.env={env_toml}",
+                     "-c", 'mcp_servers.switchboard.default_tools_approval_mode="approve"']
         elif style == "gemini":
             (wd / ".gemini").mkdir(exist_ok=True)
             (wd / ".gemini" / "settings.json").write_text(
@@ -210,7 +211,8 @@ class CLIProvider(Provider):
             prompt += "\n\nImages for this task (read these files): " + ", ".join(str(p) for p in req.images)
         if req.tool_servers:
             prompt += ("\n\nYou have Switchboard tools (MCP server 'switchboard') for: "
-                       + ", ".join(req.tool_servers) + ", plus the user's machines and devices. Use them.")
+                       + ", ".join("machine management" if s == "__machine_management__" else s for s in req.tool_servers)
+                       + ", plus the user's machines and devices. Use them.")
         via_stdin = self.cfg.get("prompt_via") == "stdin" or len(prompt) > 24_000
         workdir = Path(req.workdir) if req.workdir else None
         image_task = self.cfg.get("output_kind") == "image"

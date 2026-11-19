@@ -308,6 +308,19 @@ switchboard tools advise           # what's missing where, with install commands
 switchboard tools install adb --node windows-pc
 ```
 
+Remote app installation can also be requested in chat, for example “Install ChatGPT on Windows.”
+Switchboard checks the connected machine and shows an installation confirmation button with the
+answer. Microsoft Store terms need separate explicit acceptance. Installations run as tracked jobs
+in **History**, survive closing the dashboard, and refresh the machine's detected apps when finished.
+A successful installer exit alone is not enough: the target agent must detect the installed app.
+If the hub restarts during installation, rescan the target before retrying.
+
+ChatGPT and Claude desktop have executable installers for Windows and macOS. Windows uses the
+official winget/Store entries (ChatGPT also retries with OpenAI's signed MSIX when the Store
+reports success without registering the app); macOS downloads and verifies the official app before copying it to
+`~/Applications`. Unsupported platforms and missing prerequisites are shown as actionable errors.
+Installing a desktop app does not sign into it or enable its separate command-line AI provider.
+
 Devices and servers:
 
 ```bash

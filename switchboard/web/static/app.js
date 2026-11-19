@@ -81,7 +81,7 @@ const PLANINFO = {
   "copilot-cli": ["GitHub Copilot", "Copilot Free or Pro, through Copilot CLI"],
   "grok-build": ["Grok", "SuperGrok, through Grok Build (beta)"],
 };
-const APPNAME = { unity: "Unity Editor", photoshop: "Photoshop", blender: "Blender", playwright: "Browser testing",
+const APPNAME = { __machine_management__: "Machine management", unity: "Unity Editor", photoshop: "Photoshop", blender: "Blender", playwright: "Browser testing",
   mobile: "Phones & simulators", filesystem: "Files & folders", github: "GitHub", hostinger: "Hostinger", desktop: "Desktop control" };
 const appName = (a) => APPNAME[a] || a;
 const SPEND = {
@@ -557,7 +557,7 @@ function filesHtml(id, files) {
 }
 function detailsHtml(t, p) {
   const calls = ((t.plan && t.plan.tool_calls) || []);
-  return `<details class="more"><summary>${I("info")} Details</summary>
+  return installRequestsHtml(t) + `<details class="more"><summary>${I("info")} Details</summary>
     <ul>${(p.reasons || []).map((r) => `<li>${esc(r)}</li>`).join("")}
     ${(p.warnings || []).map((w) => `<li class="warn">${esc(w)}</li>`).join("")}
     ${calls.length ? `<li>Used ${calls.length} tool call(s): ${calls.slice(0, 6).map((c) => esc(c.tool)).join(", ")}</li>` : ""}
@@ -744,6 +744,9 @@ async function renderTask(id) {
   const files = await api("/api/tasks/" + encodeURIComponent(id) + "/files").catch(() => []);
   if (stale(me)) return;
   const p = t.plan || {};
+  if (p.kind === "installation" && ["queued", "running"].includes(t.status)) {
+    setTimeout(() => { if (!stale(me)) renderTask(id); }, 2000);
+  }
   view.innerHTML = `<div class="row" style="margin-bottom:14px"><a class="btn sm" href="#history">${I("back")} History</a><div class="grow"></div>
       <button class="sm" id="again">${I("refresh")} Ask again</button><button class="sm primary" id="cont">${I("chat")} Continue this chat</button></div>
     <div class="msg user"><div class="bubble">${esc(t.prompt)}</div></div>
@@ -1057,18 +1060,44 @@ async function renderInstall() {
 async function installTool(node, tool, btn, after) {
   await guard(async () => {
     const pre = await api("/api/tools/install", { body: { node, tool, approved: false } });
-    if (!pre.needs_approval) { modal({ title: pre.manual ? "Install it yourself" : "Can't install", body: `<p>${esc(pre.output || pre.command || "")}</p>`, foot: `<button class="primary" data-close>OK</button>` }); return; }
-    const m = modal({ title: `Install on ${node}?`, body: `<p>Switchboard will run this on <b>${esc(node)}</b>:</p>${copyBox(pre.command)}<p class="tiny muted" style="margin-top:8px">It may take a few minutes.</p>`,
-      foot: `<button data-close>Cancel</button><button class="primary" id="go">Install</button>` });
+    if (!pre.needs_approval) {
+      modal({ title: pre.ok ? "Already installed" : "Installation needs attention", body: `<p>${esc(pre.output || pre.command || "")}</p>`, foot: `<button data-close>OK</button>` });
+      if (pre.ok) { await loadNodes(true); if (after) after(); }
+      return;
+    }
+    const agreements = pre.agreements || [];
+    const m = modal({ title: `Install on ${node}?`, body: `<p>Switchboard will run this on <b>${esc(node)}</b>:</p>${copyBox(pre.command)}
+      ${agreements.length ? `<p>${agreements.map((a) => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.label)}</a>`).join(" · ")}</p><label><input type="checkbox" id="accept-install"> I accept these installation terms.</label>` : ""}
+      <p class="small muted" id="install-status">Progress is saved in History. Installation may take several minutes.</p>`,
+      foot: `<button data-close>Close</button><button class="primary" id="go" ${agreements.length ? "disabled" : ""}>Install</button>` });
+    if (agreements.length) $("#accept-install", m.el).onchange = (e) => { $("#go", m.el).disabled = !e.target.checked; };
     $("#go", m.el).onclick = (e) => guard(async () => {
-      e.currentTarget.textContent = "Installing…";
-      const r = await api("/api/tools/install", { body: { node, tool, approved: true } });
+      const go = e.currentTarget;
+      go.disabled = true; go.textContent = "Installing…";
+      const r = await api("/api/tools/install", { body: { node, tool, approved: true, accept_agreements: agreements.length ? $("#accept-install", m.el).checked : false } });
+      $("#install-status", m.el).innerHTML = `Installing on ${esc(node)}. <a href="#history">View progress in History</a>`;
+      let task;
+      do {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        task = await api(`/api/tasks/${encodeURIComponent(r.task_id)}`);
+      } while (["queued", "running"].includes(task.status));
       m.close();
-      if (r.ok) toast("Installed"); else modal({ title: "Install didn't finish", wide: true, body: `<pre class="out">${esc(r.output || "")}</pre>` });
-      after && after();
+      modal({ title: task.status === "done" ? "Installation verified" : "Installation needs attention", wide: true,
+        body: `<pre class="out">${esc(task.error || task.result || "")}</pre>`, foot: `<button data-close>OK</button>` });
+      await loadNodes(true); if (after) after();
     }, e.currentTarget);
   }, btn);
 }
+
+function installRequestsHtml(t) {
+  return ((t.plan || {}).install_requests || []).map((r) => r.task_id
+    ? `<p><a href="#history">View installation of ${esc(r.name)} on ${esc(r.node)} in History</a></p>`
+    : `<p><button class="sm" data-install-chat="${esc(r.node)}|${esc(r.tool)}">Install ${esc(r.name)} on ${esc(r.node)}</button></p>`).join("");
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-install-chat]");
+  if (b) { const [node, tool] = b.dataset.installChat.split("|"); installTool(node, tool, b); }
+});
 
 // ================================================================ SETTINGS
 const MAIN_KEYS = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_KEY", "XAI_API_KEY", "GITHUB_TOKEN"];

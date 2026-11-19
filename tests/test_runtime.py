@@ -80,6 +80,7 @@ def test_node_requires_npm_and_npx(monkeypatch):
 @pytest.mark.parametrize('approved', [False, True])
 async def test_npm_install_prepares_node_only_after_approval(tmp_path, monkeypatch, approved):
     events = []
+    monkeypatch.setattr('switchboard.executor.detect_tools', lambda: {'gemini_cli': {'installed': bool(events)}})
     monkeypatch.setattr(runtime, 'missing_node_commands', lambda: ['npm', 'npx'])
     monkeypatch.setattr(runtime, 'install_node', lambda: events.append('node') or '/user/node')
     monkeypatch.setattr('switchboard.executor.platform_tag', lambda: 'macos')

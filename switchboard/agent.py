@@ -60,6 +60,10 @@ async def run_agent(config) -> None:
                 body = {"result": result}
                 if job["kind"] == "inventory":
                     state["inv"], state["inv_ts"] = result, time.time()
+                elif job["kind"] == "install_tool" and result.get("ok"):
+                    state["inv"] = await build_inventory(config, mcp, start_mcp=False)
+                    state["inv_ts"] = time.time()
+                    result["inventory"] = state["inv"]
             except Exception as exc:
                 log.warning("job %s (%s) failed: %s", job.get("id"), job.get("kind"), exc)
                 body = {"error": f"{type(exc).__name__}: {exc}"}

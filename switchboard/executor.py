@@ -7,7 +7,7 @@ import logging
 import time
 
 from . import devices
-from .inventory import build_inventory, run_shell, tools_catalog
+from .inventory import build_inventory, detect_tools, resolve_tool_id, run_shell, tools_catalog
 from .outputs import safe_join
 from .paths import platform_tag
 
@@ -32,7 +32,7 @@ class Executor:
         if kind == "device_action":
             return await devices.device_action(self.config, payload["device"], payload["action"], payload.get("args"))
         if kind == "install_tool":
-            return await self.install_tool(payload["tool"], bool(payload.get("approved")))
+            return await self.install_tool(payload["tool"], bool(payload.get("approved")), bool(payload.get("accept_agreements")))
         if kind == "cli_run":
             return await self.cli_run(payload)
         if kind in ("mcp_add", "mcp_remove", "mcp_restart"):
@@ -50,24 +50,39 @@ class Executor:
             return {"written": str(target)}
         raise ValueError(f"unknown job kind: {kind}")
 
-    async def install_tool(self, tool_id: str, approved: bool) -> dict:
-        from .runtime import install_node, missing_node_commands
+    async def install_tool(self, tool_id: str, approved: bool, accept_agreements: bool = False) -> dict:
+        from .runtime import install_node, missing_node_commands, which
 
+        tool_id = resolve_tool_id(tool_id)
         t = tools_catalog().get(tool_id)
         if not t:
             return {"ok": False, "output": f"unknown tool '{tool_id}'"}
+        detected = await asyncio.to_thread(detect_tools)
+        if detected.get(tool_id, {}).get("installed"):
+            return {"ok": True, "already_installed": True, "tool": tool_id, "output": f"{t['name']} is already installed on {self.config.node_name}."}
         plat = platform_tag()
         command = (t.get("install") or {}).get(plat) or ((t.get("install") or {}).get("linux") if plat == "pi" else None)
         if not command:
             return {"ok": False, "output": (t.get("unsupported") or {}).get(plat) or f"no installer for {plat}"}
         if t.get("manual") or command.lower().startswith("install "):
-            return {"ok": False, "manual": True, "output": command}
+            return {"ok": False, "manual": True, "needs_user_action": True, "output": command}
+        agreements = (t.get("agreements") or {}).get(plat, [])
+        if approved and agreements and not accept_agreements:
+            return {"ok": False, "needs_approval": True, "agreements": agreements,
+                    "output": "Explicit acceptance of the displayed installation terms is required."}
+        macos_app = plat == "macos" and t.get("installer") == "macos_app"
+        launcher = command.split()[0]
+        if not macos_app and t.get("installer") != "node" and launcher not in ("npm", "npx") and not which(launcher):
+            return {"ok": False, "needs_user_action": True,
+                    "output": f"{launcher} is not available on {self.config.node_name}. Install that prerequisite there before installing {t['name']}."}
         node_install = t.get("installer") == "node"
         needs_node = node_install or ("node" in t.get("requires", []) and bool(missing_node_commands()))
         shown = ("Install verified Node.js LTS binaries from https://nodejs.org (includes npm/npx, per-user)"
                  + ("; then " + command if not node_install else "")) if needs_node else command
         if not approved:
-            return {"ok": False, "needs_approval": True, "command": shown}
+            return {"ok": False, "needs_approval": True, "command": shown, "tool": tool_id, "agreements": agreements}
+        if agreements and accept_agreements:
+            command += " --accept-package-agreements"
         if needs_node:
             try:
                 location = await asyncio.to_thread(install_node)
@@ -78,11 +93,39 @@ class Executor:
         if command.startswith("sudo "):
             command = "sudo -n " + command[5:]  # never hang waiting for a password
         log.info("installing %s: %s", tool_id, command)
-        rc, out, err = await run_shell(command, timeout=1800)
+        if macos_app:
+            from .installers import install_macos_app
+
+            try:
+                out = await asyncio.to_thread(install_macos_app, t)
+                rc, err = 0, ""
+            except Exception as exc:
+                return {"ok": False, "command": shown, "output": f"Official app installation failed: {exc}"}
+        else:
+            rc, out, err = await run_shell(command, timeout=1800)
         text = (out + "\n" + err).strip()[-8000:]
         if rc != 0 and "a password is required" in err:
             text += f"\n\nThis needs your password. Run it yourself on {self.config.node_name}:\n  {command[8:]}"
-        return {"ok": rc == 0, "command": command, "output": text}
+        if rc != 0:
+            return {"ok": False, "command": shown, "output": text or f"Installer exited with code {rc} on {self.config.node_name}."}
+        if plat == "windows" and t.get("download_windows"):
+            detected = await asyncio.to_thread(detect_tools)
+            if not detected.get(tool_id, {}).get("installed"):
+                from .installers import install_windows_msix
+                try:
+                    installed_output = await asyncio.to_thread(install_windows_msix, t)
+                    text += "\nOfficial MSIX fallback:\n" + installed_output
+                except Exception as exc:
+                    return {"ok": False, "needs_user_action": True, "command": shown,
+                            "output": text + f"\nOfficial MSIX installation failed: {exc}"}
+        for attempt in range(5):
+            detected = await asyncio.to_thread(detect_tools)
+            if detected.get(tool_id, {}).get("installed"):
+                return {"ok": True, "installed": True, "tool": tool_id, "command": shown, "output": text or f"Installed {t['name']}."}
+            if attempt < 4:
+                await asyncio.sleep(1)
+        return {"ok": False, "needs_user_action": True, "command": shown,
+                "output": text + f"\nThe installer exited successfully, but {t['name']} is not detected on {self.config.node_name}. Complete any installer/Store prompt there, then rescan."}
 
     async def cli_run(self, p: dict) -> dict:
         """Run a plan CLI on this machine (where it is installed and logged in) for the hub."""

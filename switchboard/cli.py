@@ -431,9 +431,23 @@ def cmd_tools(cfg: Config, a) -> None:
                 return
             if not (a.yes or _yes(f"Run on {node}: {pre['command']} ?")):
                 raise SystemExit("Cancelled.")
-            res = _json(c.post("/api/tools/install", json={"node": node, "tool": a.tool, "approved": True}))
-            print(res.get("output", ""))
-            print("Installed." if res.get("ok") else "Install failed.")
+            agreements = pre.get("agreements") or []
+            for agreement in agreements:
+                print(f"{agreement['label']}: {agreement['url']}")
+            if agreements and not _yes("Accept these installation terms for this app?"):
+                raise SystemExit("Cancelled.")
+            res = _json(c.post("/api/tools/install", json={"node": node, "tool": a.tool,
+                        "approved": True, "accept_agreements": bool(agreements)}))
+            print(f"Installation job: {res['task_id']}", flush=True)
+            import time
+            while True:
+                task = _json(c.get(f"/api/tasks/{res['task_id']}"))
+                if task["status"] not in ("queued", "running"):
+                    print(task.get("error") or task.get("result") or task["status"])
+                    if task["status"] != "done":
+                        raise SystemExit(1)
+                    break
+                time.sleep(1)
 
 
 def cmd_mcp(cfg: Config, a) -> None:

@@ -15,7 +15,7 @@ from . import advisor, balances, notify, outputs
 from .catalog import Catalog
 from .credits import Ledger
 from .executor import Executor
-from .inventory import build_inventory, mcp_catalog
+from .inventory import build_inventory, mcp_catalog, resolve_tool_id, tools_catalog
 from .mcp_hub import MCPHub
 from .nodes import NodeRegistry
 from .providers import ProviderError, RunRequest, RunResult, build_providers
@@ -29,6 +29,7 @@ MIRROR_MAX_BYTES = 20 * 1024 * 1024
 CLI_TOOL_IDS = {"claude-code": "claude_code", "codex": "codex", "gemini-cli": "gemini_cli",
                 "copilot-cli": "copilot_cli", "grok-build": "grok_cli"}
 GATEWAY_TTL = 3 * 3600
+MANAGEMENT_TOOLS = "__machine_management__"
 
 
 class Engine:
@@ -46,6 +47,8 @@ class Engine:
         self.gateways: dict[str, tuple[ToolBox, float]] = {}
         self._avail: tuple[float, set[str]] = (0.0, set())
         self._bg: set[asyncio.Task] = set()
+        self.installing: dict[tuple[str, str], str] = {}
+        self.install_requests: dict[str, list[dict]] = {}
 
     # ---- discovery ----------------------------------------------------------------
     def available_providers(self, refresh: bool = False) -> set[str]:
@@ -151,6 +154,8 @@ class Engine:
             profile.tool_servers = [t for t in tools if t in locations]
         else:
             profile.tool_servers = [t for t in profile.tool_servers if t in locations]
+        if tools != "none" and tools is not False and re.search(r"\b(?:install|installed|installation|setup|set up)\b", prompt, re.I):
+            profile.tool_servers.append(MANAGEMENT_TOOLS)
         if profile.tool_servers and "tools" not in profile.needs:
             profile.needs.append("tools")
         if not profile.tool_servers and "tools" in profile.needs:
@@ -231,11 +236,51 @@ class Engine:
 
         async def list_machines(args: dict):
             return [{"node": n["node"], "platform": n.get("platform"), "online": n.get("online"),
+                     "installed_apps": [t["name"] for t in (n.get("tools") or {}).values() if t.get("installed")],
                      "devices": n.get("devices", []), "mcp_servers": list((n.get("mcp") or {}).keys())}
                     for n in self.nodes.list()]
 
         tb.add("list_machines_and_devices", "List connected machines, their devices (phones, consoles, servers) and MCP servers.",
                {"type": "object", "properties": {}}, list_machines, origin="switchboard/list_machines_and_devices")
+
+        async def installable_apps(args: dict):
+            return [{"id": name, "name": entry.get("name", name), "aliases": entry.get("aliases", []),
+                     "platforms": list(entry.get("install", {})), "unsupported": entry.get("unsupported", {})}
+                    for name, entry in tools_catalog().items()]
+
+        tb.add("list_installable_apps", "List supported apps and tools with their catalog ids and platforms. Never guess installer commands.",
+               {"type": "object", "properties": {}}, installable_apps, origin="switchboard/list_installable_apps")
+
+        async def request_install(args: dict):
+            tool = resolve_tool_id(str(args.get("tool", "")))
+            if not tool:
+                return json.dumps({"ok": False, "output": "Unknown app. Use list_installable_apps first."}), True
+            node = self.resolve_node(str(args.get("node", "")))
+            preflight = await self.nodes.submit(node, "install_tool", {"tool": tool, "approved": False}, timeout=60)
+            if preflight.get("ok") or not preflight.get("needs_approval"):
+                return json.dumps(preflight), not preflight.get("ok", False)
+            request = {"node": node, "tool": tool, "name": tools_catalog()[tool]["name"], "command": preflight.get("command")}
+            if self.config.permissions.get("install_tools") and not preflight.get("agreements"):
+                request["task_id"] = self.start_install(node, tool)
+            requests = self.install_requests.setdefault(str(task_dir), [])
+            if not any(r["node"] == node and r["tool"] == tool for r in requests):
+                requests.append(request)
+            return json.dumps({"ok": True, **request, "needs_approval": "task_id" not in request,
+                               "instruction": "A confirmation button will appear with your answer. Do not claim installation is complete before the installation task succeeds."})
+
+        tb.add("request_app_install", "Request installation of a catalog app on a connected machine. User confirmation is required by default; agreements are never accepted automatically.",
+               {"type": "object", "properties": {"node": {"type": "string"}, "tool": {"type": "string"}},
+                "required": ["node", "tool"]}, request_install, origin="switchboard/request_app_install")
+
+        async def install_status(args: dict):
+            task = self.store.get_task(str(args.get("task_id", "")))
+            if not task or (task.get("plan") or {}).get("kind") != "installation":
+                return {"error": "No such installation task."}
+            return {k: task.get(k) for k in ("id", "status", "result", "error")}
+
+        tb.add("get_installation_status", "Check an installation task. Only a done status means installation was verified.",
+               {"type": "object", "properties": {"task_id": {"type": "string"}}, "required": ["task_id"]},
+               install_status, origin="switchboard/get_installation_status")
 
         level = (self.config.permissions or {}).get("device_actions", "read_only")
         if level != "none":
@@ -255,6 +300,62 @@ class Engine:
                     "required": ["device", "action"]}, device_action, origin="switchboard/device_action")
 
     # ---- running ------------------------------------------------------------------------
+    def resolve_node(self, value: str) -> str:
+        online = [n for n in self.nodes.list() if n["online"]]
+        if any(n["node"] == value for n in online):
+            return value
+        platform = {"pc": "windows", "windows": "windows", "mac": "macos", "macos": "macos", "pi": "pi", "raspberry pi": "pi"}.get(value.casefold())
+        matches = [n["node"] for n in online if platform and n.get("platform") == platform]
+        if len(matches) == 1:
+            return matches[0]
+        raise ValueError("Choose an online machine by its exact name from the Machines page.")
+
+    def start_install(self, node: str, tool: str, accept_agreements: bool = False) -> str:
+        node = self.resolve_node(node)
+        tool = resolve_tool_id(tool)
+        if not tool:
+            raise ValueError("Unknown app. Choose one from Install apps.")
+        key = (node, tool)
+        if key in self.installing:
+            return self.installing[key]
+        task_id = "install-" + datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
+        prompt = f"Install {tools_catalog()[tool]['name']} on {node}"
+        plan = {"kind": "installation", "provider": "switchboard", "model": "installer", "model_label": "Remote installer",
+                "node": node, "tool": tool, "effective_cost_usd": 0, "tools": [],
+                "profile": {"category": "devops", "complexity": 1}, "est_cost_usd": 0}
+        self.store.save_task(task_id, "queued", prompt, plan)
+        self.installing[key] = task_id
+        async_task = asyncio.create_task(self._run_install(task_id, prompt, plan, accept_agreements))
+        self.running[task_id] = async_task
+
+        def finished(_):
+            self.running.pop(task_id, None)
+            self.installing.pop(key, None)
+
+        async_task.add_done_callback(finished)
+        return task_id
+
+    async def _run_install(self, task_id: str, prompt: str, plan: dict, accept_agreements: bool) -> None:
+        folder = outputs.task_folder(self.config.output_dir, prompt)
+        self.store.save_task(task_id, "running", output_path=str(folder), result=f"Installing on {plan['node']}…")
+        try:
+            result = await self.nodes.submit(plan["node"], "install_tool", {
+                "tool": plan["tool"], "approved": True, "accept_agreements": accept_agreements}, timeout=1900)
+            if result.get("inventory"):
+                self.nodes.heartbeat(result["inventory"])
+            if not result.get("ok"):
+                raise RuntimeError(result.get("output") or "Installation was not completed on the target machine.")
+            if not result.get("inventory"):
+                inventory = await self.nodes.submit(plan["node"], "inventory", {"start_mcp": False}, timeout=90)
+                self.nodes.heartbeat(inventory)
+            text = result.get("output") or "Installed and verified."
+            outputs.save_task_output(folder, prompt, text, {"task_id": task_id, "node": plan["node"], "tool": plan["tool"]})
+            self.store.save_task(task_id, "done", result=text)
+        except asyncio.CancelledError:
+            self.store.save_task(task_id, "failed", error="Hub stopped before installation status was received. The installer may still be running on the target; rescan before retrying.")
+            raise
+        except Exception as exc:
+            self.store.save_task(task_id, "failed", error=str(exc))
     def start_task(self, prompt: str, plan: Plan, images: list[Path] | None = None,
                    history: list[dict] | None = None) -> str:
         task_id = datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
@@ -352,7 +453,8 @@ class Engine:
             return self.store.get_task(task_id)
         final = result.text + (f"\n\n[Failover: {len(errors)} earlier attempt(s) failed]" if errors else "")
         self.store.save_task(task_id, "done", result=final, output_path=str(task_dir), cost_usd=result.cost_usd,
-                             plan=dict(plan.to_dict(), executed=f"{used.provider}:{used.model}", tool_calls=meta["tool_calls"]))
+                             plan=dict(plan.to_dict(), executed=f"{used.provider}:{used.model}", tool_calls=meta["tool_calls"],
+                                       install_requests=self.install_requests.pop(str(task_dir), [])))
         self._spawn(self._mirror(task_dir))
         return self.store.get_task(task_id)
 
