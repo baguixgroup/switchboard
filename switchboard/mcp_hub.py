@@ -101,7 +101,9 @@ class _Worker:
                     async with Client(self.cfg["url"], read_timeout_seconds=300) as client:
                         await self._serve(client)
             else:
-                params = StdioServerParameters(command=self.cfg["command"], args=[str(a) for a in self.cfg.get("args") or []],
+                from .runtime import which
+
+                params = StdioServerParameters(command=which(self.cfg["command"]) or self.cfg["command"], args=[str(a) for a in self.cfg.get("args") or []],
                                                env=self.cfg.get("env") or None, cwd=self.cfg.get("cwd"))
                 async with Client(params, read_timeout_seconds=300) as client:
                     await self._serve(client)

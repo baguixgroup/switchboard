@@ -676,6 +676,9 @@ COMMANDS = {"init": cmd_init, "setup": cmd_setup, "launch": cmd_launch, "serve":
 
 
 def main(argv: list[str] | None = None) -> None:
+    from .runtime import refresh_path
+
+    refresh_path()
     if argv is None:
         argv = sys.argv[1:]
     # Opening the packaged app (double-click, Start menu) passes no arguments, or a macOS -psn_ one.

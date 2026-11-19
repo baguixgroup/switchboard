@@ -39,12 +39,39 @@ blender:
   detect: {bin: [blender], paths: {windows: ["%PROGRAMFILES%/Blender Foundation/Blender*"], macos: ["/Applications/Blender.app"]}}
   install: {windows: "winget install -e --id BlenderFoundation.Blender", macos: "brew install --cask blender", pi: "sudo apt-get install -y blender", linux: "sudo apt-get install -y blender"}
 
+claude_desktop:
+  name: Claude desktop app
+  desktop: true
+  helps: [writing, research]
+  manual: true
+  detect:
+    app_names: [Claude, Claude Desktop]
+    paths:
+      macos: ["/Applications/Claude.app", "~/Applications/Claude.app"]
+      windows: ["%LOCALAPPDATA%/AnthropicClaude/claude.exe", "%LOCALAPPDATA%/AnthropicClaude/app-*/claude.exe", "%LOCALAPPDATA%/Programs/Claude/Claude.exe"]
+  install: {windows: "Install Claude from https://claude.ai/download", macos: "Install Claude from https://claude.ai/download"}
+  unsupported: {pi: "Claude desktop is available for Mac and Windows; use the web app or Claude Code here.", linux: "Use Claude's web app or Claude Code on Linux."}
+
+chatgpt_desktop:
+  name: ChatGPT desktop app
+  desktop: true
+  helps: [writing, research]
+  manual: true
+  detect:
+    app_names: [ChatGPT]
+    paths:
+      macos: ["/Applications/ChatGPT.app", "~/Applications/ChatGPT.app"]
+      windows: ["%LOCALAPPDATA%/Programs/ChatGPT/ChatGPT.exe", "%PROGRAMFILES%/ChatGPT/ChatGPT.exe"]
+  install: {windows: "Install ChatGPT from https://chatgpt.com/download", macos: "Install ChatGPT from https://chatgpt.com/download"}
+  unsupported: {pi: "Use ChatGPT's web app or the Codex CLI on Raspberry Pi.", linux: "Use ChatGPT's web app or the Codex CLI on Linux."}
+
 node:
   name: Node.js (needed by most MCP servers)
   group: runtime
   helps: [code, devops]
-  detect: {bin: [node, npx]}
-  install: {windows: "winget install -e --id OpenJS.NodeJS.LTS", macos: "brew install node", pi: "sudo apt-get install -y nodejs npm", linux: "sudo apt-get install -y nodejs npm"}
+  installer: node
+  detect: {bin: [node], all_bins: [node, npm, npx]}
+  install: {windows: "Download verified Node.js LTS from https://nodejs.org (npm/npx included)", macos: "Download verified Node.js LTS from https://nodejs.org (npm/npx included)", pi: "Download verified Node.js LTS from https://nodejs.org (npm/npx included)", linux: "Download verified Node.js LTS from https://nodejs.org (npm/npx included)"}
 
 uv:
   name: uv (Python runner used by many MCP servers)
@@ -109,6 +136,7 @@ ollama:
 claude_code:
   name: Claude Code CLI (uses your Claude plan)
   group: ai_cli
+  requires: [node]
   helps: [code, game_dev, devops]
   detect: {bin: [claude]}
   install: {windows: "npm install -g @anthropic-ai/claude-code", macos: "npm install -g @anthropic-ai/claude-code", pi: "npm install -g @anthropic-ai/claude-code", linux: "npm install -g @anthropic-ai/claude-code"}
@@ -116,6 +144,7 @@ claude_code:
 codex:
   name: OpenAI Codex CLI (uses your ChatGPT plan)
   group: ai_cli
+  requires: [node]
   helps: [code, game_dev, devops]
   detect: {bin: [codex]}
   install: {windows: "npm install -g @openai/codex", macos: "npm install -g @openai/codex", pi: "npm install -g @openai/codex", linux: "npm install -g @openai/codex"}
@@ -123,6 +152,7 @@ codex:
 gemini_cli:
   name: Gemini CLI (uses your Google account)
   group: ai_cli
+  requires: [node]
   helps: [code, research]
   detect: {bin: [gemini]}
   install: {windows: "npm install -g @google/gemini-cli", macos: "npm install -g @google/gemini-cli", pi: "npm install -g @google/gemini-cli", linux: "npm install -g @google/gemini-cli"}
@@ -130,6 +160,7 @@ gemini_cli:
 copilot_cli:
   name: GitHub Copilot CLI (uses your Copilot plan)
   group: ai_cli
+  requires: [node]
   helps: [code, devops]
   detect: {bin: [copilot]}
   install: {windows: "npm install -g @github/copilot", macos: "npm install -g @github/copilot", pi: "npm install -g @github/copilot", linux: "npm install -g @github/copilot"}

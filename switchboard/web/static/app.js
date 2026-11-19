@@ -774,6 +774,7 @@ PAGES.plans = async function renderPlans() {
     </div>
     ${c.alerts.length ? `<div class="section-title"><h2>Needs your attention</h2></div>${c.alerts.map(alertHtml).join("")}` : ""}
     <div class="section-title"><h2>Your plans</h2><span class="muted small">Daily and weekly limits, no credit</span></div>
+    <p class="small muted">Automatic subscription tasks use command-line clients such as Claude Code and Codex. Your installed Claude and ChatGPT desktop apps are listed separately under <a href="#machines">Machines</a>.</p>
     <div class="grid">${(c.plans || []).map(planCard).join("")}</div>
     <div class="section-title"><h2>Credits, free limits and budgets</h2><div class="grow"></div><button class="sm primary" id="addCredit">${I("plus")} Add</button></div>
     ${c.sources.length ? `<div class="grid">${c.sources.map(sourceCard).join("")}</div>` : `<div class="empty"><b>Nothing added yet</b>Add promo credit with an expiry date, a free daily limit, a plan's quota or a monthly budget.<br>Switchboard then spends expiring credit first and reminds you before free limits reset.</div>`}
@@ -911,6 +912,7 @@ PAGES.machines = async function renderMachines(tab) {
 };
 function machineCard(n) {
   const plans = (n.cli_providers || []).filter((p) => PLANINFO[p]).map((p) => PLANINFO[p][0]);
+  const desktops = Object.values(n.tools || {}).filter((t) => t.desktop && t.installed).map((t) => t.name);
   const apps = Object.keys(n.mcp || {});
   const status = n.online ? '<span class="badge ok"><span class="dot on"></span>Online</span>' : `<span class="badge">Offline${n.last_seen ? " · " + ago(n.last_seen) : ""}</span>`;
   const devIcon = (d) => (d.kind === "server" ? "server" : d.kind === "network" ? "monitor" : "phone");
@@ -918,8 +920,9 @@ function machineCard(n) {
   return `<div class="card"><div class="row" style="flex-wrap:nowrap"><div class="avatar">${I(osIcon(n.platform))}</div><div class="grow"><h3>${esc(n.node)}</h3>
       <div class="small muted">${esc(osName(n.platform))}${n.local ? " · Hub" : ""}</div></div>${status}</div>
     <dl class="kv" style="margin-top:12px"><dt>Output</dt><dd class="mono">${esc(n.output_dir || "—")}</dd>
-      <dt>Plans</dt><dd>${plans.length ? plans.map(esc).join(", ") : '<span class="muted">none installed</span>'}</dd>
-      <dt>Apps</dt><dd>${apps.length ? apps.map((a) => `${esc(appName(a))}${n.mcp[a].state === "error" ? ' <span class="crit">(error)</span>' : ""}`).join(", ") : '<span class="muted">none</span>'}</dd></dl>
+      <dt>Desktop apps</dt><dd>${desktops.length ? desktops.map(esc).join(", ") : '<span class="muted">none detected</span>'}</dd>
+      <dt>Plan CLIs</dt><dd>${plans.length ? plans.map(esc).join(", ") : '<span class="muted">none installed</span>'}</dd>
+      <dt>MCP apps</dt><dd>${apps.length ? apps.map((a) => `${esc(appName(a))}${n.mcp[a].state === "error" ? ' <span class="crit">(error)</span>' : ""}`).join(", ") : '<span class="muted">none</span>'}</dd></dl>
     ${(n.devices || []).length ? `<div style="margin-top:12px">${n.devices.map((d) => `<div class="list-row">${I(devIcon(d))}<div class="grow"><b>${esc(d.name || d.id)}</b><div class="small muted">${esc(d.state || "")}</div></div>
       ${acts(d).map(([a, l]) => `<button class="sm" data-node="${esc(n.node)}" data-dev="${esc(d.id)}" data-act="${a}">${l}</button>`).join("")}</div>`).join("")}</div>` : ""}</div>`;
 }

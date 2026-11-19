@@ -9,6 +9,7 @@ import platform
 import re
 import shutil
 import socket
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -16,10 +17,11 @@ from pathlib import Path
 from . import __version__
 from .config import load_default
 from .paths import os_family, platform_tag
+from .runtime import refresh_path, which
 
 
 async def run_cmd(argv: list[str], timeout: float = 30, cwd: str | None = None) -> tuple[int, str, str]:
-    exe = shutil.which(argv[0]) or argv[0]
+    exe = which(argv[0]) or argv[0]
     try:
         proc = await asyncio.create_subprocess_exec(exe, *argv[1:], cwd=cwd, stdin=asyncio.subprocess.DEVNULL,
                                                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
@@ -34,6 +36,7 @@ async def run_cmd(argv: list[str], timeout: float = 30, cwd: str | None = None) 
 
 
 async def run_shell(command: str, timeout: float = 1800) -> tuple[int, str, str]:
+    refresh_path()
     try:
         proc = await asyncio.create_subprocess_shell(command, stdin=asyncio.subprocess.DEVNULL,
                                                      stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
@@ -55,15 +58,35 @@ def mcp_catalog() -> dict:
     return load_default("mcp_catalog.yaml")
 
 
+def _windows_desktop_apps() -> dict[str, str]:
+    """App registration catches Microsoft Store apps even when their executables are protected."""
+    script = ("$ErrorActionPreference='SilentlyContinue'; "
+              "$start=@(Get-StartApps | Where-Object {$_.Name -match 'Claude|ChatGPT'} | Select-Object Name,AppID); "
+              "$packages=@(Get-AppxPackage | Where-Object {$_.Name -match 'Claude|ChatGPT'} | Select-Object Name,InstallLocation); "
+              "@{start=$start;packages=$packages}|ConvertTo-Json -Compress -Depth 3")
+    try:
+        result = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True,
+                                text=True, timeout=10, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        data = json.loads(result.stdout)
+        out = {r["Name"].casefold(): "shell:AppsFolder\\" + r["AppID"] for r in data.get("start", [])}
+        for row in data.get("packages", []):
+            out.setdefault(row["Name"].casefold(), row.get("InstallLocation") or row["Name"])
+        return out
+    except (OSError, ValueError, subprocess.TimeoutExpired, TypeError, KeyError):
+        return {}
+
+
 def detect_tools() -> dict[str, dict]:
+    refresh_path()
     plat = platform_tag()
     path_key = "linux" if plat == "pi" else plat
+    registered = _windows_desktop_apps() if plat == "windows" else {}
     out: dict[str, dict] = {}
     for tid, t in tools_catalog().items():
         detect = t.get("detect") or {}
         where = None
         for b in detect.get("bin") or []:
-            found = shutil.which(b)
+            found = which(b)
             if found:
                 where = found
                 break
@@ -73,9 +96,19 @@ def detect_tools() -> dict[str, dict]:
                 if hits:
                     where = hits[0]
                     break
+        if not where and plat == "windows":
+            names = [n.casefold() for n in detect.get("app_names", [])]
+            for name, location in registered.items():
+                if any(name == wanted or name.endswith("." + wanted) or name.startswith(wanted + " ") for wanted in names):
+                    where = location
+                    break
+        missing = [b for b in detect.get("all_bins", []) if not which(b)]
+        if missing:
+            where = None
         unsupported = (t.get("unsupported") or {}).get(plat)
         out[tid] = {"name": t.get("name", tid), "installed": bool(where), "where": where,
-                    "supported": not unsupported, "note": unsupported or ""}
+                    "supported": not unsupported, "desktop": bool(t.get("desktop")),
+                    "note": unsupported or ("Missing commands: " + ", ".join(missing) if missing else "")}
     return out
 
 
@@ -189,5 +222,5 @@ async def build_inventory(config, mcp_hub=None, start_mcp: bool = True) -> dict:
         "tools": tools, "devices": devices, "mcp": mcp,
         "cli_providers": sorted(n for n, c in (config.providers or {}).items()
                                 if c and c.get("kind") == "cli" and not c.get("disabled")
-                                and shutil.which(c.get("command", n))),
+                                and which(c.get("command", n))),
     }

@@ -135,7 +135,7 @@ be used this way; DeepSeek's API is very cheap instead.
 ## Install
 
 Download the app for each computer from the [releases page](https://github.com/baguixgroup/switchboard/releases)
-(Python is included; nothing else to install):
+(Python is included; optional tools are added when you need them):
 
 | Computer | File | Install |
 |---|---|---|
@@ -157,6 +157,20 @@ That's it: Switchboard starts at login (tray / menu-bar icon on Windows and Mac,
 Pi). To change a computer's role later, use **Change setup...** in the tray menu, or run `switchboard setup`.
 The hub can also hand out the installers itself: put them in its config folder under `downloads/` and the
 **Connect a computer** dialog links to them.
+
+Under **Machines**, **Desktop apps** lists installed Claude and ChatGPT apps; **Plan CLIs** lists
+Claude Code, Codex and other command-line clients used for automatic subscription tasks. Installing a
+desktop app does not automatically install its command-line client or sign in to it.
+
+The background app finds commands in standard user installation locations, including nvm, Homebrew,
+`~/.local/bin`, Windows user/system PATH entries and npm's user bin folder. It detects Windows Store
+Claude/ChatGPT registrations and Mac apps in `/Applications` or `~/Applications`. You do not need to
+launch Switchboard from a terminal for it to find these tools.
+
+When installing an npm-based client, Switchboard checks for **node, npm and npx** first. If any is
+missing, the confirmation includes installing official Node.js LTS binaries, verified against Node's
+SHA-256 checksums, into a per-user runtime folder. It does not require Homebrew or admin access.
+Use **Machines → Rescan** to refresh detection after installing an app yourself.
 
 Command line on each computer: `switchboard` (Pi/Linux), `switchboard-cli` (Windows),
 `/Applications/Switchboard.app/Contents/MacOS/Switchboard` (Mac). Non-interactive setup:

@@ -51,6 +51,8 @@ class Executor:
         raise ValueError(f"unknown job kind: {kind}")
 
     async def install_tool(self, tool_id: str, approved: bool) -> dict:
+        from .runtime import install_node, missing_node_commands
+
         t = tools_catalog().get(tool_id)
         if not t:
             return {"ok": False, "output": f"unknown tool '{tool_id}'"}
@@ -60,8 +62,19 @@ class Executor:
             return {"ok": False, "output": (t.get("unsupported") or {}).get(plat) or f"no installer for {plat}"}
         if t.get("manual") or command.lower().startswith("install "):
             return {"ok": False, "manual": True, "output": command}
+        node_install = t.get("installer") == "node"
+        needs_node = node_install or ("node" in t.get("requires", []) and bool(missing_node_commands()))
+        shown = ("Install verified Node.js LTS binaries from https://nodejs.org (includes npm/npx, per-user)"
+                 + ("; then " + command if not node_install else "")) if needs_node else command
         if not approved:
-            return {"ok": False, "needs_approval": True, "command": command}
+            return {"ok": False, "needs_approval": True, "command": shown}
+        if needs_node:
+            try:
+                location = await asyncio.to_thread(install_node)
+            except Exception as exc:
+                return {"ok": False, "command": shown, "output": f"Could not prepare Node/npm: {exc}"}
+            if node_install:
+                return {"ok": True, "command": shown, "output": f"Node.js, npm and npx are available: {location}"}
         if command.startswith("sudo "):
             command = "sudo -n " + command[5:]  # never hang waiting for a password
         log.info("installing %s: %s", tool_id, command)
@@ -126,7 +139,9 @@ class Executor:
 
         local = self.config.providers.get(p["provider"]) or {}
         cfg = {**p["cfg"], **local}
-        exe = shutil.which(cfg.get("command", p["provider"]))
+        from .runtime import which
+
+        exe = which(cfg.get("command", p["provider"]))
         if not exe:
             return {"ok": False, "message": f"{cfg.get('command')} is not installed on {self.config.node_name}."}
         proc = await asyncio.create_subprocess_exec(exe, *cfg["login_args"], stdin=asyncio.subprocess.PIPE,

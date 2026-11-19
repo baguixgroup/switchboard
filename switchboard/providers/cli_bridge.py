@@ -95,7 +95,9 @@ class CLIProvider(Provider):
 
     @property
     def executable(self) -> str | None:
-        return shutil.which(self.cfg.get("command", self.name))
+        from ..runtime import which
+
+        return which(self.cfg.get("command", self.name))
 
     def available(self) -> bool:
         return self.executable is not None
