@@ -9,11 +9,18 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
+from . import __version__
+
+
+def official_download(url: str):
+    request = urllib.request.Request(url, headers={"User-Agent": f"Switchboard/{__version__}"})
+    return urllib.request.urlopen(request, timeout=120)
+
 
 def install_macos_app(entry: dict) -> str:
     with tempfile.TemporaryDirectory(prefix="switchboard-app-") as temporary:
         image = Path(temporary) / "installer.dmg"
-        with urllib.request.urlopen(entry["download_macos"], timeout=120) as response, image.open("wb") as output:
+        with official_download(entry["download_macos"]) as response, image.open("wb") as output:
             shutil.copyfileobj(response, output)
         attached = subprocess.run(["hdiutil", "attach", "-nobrowse", "-readonly", "-plist", str(image)],
                                   capture_output=True, check=True)
@@ -52,7 +59,7 @@ def install_windows_msix(entry: dict) -> str:
     url = entry['download_windows'][arch]
     with tempfile.TemporaryDirectory(prefix='switchboard-app-') as temporary:
         package = Path(temporary) / 'ChatGPT.msix'
-        with urllib.request.urlopen(url, timeout=120) as response, package.open('wb') as output:
+        with official_download(url) as response, package.open('wb') as output:
             shutil.copyfileobj(response, output)
         from xml.etree import ElementTree
         with zipfile.ZipFile(package) as archive:

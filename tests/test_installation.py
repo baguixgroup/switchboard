@@ -140,3 +140,16 @@ def test_msix_rejects_unexpected_package_identity(tmp_path, monkeypatch):
     monkeypatch.setattr('switchboard.installers.subprocess.run', lambda *a, **kw: pytest.fail('must not install an unexpected package'))
     with pytest.raises(RuntimeError, match='unexpected application identity'):
         install_windows_msix(tools_catalog()['chatgpt_desktop'])
+
+
+def test_official_download_identifies_switchboard(monkeypatch):
+    from switchboard.installers import official_download
+    from switchboard import __version__
+    seen = []
+    def opened(request, **kwargs):
+        seen.append((request, kwargs))
+        return 'response'
+    monkeypatch.setattr('switchboard.installers.urllib.request.urlopen', opened)
+    assert official_download('https://persistent.oaistatic.com/package.msix') == 'response'
+    assert seen[0][0].get_header('User-agent') == f'Switchboard/{__version__}'
+    assert seen[0][1]['timeout'] == 120
