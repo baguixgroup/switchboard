@@ -67,7 +67,7 @@ providers:
     json_cost: total_cost_usd
     mcp_style: claude
     login_args: ["auth", "login"]
-  codex:
+  codex: &codex_cli
     kind: cli
     tool_id: codex
     command: codex
@@ -82,6 +82,12 @@ providers:
     edit_args: ["--sandbox", "workspace-write"]
     readonly_args: ["--sandbox", "read-only"]
     mcp_style: codex
+  codex-images:
+    <<: *codex_cli
+    required_feature: image_generation
+    output_kind: image
+    quota_group: codex
+    tool_id: codex
   gemini-cli:
     kind: cli
     read_dir_args: ["--include-directories", "{dir}"]        # lets it read earlier tasks' files

@@ -39,7 +39,7 @@ class HandoffProvider(Provider):
             return RunResult(text=text, provider=self.name, model=req.model.id, stop_reason="handoff",
                              handoff={"app": self.name, "label": label, "prompt": prompt, "task_type": "writing",
                                       "url": self.cfg.get("url", ""), "windows_app": label, "mac_app": label})
-        text = (f"This will be made with your **{label}** plan, so it uses no API credit.\n\n"
+        text = (f"**Waiting for you — manual {label} handoff.** Switchboard has not generated an image.\n\n"
                 f"Prompt (copied for you when you open {label}):\n\n> {prompt}\n\n"
                 f"Open {label} on one of your computers below, create the image, and save it to that computer's "
                 f"Downloads folder. Switchboard attaches it here automatically. You can also use **Add a file**.")

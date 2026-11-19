@@ -72,9 +72,11 @@ const PNAME = { anthropic: "Claude API", openai: "OpenAI API", deepseek: "DeepSe
   github: "GitHub Models", openrouter: "OpenRouter", mistral: "Mistral", ollama: "Ollama (on your machine)", "claude-code": "Claude plan",
   codex: "ChatGPT plan", "gemini-cli": "Google plan", "copilot-cli": "Copilot plan", "grok-build": "SuperGrok plan", mock: "Test model", flaky: "Test model 2" };
 const pname = (p) => PNAME[p] || p;
+PNAME["codex-images"] = "Codex image generation";
 const PLANINFO = {
   "claude-code": ["Claude", "Claude Pro or Max, through Claude Code"],
   codex: ["ChatGPT", "ChatGPT Plus or Pro, through Codex"],
+  "codex-images": ["Codex images", "Automatic native image generation through your Codex account"],
   "gemini-cli": ["Gemini", "Your Google account, through Gemini CLI"],
   "copilot-cli": ["GitHub Copilot", "Copilot Free or Pro, through Copilot CLI"],
   "grok-build": ["Grok", "SuperGrok, through Grok Build (beta)"],
@@ -430,11 +432,13 @@ function msgHtml(m, i) {
   if (m.role === "user") return `<div class="msg user"><div class="bubble">${esc(m.text)}${(m.images || []).map((s) => `<img src="${s}" alt="">`).join("")}</div></div>`;
   if (m.role === "confirm") {
     const p = m.plan;
-    const why = m.over ? esc(m.over) : `This will cost about <b>${money(p.effective_cost_usd)}</b> with ${esc(p.model_label)}, paid by ${esc(p.source_label)}.`;
+    const handoff = (modelByKey(p.provider + ":" + p.model) || { features: [] }).features.includes("handoff");
+    const why = handoff ? `This is a <b>manual app handoff</b>. You must open ${esc(p.model_label)}, create or edit the result there, and bring it back. Switchboard will wait for you; this does not generate an image automatically.`
+      : m.over ? esc(m.over) : `This will cost about <b>${money(p.effective_cost_usd)}</b> with ${esc(p.model_label)}, paid by ${esc(p.source_label)}.`;
     const alt = (p.alternatives || [])[0];
     return `<div class="msg"><div class="confirm" data-i="${i}"><b>${m.over ? "That effort may be more than this needs" : "Check before running"}</b><div class="small" style="margin-top:4px">${why}</div>
       <div class="row">${m.over ? `<button class="primary sm" data-act="lower">Use the recommended effort</button><button class="sm" data-act="run">Keep my choice</button>`
-        : `<button class="primary sm" data-act="run">Run it</button>${alt ? `<button class="sm" data-act="alt">Use ${esc(alt.label)} (${money(alt.effective_cost_usd)})</button>` : ""}`}
+        : `<button class="primary sm" data-act="run">${handoff ? "Continue with manual steps" : "Run it"}</button>${alt ? `<button class="sm" data-act="alt">Use ${esc(alt.label)} (${money(alt.effective_cost_usd)})</button>` : ""}`}
       <button class="ghost sm" data-act="cancel">Cancel</button></div></div></div>`;
   }
   const p = m.plan || {};
@@ -445,7 +449,7 @@ function msgHtml(m, i) {
     body = `<div class="row"><span class="typing"><i></i><i></i><i></i></span><span class="muted small" data-elapsed="${m.startedAt}">Working…</span>
       ${plan && plan.where ? `<span class="badge">on ${esc(plan.where)}</span>` : ""}</div>`;
   } else if (m.state === "waiting") {
-    body = `<div class="md">${md(m.task.result)}</div>${handoffHtml(m.task)}`;
+    body = `<div class="badge warn">Action needed from you</div><div class="md">${md(m.task.result)}</div>${handoffHtml(m.task)}`;
   } else if (m.state === "failed") {
     body = `<div class="alert critical">${I("alert")}<div class="grow"><div class="t">That didn't work</div><div class="m" style="white-space:pre-wrap">${esc(m.error)}</div></div></div>
       <div class="row" style="margin-top:10px"><button class="sm" data-retry="${i}">${I("refresh")} Try again</button></div>`;
@@ -641,7 +645,8 @@ const previewPlan = debounce(async () => {
   try {
     const p = await api("/api/plan", { body: buildBody(text) });
     const k = costKind(p);
-    el.innerHTML = `Will use <b>${esc(p.model_label)}</b> · ${k === "plan" ? "your plan, no credit" : k === "free" ? "free" : "about " + money(p.effective_cost_usd)}${p.effort ? " · " + esc(p.effort) + " effort" : ""}${p.tools.length ? " · with " + p.tools.map(appName).join(", ") : ""}`;
+    const handoff = (modelByKey(p.provider + ":" + p.model) || { features: [] }).features.includes("handoff");
+    el.innerHTML = `Will use <b>${esc(p.model_label)}</b> · ${handoff ? "manual steps required" : k === "plan" ? "your plan, no API credit" : k === "free" ? "free" : "about " + money(p.effective_cost_usd)}${p.effort ? " · " + esc(p.effort) + " effort" : ""}${p.tools.length ? " · with " + p.tools.map(appName).join(", ") : ""}`;
   } catch (e) { el.innerHTML = `<span class="warn">${esc(e.message)}</span>`; }
 }, 650);
 
@@ -658,9 +663,9 @@ function renderChips() {
 }
 
 function pickWho() {
-  const groups = { plan: [], free: [], paid: [], off: [] };
+  const groups = { plan: [], manual: [], free: [], paid: [], off: [] };
   for (const m of S.models) {
-    const k = !m.available ? "off" : m.features.includes("cli") ? "plan" : m.price[0] === 0 && m.price[1] === 0 && !m.per_call ? "free" : "paid";
+    const k = !m.available ? "off" : m.features.includes("handoff") ? "manual" : m.features.includes("cli") ? "plan" : m.price[0] === 0 && m.price[1] === 0 && !m.per_call ? "free" : "paid";
     groups[k].push(m);
   }
   const opt = (m, off) => `<div class="opt${ASK.who === m.key ? " on" : ""}${off ? " off" : ""}" data-key="${off ? "" : esc(m.key)}">
@@ -670,7 +675,7 @@ function pickWho() {
   const md = modal({ title: "Who should answer?", wide: true,
     body: `<div class="opt${!ASK.who ? " on" : ""}" data-key="auto"><div class="avatar">${I("spark")}</div><div class="grow"><b>Automatic (recommended)</b>
       <div class="sub">Switchboard picks the best fit for each task and your spending setting.</div></div></div>
-      ${section("Your plans · no credit", groups.plan)}${section("Free", groups.free)}${section("Pay per use", groups.paid)}${section("Not set up yet", groups.off, true)}` });
+      ${section("Your plans · automatic", groups.plan)}${section("Manual app handoffs · you finish the task", groups.manual)}${section("Free", groups.free)}${section("Pay per use", groups.paid)}${section("Not set up yet", groups.off, true)}` });
   $$(".opt[data-key]", md.el).forEach((o) => (o.onclick = () => {
     if (!o.dataset.key) return;
     ASK.who = o.dataset.key === "auto" ? null : o.dataset.key;

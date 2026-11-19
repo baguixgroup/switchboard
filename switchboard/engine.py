@@ -73,7 +73,8 @@ class Engine:
         for n in self.nodes.list():
             if not n["online"] or n["local"]:
                 continue
-            if provider in (n.get("cli_providers") or []) or ((n.get("tools") or {}).get(tid) or {}).get("installed"):
+            if provider in (n.get("cli_providers") or []) or (not p.cfg.get("required_feature") and
+                    ((n.get("tools") or {}).get(tid) or {}).get("installed")):
                 return n["node"]
         return None
 
@@ -89,6 +90,10 @@ class Engine:
                     break
         until = until or time.time() + 3600
         self.store.set_limit(provider, until, str(exc)[:300])
+        group = (self.config.providers.get(provider) or {}).get("quota_group", provider)
+        for name, cfg in self.config.providers.items():
+            if name != provider and (cfg or {}).get("quota_group", name) == group:
+                self.store.set_limit(name, until, str(exc)[:300])
         log.info("%s hit its plan limit until %s", provider, datetime.fromtimestamp(until))
         return until
 
@@ -150,10 +155,15 @@ class Engine:
             profile.needs.append("tools")
         if not profile.tool_servers and "tools" in profile.needs:
             profile.needs.remove("tools")
+        image_redirect = "image_gen" in profile.needs and (provider == "codex" or model == "codex:default")
+        if image_redirect:
+            provider, model = "codex-images", "codex-images:default"
         plan = self.router.plan(prompt, self.available_providers(), profile, provider=provider or None,
                                 model=model or None, effort=effort or None, mode=mode or None,
                                 billing=billing or None, limits=self.limits())
         plan.suggestions = advisor.suggest(profile.category, hinted, self.nodes.list())
+        if image_redirect:
+            plan.reasons.append("uses Codex's native image generation on your ChatGPT plan")
         missing = [s for s in hinted if s not in locations]
         if missing:
             plan.warnings.append(f"This task could use {', '.join(missing)} but no connected machine runs it yet "
@@ -260,6 +270,9 @@ class Engine:
         attempts: list[Plan] = [plan]
         if self.config.router.get("failover", True) and not plan.manual:
             for alt in plan.alternatives:
+                alternate = self.catalog.find(alt["key"])
+                if alternate and "handoff" in alternate.features:
+                    continue  # a manual handoff must be chosen and confirmed by the user
                 try:
                     attempts.append(self.router.plan(prompt, self.available_providers(),
                                                      TaskProfile(**plan.profile.__dict__), model=alt["key"],
@@ -281,7 +294,7 @@ class Engine:
                 toolbox = await self.build_toolbox(attempt, task_dir)
             task_rel = task_dir.relative_to(self.config.output_dir).as_posix()
             remote_cli = is_cli and self.cli_location(attempt.provider) not in (None, self.config.node_name)
-            note = self.recent_work_note(exclude=task_id) if is_cli else ""  # only apps that can open files
+            note = self.recent_work_note(exclude=task_id) if is_cli and "image_gen" not in m.features else ""
             run_prompt = prompt + (f"\n\n---\n{note}" if note else "")
             if not remote_cli:  # remote agents fill in their own output folder path
                 run_prompt = run_prompt.replace("{OUTPUT}", str(self.config.output_dir))

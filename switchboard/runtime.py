@@ -17,6 +17,8 @@ from pathlib import Path
 
 from .paths import os_family
 
+_FEATURE_CACHE: dict[tuple[str, str], tuple[float, bool]] = {}
+
 
 def node_root() -> Path:
     if os_family() == "windows":
@@ -84,6 +86,28 @@ def refresh_path() -> str:
 def which(command: str) -> str | None:
     refresh_path()
     return shutil.which(command)
+
+
+def cli_feature_enabled(command: str, feature: str) -> bool:
+    """Advertise native CLI features only when that installed binary actually enables them."""
+    import time
+
+    exe = which(command)
+    if not exe:
+        return False
+    key = (exe, feature)
+    when, enabled = _FEATURE_CACHE.get(key, (0, False))
+    if time.time() - when < 60:
+        return enabled
+    try:
+        result = subprocess.run([exe, "features", "list"], capture_output=True, text=True, timeout=15,
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        enabled = result.returncode == 0 and any(line.split()[0] == feature and line.split()[-1] == "true"
+                                                for line in result.stdout.splitlines() if line.split())
+    except (OSError, subprocess.TimeoutExpired):
+        enabled = False
+    _FEATURE_CACHE[key] = (time.time(), enabled)
+    return enabled
 
 
 def missing_node_commands() -> list[str]:

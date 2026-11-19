@@ -47,7 +47,7 @@ def test_automatic_routing_never_uses_manual_writing_services(tmp_path):
 
 
 async def test_writing_result_auth_validation_and_persistence(tmp_path, monkeypatch):
-    cfg = Config(make_home(tmp_path / "hub"))
+    cfg = Config(make_home(tmp_path / "hub", providers={"mock": {"kind": "mock"}, "grammarly-app": {"disabled": False}}))
     engine = Engine(cfg)
     plan = await engine.plan("Proofread my spelling", model="grammarly-app:writing")
     task = await engine.run_task("writing1", "Proofread.\n\nText to edit:\ni has apples.", plan, [], [])

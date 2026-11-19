@@ -67,6 +67,8 @@ models:
      q: 8.5, skills: {code: 9}, efforts: [], features: [cli, agentic, tools, vision], verified: true}
   - {provider: codex, id: default, label: Codex CLI (your ChatGPT plan), tier: frontier, price: [0, 0],
      q: 9, skills: {code: 9.5}, efforts: [low, medium, high, xhigh], features: [cli, agentic, tools, vision], verified: true}
+  - {provider: codex-images, id: default, label: Codex images (automatic, your ChatGPT plan), tier: strong, price: [0, 0],
+     q: 9, efforts: [low, medium, high, xhigh], features: [cli, image_gen], verified: true}
   - {provider: gemini-cli, id: default, label: Gemini CLI (your Google account), tier: strong, price: [0, 0],
      q: 8.5, skills: {research: 9}, efforts: [], features: [cli, agentic, tools, vision], verified: true}
   - {provider: copilot-cli, id: default, label: Copilot CLI (your Copilot plan), tier: strong, price: [0, 0],

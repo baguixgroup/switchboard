@@ -97,7 +97,7 @@ async def test_handoff_open_watch_and_attach(tmp_path, monkeypatch):
 def test_add_a_file_by_hand_finishes_a_waiting_task(tmp_path):
     cfg = Config(make_home(tmp_path / "h", providers={"mock": {"kind": "mock"}, **HANDOFF}, models=IMAGE_MODELS + MOCK_MODELS))
     with TestClient(create_app(Engine(cfg)), client=("203.0.113.9", 1), headers={"Authorization": "Bearer test-token"}) as c:
-        tid = c.post("/api/tasks", json={"prompt": "draw a picture of a red bicycle"}).json()["task_id"]
+        tid = c.post("/api/tasks", json={"prompt": "draw a picture of a red bicycle", "confirm": True}).json()["task_id"]
         for _ in range(50):
             if c.get(f"/api/tasks/{tid}").json()["status"] != "running":
                 break

@@ -99,6 +99,19 @@ The hub runs each one **on the machine where it is installed**. Your MCP tools (
 phones...) are passed to them through Switchboard's tool gateway, and files they create come back to
 the hub and every output folder.
 
+**Automatic images:** choose **Automatic** or **Codex images**. A connected Codex installation must
+advertise its native `image_generation` feature. Switchboard generates the image in that machine's
+task folder, checks that an actual PNG/JPEG/WebP was produced, returns it to the hub and mirrors it.
+Choosing the normal Codex route for an image request redirects to this image route when available.
+If generation returns only text, the task fails with a clear message rather than claiming an image exists.
+
+**Manual app handoffs:** ChatGPT/Grok app routes open the app and copy a prompt; they do not submit it
+or generate an image automatically. They are grouped separately in the model picker, require explicit
+confirmation, and show **Action needed from you** while waiting. Automatic routes never silently fail
+over into a manual handoff. Subscription quota errors (including Claude weekly limits) park the plan
+until its reported reset time; automatic routing can then use another funded provider. An effort
+preference alone does not disable provider failover.
+
 Billing modes (`router.billing` in `config.yaml`, the dashboard's billing menu, or `--plans-only` / `--billing`):
 
 - `plans_only`: never spends API credit. It uses plan CLIs, free tiers (Gemini free API, GitHub Models)

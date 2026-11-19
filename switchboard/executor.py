@@ -104,7 +104,7 @@ class Executor:
             res = await prov.run(req, None)
         except ProviderError as exc:
             return {"error": str(exc), "error_kind": exc.kind, "retry_at": exc.retry_at}
-        created = new_files(workdir, started)
+        created = new_files(workdir, started, max_bytes=20_000_000 if prov.cfg.get("output_kind") == "image" else 5_000_000)
         files, total = [], 0
         for f in created:
             size = f.stat().st_size

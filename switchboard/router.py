@@ -10,7 +10,7 @@ from .catalog import EFFORT_OUTPUT_MULT, EFFORTS, Catalog, ModelInfo, effort_ran
 from .credits import Ledger, SourceStatus
 
 CATEGORY_KEYWORDS: dict[str, list[str]] = {
-    "image_gen": ["generate an image", "generate image", "create an image", "make an image", "draw", "illustration",
+    "image_gen": ["generate an image", "generate image", "create an image", "make an image", "build an image", "build image", "draw", "illustration",
                   "logo", "picture of", "image of", "wallpaper", "poster", "icon for", "concept art", "photo of"],
     "image_edit": ["photoshop", "retouch", "remove the background", "remove background", "psd", "edit this image",
                    "edit the photo", "layer mask", "color grade", "colour grade"],
@@ -248,7 +248,7 @@ class Router:
         limits = limits or {}
         available = set(available) - set(limits)
         rec_effort = recommended_effort(profile.complexity, mode)
-        manual = bool(model or provider or effort)
+        manual = bool(model or provider)  # an effort preference must not disable automatic provider failover
         warnings: list[str] = []
 
         if model:
@@ -258,7 +258,12 @@ class Router:
             if m.provider in limits:
                 raise ValueError(f"{m.provider} has hit its plan limit; it resets {_when(limits[m.provider]['until'])}.")
             if m.provider not in available:
+                if {"cli", "image_gen"} <= m.features:
+                    raise ValueError("Native Codex image generation is not enabled on a connected installation. "
+                                     "Update Codex or choose another image-generation route.")
                 raise ValueError(f"{m.provider} is not available here (missing API key or CLI not installed).")
+            if "image_gen" in profile.needs and "image_gen" not in m.features:
+                raise ValueError(f"{m.label or m.id} is a text/code route. Choose an image-generation route or Automatic.")
             candidates = [m]
         else:
             candidates = [m for m in self.catalog.all() if self._eligible(m, profile, available)
@@ -293,6 +298,7 @@ class Router:
             score, est, eff, reasons = self._evaluate(m, profile, use_effort, mode, src)
             if "handoff" in m.features:
                 reasons.append("made in the app on your plan (one manual step)")
+                score -= 4  # prefer a funded automatic route over asking the user to do the work
                 if billing == "any":
                     score -= 3.0  # the manual step counts against it when cost doesn't matter most
             if free and billing != "any":
@@ -357,7 +363,7 @@ class Router:
             source_id=src.source.id, source_label=src.source.label, est_cost_usd=round(est, 5),
             effective_cost_usd=round(eff, 5), score=round(score, 2), profile=profile, reasons=why,
             warnings=warnings, alternatives=alternatives, tools=list(profile.tool_servers), manual=manual,
-            billing=billing, needs_confirmation=eff > confirm_above,
+            billing=billing, needs_confirmation=eff > confirm_above or "handoff" in m.features,
         )
 
     @staticmethod

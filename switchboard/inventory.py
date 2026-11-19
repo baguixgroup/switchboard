@@ -206,7 +206,14 @@ async def detect_devices(config) -> list[dict]:
 
 
 async def build_inventory(config, mcp_hub=None, start_mcp: bool = True) -> dict:
+    from .providers.cli_bridge import CLIProvider
+
     tools = await asyncio.to_thread(detect_tools)
+    cli_providers = []
+    for name, entry in (config.providers or {}).items():
+        if entry and entry.get("kind") == "cli" and not entry.get("disabled"):
+            if await asyncio.to_thread(CLIProvider(name, entry, config).available):
+                cli_providers.append(name)
     devices = await detect_devices(config)
     mcp: dict[str, dict] = {}
     if mcp_hub is not None:
@@ -220,7 +227,5 @@ async def build_inventory(config, mcp_hub=None, start_mcp: bool = True) -> dict:
         "hostname": socket.gethostname(), "output_dir": str(config.output_dir),
         "mirror_outputs": bool(config.node.get("mirror_outputs", True)),
         "tools": tools, "devices": devices, "mcp": mcp,
-        "cli_providers": sorted(n for n, c in (config.providers or {}).items()
-                                if c and c.get("kind") == "cli" and not c.get("disabled")
-                                and which(c.get("command", n))),
+        "cli_providers": sorted(cli_providers),
     }

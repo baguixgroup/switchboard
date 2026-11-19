@@ -15,16 +15,18 @@ import shutil
 import sys
 import time
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pathlib import Path
 
 from ..toolbox import ToolBox
 from .base import Provider, ProviderError, RunRequest, RunResult
 
 LIMIT_WORDS = ("usage limit", "limit reached", "rate limit", "quota", "too many requests", "hit your limit",
-               "reached your", "limit exceeded", "resource_exhausted", "out of credits")
+               "reached your", "limit exceeded", "resource_exhausted", "out of credits", "weekly limit",
+               "daily limit", "monthly limit", "usage_limit_reached")
 AUTH_WORDS = ("log in", "login", "not logged in", "not authenticated", "unauthorized", "sign in", "authenticate",
               "auth login", "auth method", "please set an auth", "no credentials")
-LIMIT_ANSWER = re.compile(r"(claude ai usage limit|you've hit your (usage )?limit|you have hit your|usage limit reached|"
+LIMIT_ANSWER = re.compile(r"(claude ai usage limit|you've hit your (?:(?:usage|weekly|daily|monthly|plan) )?limit|you have hit your|usage limit reached|"
                           r"you've reached your|you have reached your|quota exceeded|rate limit exceeded|5-hour limit)", re.I)
 _AUTH_OK: dict[str, float] = {}
 CONFIG_FILES = {".switchboard-mcp.json", ".gemini", "codex-last-message.txt"}
@@ -63,6 +65,27 @@ def parse_reset(text: str, now: datetime | None = None) -> float | None:
     if m and any(m.groups()):
         d, h, mi, sec = (int(x) if x else 0 for x in m.groups())
         return (now + timedelta(days=d, hours=h, minutes=mi, seconds=sec)).timestamp()
+    # Claude's weekly quota: "resets Nov 23 at 1am (America/Winnipeg)".
+    dated = re.search(r"resets?\s+([A-Za-z]{3,9})\s+(\d{1,2})(?:,?\s+(\d{4}))?\s+at\s+"
+                      r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", text, re.I)
+    if dated:
+        month, day, year, hour, minute, ampm = dated.groups()
+        zone = now.tzinfo
+        named_zone = re.search(r"\(([A-Za-z_]+/[A-Za-z_/+-]+)\)", text)
+        if named_zone:
+            try:
+                zone = ZoneInfo(named_zone.group(1))
+            except ZoneInfoNotFoundError:
+                pass
+        try:
+            month_number = datetime.strptime(month[:3].title(), "%b").month
+            hour = int(hour) % 12 + (12 if (ampm or "").lower() == "pm" else 0) if ampm else int(hour)
+            candidate = datetime(int(year or now.year), month_number, int(day), hour, int(minute or 0), tzinfo=zone)
+            if not year and candidate.timestamp() <= now.timestamp():
+                candidate = candidate.replace(year=candidate.year + 1)
+            return candidate.timestamp()
+        except ValueError:
+            return None
     m = re.search(r"(?:resets?|try again|available again)\s+(?:at\s+|on\s+)?(?:\w{3,9},?\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?",
                   text, re.I)
     if m:
@@ -100,7 +123,10 @@ class CLIProvider(Provider):
         return which(self.cfg.get("command", self.name))
 
     def available(self) -> bool:
-        return self.executable is not None
+        from ..runtime import cli_feature_enabled
+
+        feature = self.cfg.get("required_feature")
+        return self.executable is not None and (not feature or cli_feature_enabled(self.executable, feature))
 
     def _attach_gateway(self, argv: list[str], req: RunRequest) -> None:
         style = self.cfg.get("mcp_style")
@@ -146,7 +172,8 @@ class CLIProvider(Provider):
         for img in req.images:
             if self.cfg.get("image_args"):
                 argv += _fill(self.cfg["image_args"], image=str(img))
-        argv += list(self.cfg.get("edit_args") or []) if req.allow_edits else list(self.cfg.get("readonly_args") or [])
+        writes = req.allow_edits or self.cfg.get("output_kind") == "image"
+        argv += list(self.cfg.get("edit_args") or []) if writes else list(self.cfg.get("readonly_args") or [])
         for d in req.read_dirs:
             argv += _fill(self.cfg.get("read_dir_args") or [], dir=d)
         self._attach_gateway(argv, req)
@@ -186,6 +213,14 @@ class CLIProvider(Provider):
                        + ", ".join(req.tool_servers) + ", plus the user's machines and devices. Use them.")
         via_stdin = self.cfg.get("prompt_via") == "stdin" or len(prompt) > 24_000
         workdir = Path(req.workdir) if req.workdir else None
+        image_task = self.cfg.get("output_kind") == "image"
+        if image_task:
+            if not workdir:
+                raise ProviderError("Image generation needs a task output folder.", "bad_request")
+            prompt = ("Use native image generation to fulfill this request. Save the actual generated PNG or JPEG "
+                      "in the current task directory. Do not substitute code-rendered shapes, SVG or a text-only "
+                      "description. If native image generation fails, report the failure explicitly.\n\n" + prompt)
+        started = time.time()
         result_file = (workdir / "codex-last-message.txt") if (workdir and "{result_file}" in json.dumps(self.cfg.get("args"))) else None
         argv = self.build_argv(req, prompt, via_stdin, result_file)
         timeout = float(self.cfg.get("timeout_seconds", 1800))
@@ -225,15 +260,31 @@ class CLIProvider(Provider):
                     self._raise(text, 1)
         if len(text) < 400 and LIMIT_ANSWER.match(text.strip()):
             self._raise(text, 0)  # some CLIs exit 0 with a limit message as the "answer"
+        if image_task:
+            images = [p for p in new_files(workdir, started, max_bytes=20_000_000)
+                      if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
+                      and p.read_bytes().startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"RIFF"))]
+            if not images:
+                raise ProviderError("Codex completed without producing an image file. " + text[-600:], "unavailable")
         approx_in, approx_out = len(prompt) // 4, len(text) // 4
         return RunResult(text=text, provider=self.name, model=req.model.id, input_tokens=approx_in,
                          output_tokens=approx_out, cost_usd=0.0, requests=1, stop_reason="cli",
                          notional_cost_usd=notional)
 
     def _raise(self, text: str, code: int) -> None:
+        quota = False
+        for line in reversed(text.splitlines()):
+            try:
+                data = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(data, dict) and (data.get("is_error") or data.get("api_error_status") == 429):
+                quota = data.get("api_error_status") == 429 or data.get("api_error") == "usage_limit_reached"
+                text = str(data.get("result") or data.get("message") or text)
+                break
         low = text.lower()
         tail = text.strip()[-1500:]
-        if any(w in low for w in LIMIT_WORDS):
+        if quota or any(w in low for w in LIMIT_WORDS):
             raise ProviderError(f"{self.name}: plan limit reached: {tail}", "rate_limit", retry_at=parse_reset(text))
         if any(w in low for w in AUTH_WORDS):
             raise ProviderError(f"{self.name}: not signed in. Run `{self.cfg.get('command')}` once on this machine "
