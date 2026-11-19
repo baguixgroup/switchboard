@@ -5,6 +5,7 @@ import json
 import os
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -122,6 +123,7 @@ def node_download(monkeypatch, tmp_path, *, bad_hash=False, traversal=False):
     monkeypatch.setattr(runtime, 'node_root', lambda: target)
     monkeypatch.setattr(runtime, 'missing_node_commands', lambda: [] if target.exists() else ['node', 'npm', 'npx'])
     monkeypatch.setattr(runtime.urllib.request, 'urlopen', fetch)
+    monkeypatch.setattr(runtime, 'grant_node_user_access', lambda path: None)
     return target, requests
 
 
@@ -139,3 +141,18 @@ def test_node_download_rejects_bad_checksum_and_unsafe_archive(tmp_path, monkeyp
         runtime.install_node()
     assert not target.exists()
     assert not (tmp_path / 'outside').exists()
+
+
+def test_windows_runtime_permissions_grant_the_user_sid_only(tmp_path, monkeypatch):
+    calls = []
+    sid = 'S-1-5-21-111-222-333-1001'
+
+    def run(argv, **kwargs):
+        calls.append(argv)
+        return SimpleNamespace(stdout='"PC\\user","' + sid + '"', returncode=0)
+
+    monkeypatch.setattr(runtime.subprocess, 'run', run)
+    target = tmp_path / 'Switchboard/node'
+    runtime.grant_node_user_access(target)
+    assert calls[1] == ['icacls', str(target.parent), '/grant', '*' + sid + ':(RX)', '/Q']
+    assert calls[2] == ['icacls', str(target), '/grant', '*' + sid + ':(OI)(CI)M', '/T', '/Q']

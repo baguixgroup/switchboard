@@ -8,6 +8,7 @@ import os
 import platform
 import re
 import shutil
+import subprocess
 import tarfile
 import tempfile
 import urllib.request
@@ -90,6 +91,20 @@ def missing_node_commands() -> list[str]:
     return [name for name in ("node", "npm", "npx") if not shutil.which(name)]
 
 
+def grant_node_user_access(target: Path) -> None:
+    """Keep a Windows runtime extracted by an elevated installer usable by the same user's normal apps."""
+    result = subprocess.run(["whoami", "/user", "/fo", "csv", "/nh"], capture_output=True, text=True, check=True)
+    match = re.search(r"S-1-\d+(?:-\d+)+", result.stdout)
+    if not match:
+        raise RuntimeError("Could not identify the Windows user for Node file permissions.")
+    sid = "*" + match.group()
+    # Touch only Switchboard's runtime directory, not the user's other applications or other accounts.
+    subprocess.run(["icacls", str(target.parent), "/grant", sid + ":(RX)", "/Q"],
+                   capture_output=True, text=True, check=True)
+    subprocess.run(["icacls", str(target), "/grant", sid + ":(OI)(CI)M", "/T", "/Q"],
+                   capture_output=True, text=True, check=True)
+
+
 def install_node() -> str:
     """Approved per-user install of official Node LTS binaries, checked against official SHA256 sums."""
     if not missing_node_commands():
@@ -133,6 +148,8 @@ def install_node() -> str:
             with tarfile.open(downloaded) as bundle:
                 bundle.extractall(extracted, filter="data")
         os.replace(extracted / folder, target)
+    if fam == "win":
+        grant_node_user_access(target)
     refresh_path()
     if missing_node_commands():
         raise RuntimeError("Node unpacked, but node/npm/npx are not executable.")
