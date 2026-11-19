@@ -153,3 +153,22 @@ def test_official_download_identifies_switchboard(monkeypatch):
     assert official_download('https://persistent.oaistatic.com/package.msix') == 'response'
     assert seen[0][0].get_header('User-agent') == f'Switchboard/{__version__}'
     assert seen[0][1]['timeout'] == 120
+
+
+def test_msix_reports_admin_requirement_without_blocking_cleanup(tmp_path, monkeypatch):
+    import io
+    import zipfile
+    from types import SimpleNamespace
+    from switchboard.installers import install_windows_msix
+    from switchboard.inventory import tools_catalog
+    payload = io.BytesIO()
+    with zipfile.ZipFile(payload, 'w') as bundle:
+        bundle.writestr('AppxManifest.xml', '<Package><Identity Name="OpenAI.Codex"/></Package>')
+    folder=tmp_path/'official-package';folder.mkdir()
+    monkeypatch.setattr('switchboard.installers.tempfile.mkdtemp', lambda **kw: str(folder))
+    monkeypatch.setattr('switchboard.installers.urllib.request.urlopen', lambda *a, **kw: io.BytesIO(payload.getvalue()))
+    monkeypatch.setattr('switchboard.installers.subprocess.run', lambda *a, **kw: SimpleNamespace(returncode=1,stdout='',stderr='0x80073D28 administrator privileges required'))
+    monkeypatch.setattr('switchboard.installers.shutil.rmtree', lambda *a, **kw: pytest.fail('must not block failure on deleting a locked package'))
+    with pytest.raises(RuntimeError,match='administrator approval') as error:
+        install_windows_msix(tools_catalog()['chatgpt_desktop'])
+    assert 'Add-AppxPackage' in str(error.value) and (folder/'ChatGPT.msix').exists()

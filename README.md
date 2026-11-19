@@ -319,6 +319,9 @@ ChatGPT and Claude desktop have executable installers for Windows and macOS. Win
 official winget/Store entries (ChatGPT also retries with OpenAI's signed MSIX when the Store
 reports success without registering the app); macOS downloads and verifies the official app before copying it to
 `~/Applications`. Unsupported platforms and missing prerequisites are shown as actionable errors.
+ChatGPT on Windows installs a packaged service and needs administrator approval. The normal-user
+agent reports this requirement and retains the signed MSIX with the command an administrator can
+run on that PC; it does not approve Windows elevation prompts.
 Installing a desktop app does not sign into it or enable its separate command-line AI provider.
 
 Devices and servers:
