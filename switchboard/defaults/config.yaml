@@ -110,6 +110,7 @@ providers:
     login_args: ["login"]
   # Plans whose images are made in their own app: Switchboard opens the app with the prompt copied,
   # then picks up the image you save. Set enabled: false if you don't have that plan.
+  claude-app: {kind: handoff, label: Claude, url: "https://claude.ai/", windows_app: Claude, mac_app: Claude, enabled: true}
   chatgpt-app: {kind: handoff, label: ChatGPT, url: "https://chatgpt.com/", windows_app: ChatGPT, mac_app: ChatGPT, enabled: true}
   grok-app:    {kind: handoff, label: Grok, url: "https://grok.com/", windows_app: Grok, mac_app: Grok, enabled: true}
   # Writing services use your own account through an explicit copy/paste handoff.
@@ -143,3 +144,8 @@ notify:
   ntfy_topic: ""                   # e.g. switchboard-yourname-8f3k  -> subscribe in the ntfy phone app
   ntfy_server: "https://ntfy.sh"
   check_every_minutes: 30
+
+# Administrator installation routes use SSH keys on this machine, never account passwords in chat.
+# Only explicit UI-approved catalog installs can use these connections.
+remote_installs: {}
+#  windows-admin: {target_node: windows-pc, host: windows, platform: windows, label: Windows administrator SSH}

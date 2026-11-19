@@ -48,6 +48,11 @@ def build_proxy_app(config) -> Starlette:
         if not local_request_ok(request):
             return JSONResponse({"detail": "Refused: requests must come from this computer's own dashboard."}, 403)
         path = request.url.path
+        if path == "/api/local/install-auth-key":
+            from .install_auth import public_key
+            if request.method != "GET":
+                return JSONResponse({"detail": "Method not allowed"}, 405)
+            return JSONResponse(public_key(config), headers={"Cache-Control": "no-store"})
         if path.startswith("/api/agent/"):
             return JSONResponse({"detail": "not available through the local relay"}, 404)
         headers = {k: v for k, v in request.headers.items() if k.lower() in PASS_REQ}

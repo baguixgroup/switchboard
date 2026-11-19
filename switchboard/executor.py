@@ -31,6 +31,9 @@ class Executor:
                                        timeout=float(payload.get("timeout", 600)))
         if kind == "device_action":
             return await devices.device_action(self.config, payload["device"], payload["action"], payload.get("args"))
+        if kind in ("admin_install", "admin_install_check"):
+            from .remote_install import execute
+            return await execute(self.config, payload, check=kind == "admin_install_check")
         if kind == "install_tool":
             return await self.install_tool(payload["tool"], bool(payload.get("approved")), bool(payload.get("accept_agreements")))
         if kind == "cli_run":

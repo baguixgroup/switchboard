@@ -310,22 +310,34 @@ class Engine:
             return matches[0]
         raise ValueError("Choose an online machine by its exact name from the Machines page.")
 
-    def start_install(self, node: str, tool: str, accept_agreements: bool = False) -> str:
+    def install_routes(self, node: str) -> list[dict]:
+        return [{**route, "controller": n["node"], "id": n["node"] + "/" + route["id"], "profile": route["id"]}
+                for n in self.nodes.list() if n["online"] for route in n.get("install_routes", [])
+                if route.get("target_node") == node]
+
+    def install_route(self, node: str, route_id: str) -> dict:
+        route = next((r for r in self.install_routes(node) if r["id"] == route_id), None)
+        if not route:
+            raise ValueError("That saved administrator connection is unavailable for this machine.")
+        return route
+
+    def start_install(self, node: str, tool: str, accept_agreements: bool = False, auth_route: str | None = None, auth_handle: str | None = None) -> str:
         node = self.resolve_node(node)
         tool = resolve_tool_id(tool)
         if not tool:
             raise ValueError("Unknown app. Choose one from Install apps.")
+        route = self.install_route(node, auth_route) if auth_route else None
         key = (node, tool)
         if key in self.installing:
             return self.installing[key]
         task_id = "install-" + datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
         prompt = f"Install {tools_catalog()[tool]['name']} on {node}"
         plan = {"kind": "installation", "provider": "switchboard", "model": "installer", "model_label": "Remote installer",
-                "node": node, "tool": tool, "effective_cost_usd": 0, "tools": [],
+                "node": node, "tool": tool, "auth_route": route, "effective_cost_usd": 0, "tools": [],
                 "profile": {"category": "devops", "complexity": 1}, "est_cost_usd": 0}
         self.store.save_task(task_id, "queued", prompt, plan)
         self.installing[key] = task_id
-        async_task = asyncio.create_task(self._run_install(task_id, prompt, plan, accept_agreements))
+        async_task = asyncio.create_task(self._run_install(task_id, prompt, plan, accept_agreements, auth_handle))
         self.running[task_id] = async_task
 
         def finished(_):
@@ -335,12 +347,16 @@ class Engine:
         async_task.add_done_callback(finished)
         return task_id
 
-    async def _run_install(self, task_id: str, prompt: str, plan: dict, accept_agreements: bool) -> None:
+    async def _run_install(self, task_id: str, prompt: str, plan: dict, accept_agreements: bool, auth_handle: str | None = None) -> None:
         folder = outputs.task_folder(self.config.output_dir, prompt)
         self.store.save_task(task_id, "running", output_path=str(folder), result=f"Installing on {plan['node']}…")
         try:
-            result = await self.nodes.submit(plan["node"], "install_tool", {
-                "tool": plan["tool"], "approved": True, "accept_agreements": accept_agreements}, timeout=1900)
+            route = plan.get("auth_route")
+            payload = {"tool": plan["tool"], "approved": True, "accept_agreements": accept_agreements}
+            if route:
+                payload.update(profile=route["profile"], target_node=plan["node"], auth_handle=auth_handle)
+            result = await self.nodes.submit(route["controller"] if route else plan["node"],
+                                             "admin_install" if route else "install_tool", payload, timeout=1900)
             if result.get("inventory"):
                 self.nodes.heartbeat(result["inventory"])
             if not result.get("ok"):
@@ -348,6 +364,8 @@ class Engine:
             if not result.get("inventory"):
                 inventory = await self.nodes.submit(plan["node"], "inventory", {"start_mcp": False}, timeout=90)
                 self.nodes.heartbeat(inventory)
+                if not inventory.get("tools", {}).get(plan["tool"], {}).get("installed"):
+                    raise RuntimeError("The administrator installer finished, but the target agent cannot detect the app. Rescan before retrying.")
             text = result.get("output") or "Installed and verified."
             outputs.save_task_output(folder, prompt, text, {"task_id": task_id, "node": plan["node"], "tool": plan["tool"]})
             self.store.save_task(task_id, "done", result=text)
@@ -544,7 +562,7 @@ class Engine:
         plan = dict(t["plan"])
         plan["handoff"] = dict(h, watching=node, watch_started=time.time())
         self.store.save_task(task_id, t["status"], plan=plan)
-        if h.get("task_type") != "writing":
+        if h.get("task_type") not in ("writing", "chat"):
             self._spawn(self._watch_for_image(task_id, node))
         return res
 
@@ -552,8 +570,8 @@ class Engine:
         """Save a user-reviewed writing-service result; never scrape the service's account."""
         task = self.store.get_task(task_id)
         handoff = ((task or {}).get("plan") or {}).get("handoff") or {}
-        if not task or task["status"] != "waiting" or handoff.get("task_type") != "writing":
-            raise ValueError("This task is not waiting for edited text.")
+        if not task or task["status"] != "waiting" or handoff.get("task_type") not in ("writing", "chat"):
+            raise ValueError("This task is not waiting for a text answer.")
         if not text.strip():
             raise ValueError("Paste the edited text first.")
         folder = self._task_dir(task_id)
@@ -588,6 +606,10 @@ class Engine:
         limits = self.limits()
         out = []
         for name, p in self.providers.items():
+            if p.kind == "handoff" and p.available() and any("chat" in m.features for m in self.catalog.for_provider(name)):
+                out.append({"provider": name, "label": p.cfg.get("label", name), "kind": "app",
+                            "where": "App or website", "status": "ready", "can_sign_in": False})
+                continue
             if p.kind != "cli":
                 continue
             where = self.cli_location(name)
@@ -626,7 +648,7 @@ class Engine:
         avail = self.available_providers()
         statuses = [st.to_dict() for st in self.ledger.statuses()]
         tracked = {s["provider"] for s in statuses}
-        untracked = sorted(p for p in avail if p not in tracked and self.providers[p].kind not in ("mock", "cli"))
+        untracked = sorted(p for p in avail if p not in tracked and self.providers[p].kind not in ("mock", "cli", "handoff"))
         month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
         return {"sources": statuses, "alerts": [a.to_dict() for a in self.ledger.alerts()],
                 "untracked_providers": untracked, "spend_this_month": self.store.usage_summary(month_start),

@@ -31,7 +31,7 @@ def make_home(path: Path, *, role="hub", name="hub", port=8765, hub_url=None, pr
         "providers": {n: {"disabled": True} for n in ("anthropic", "openai", "deepseek", "xai", "gemini", "github",
                                                      "openrouter", "mistral", "ollama", "claude-code", "codex",
                                                      "gemini-cli", "copilot-cli", "grok-build", "chatgpt-app", "grok-app",
-                                                     "codex-images", "grammarly-app", "quillbot-app", "prowritingaid-app",
+                                                     "codex-images", "claude-app", "grammarly-app", "quillbot-app", "prowritingaid-app",
                                                      "languagetool-app")} | (providers or {"mock": {"kind": "mock"}}),
         "mcp_servers": mcp_servers or {},
         "router": router or {},

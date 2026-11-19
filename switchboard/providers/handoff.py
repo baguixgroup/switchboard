@@ -29,6 +29,13 @@ class HandoffProvider(Provider):
 
     async def run(self, req: RunRequest, toolbox: ToolBox | None = None) -> RunResult:
         label = self.cfg.get("label", self.name)
+        if req.model.id == "chat":
+            history = "\n\n".join(f"{m['role']}: {m['content']}" for m in req.history or [])
+            prompt = (history + "\n\nuser: " if history else "") + req.prompt
+            return RunResult(text=f"Open **{label}** with the copied prompt, send your message there, then use **Paste answer** here to continue this chat. Your account's normal limits apply.",
+                             provider=self.name, model=req.model.id, stop_reason="handoff",
+                             handoff={"app": self.name, "label": label, "prompt": prompt, "task_type": "chat",
+                                      "url": self.cfg.get("url", ""), "windows_app": self.cfg.get("windows_app", label), "mac_app": self.cfg.get("mac_app", label)})
         writing = self.cfg.get("task_type") == "writing"
         prompt = (req.prompt.partition("Text to edit:\n")[2] or req.prompt) if writing else image_prompt(req.prompt)
         if writing:

@@ -73,6 +73,9 @@ class InstallIn(BaseModel):
     tool: str
     approved: bool = False
     accept_agreements: bool = False
+    auth_route: str | None = None
+    credential_envelope: dict | None = None
+    auth_handle: str | None = None
 
 
 class CreditIn(BaseModel):
@@ -323,9 +326,24 @@ def create_app(engine) -> FastAPI:
             if not tool:
                 raise ValueError("Unknown app. Choose one from Install apps.")
             if body.approved:
-                return JSONResponse({"task_id": engine.start_install(node, tool, body.accept_agreements),
+                return JSONResponse({"task_id": engine.start_install(node, tool, body.accept_agreements, body.auth_route, body.auth_handle),
                                      "status": "queued"}, status_code=202)
-            return await engine.nodes.submit(node, "install_tool", {"tool": tool, "approved": False}, timeout=60)
+            result = await engine.nodes.submit(node, "install_tool", {"tool": tool, "approved": False}, timeout=60)
+            result["auth_routes"] = engine.install_routes(node)
+            return result
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        except Exception as exc:
+            raise HTTPException(502, str(exc))
+
+    @app.post("/api/tools/install/auth", dependencies=[Depends(auth)])
+    async def install_auth(body: InstallIn) -> dict:
+        try:
+            node = engine.resolve_node(body.node)
+            route = engine.install_route(node, body.auth_route or "")
+            return await engine.nodes.submit(route["controller"], "admin_install_check",
+                                             {"profile": route["profile"], "target_node": node, "tool": body.tool,
+                                              "credential_envelope": body.credential_envelope}, timeout=60)
         except ValueError as exc:
             raise HTTPException(400, str(exc))
         except Exception as exc:

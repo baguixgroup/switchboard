@@ -74,6 +74,9 @@ const PNAME = { anthropic: "Claude API", openai: "OpenAI API", deepseek: "DeepSe
 const pname = (p) => PNAME[p] || p;
 PNAME["codex-images"] = "Codex image generation";
 const PLANINFO = {
+  "chatgpt-app": ["ChatGPT app", "Chat using your ChatGPT account · paste the answer back"],
+  "claude-app": ["Claude app", "Chat using your Claude account · paste the answer back"],
+  "grok-app": ["Grok app", "Chat using your Grok account · paste the answer back"],
   "claude-code": ["Claude", "Claude Pro or Max, through Claude Code"],
   codex: ["ChatGPT", "ChatGPT Plus or Pro, through Codex"],
   "codex-images": ["Codex images", "Automatic native image generation through your Codex account"],
@@ -321,7 +324,8 @@ PAGES.ask = function renderAsk() {
   updateComposerLabels();
   renderChips();
   if (!touch) ta.focus();
-  if (ASK.draft) previewPlan();
+  if (ASK.pendingSend) { ASK.pendingSend = false; send(); }
+  else if (ASK.draft) previewPlan();
 };
 
 function writingAssistant() {
@@ -433,7 +437,7 @@ function msgHtml(m, i) {
   if (m.role === "confirm") {
     const p = m.plan;
     const handoff = (modelByKey(p.provider + ":" + p.model) || { features: [] }).features.includes("handoff");
-    const why = handoff ? `This is a <b>manual app handoff</b>. You must open ${esc(p.model_label)}, create or edit the result there, and bring it back. Switchboard will wait for you; this does not generate an image automatically.`
+    const why = handoff ? `This opens <b>${esc(p.model_label)}</b>. Send the prompt in that app, then bring its answer back here. Switchboard will wait for your result.`
       : m.over ? esc(m.over) : `This will cost about <b>${money(p.effective_cost_usd)}</b> with ${esc(p.model_label)}, paid by ${esc(p.source_label)}.`;
     const alt = (p.alternatives || [])[0];
     return `<div class="msg"><div class="confirm" data-i="${i}"><b>${m.over ? "That effort may be more than this needs" : "Check before running"}</b><div class="small" style="margin-top:4px">${why}</div>
@@ -467,14 +471,14 @@ const addFileBtn = (id, label = "Add a file") => `<label class="btn sm ghost" st
 function handoffHtml(t) {
   const h = (t.plan || {}).handoff || {};
   const desks = S.nodes.filter((n) => n.online && ["windows", "macos"].includes(n.platform));
-  const status = h.task_type === "writing" ? `<p class="small muted">Paste the text into ${esc(h.label)}, then bring the edited result back below.</p>` : h.watching
+  const status = ["writing", "chat"].includes(h.task_type) ? `<p class="small muted">Paste the text into ${esc(h.label)}, then paste the answer back below.</p>` : h.watching
     ? `<div class="row small muted" style="margin-top:10px"><span class="typing"><i></i><i></i><i></i></span>Watching the Downloads folder on <b>${esc(h.watching)}</b> for your image…</div>`
     : h.watch_note ? `<p class="small warn" style="margin:10px 0 0">${esc(h.watch_note)} Open the app again, or add the image with Add a file.</p>` : "";
   return `<div class="row" style="margin-top:12px">
       ${desks.map((n) => `<button class="sm primary" data-open="${esc(n.node)}" data-task="${esc(t.id)}">${I("external")} Open ${esc(h.label)} on ${esc(n.node)}</button>`).join("")}
       <button class="sm" data-copy="${esc(h.prompt || "")}">${I("copy")} Copy prompt</button>
       ${h.url ? `<a class="btn sm" href="${esc(h.url)}" target="_blank" rel="noopener">${esc(h.label)} website ${I("external")}</a>` : ""}
-      ${h.task_type === "writing" ? `<button class="sm primary" data-writing-result="${esc(t.id)}">Paste edited text</button>` : addFileBtn(t.id)}</div>${status}`;
+      ${["writing", "chat"].includes(h.task_type) ? `<button class="sm primary" data-writing-result="${esc(t.id)}">${h.task_type === "chat" ? "Paste answer" : "Paste edited text"}</button>` : addFileBtn(t.id)}</div>${status}`;
 }
 function followWaiting(msg) {
   const id = msg.task.id, until = Date.now() + 30 * 60e3;
@@ -524,8 +528,8 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-writing-result]");
   if (!b) return;
   const id = b.dataset.writingResult;
-  const m = modal({ title: "Edited text", wide: true,
-    body: `<label>Paste the result from your writing service<textarea id="editedWriting" rows="12" style="width:100%" spellcheck="true"></textarea></label>`,
+  const m = modal({ title: "Paste answer", wide: true,
+    body: `<label>Paste the answer from your app<textarea id="editedWriting" rows="12" style="width:100%" spellcheck="true"></textarea></label>`,
     foot: `<button data-close>Cancel</button><button class="primary" id="saveWriting">Save result</button>` });
   $("#saveWriting", m.el).onclick = (ev) => guard(async () => {
     const text = $("#editedWriting", m.el).value;
@@ -774,7 +778,7 @@ PAGES.plans = async function renderPlans() {
   const urgent = c.alerts.filter((a) => a.severity !== "info").length;
   view.innerHTML = head("Plans & credits", "Your subscriptions' daily limits, prepaid credit and free allowances.",
     `<button class="sm" id="balRefresh">${I("refresh")} Refresh balances</button>`) +
-    `<div class="stats">
+    planChatHtml() + `<div class="stats">
       <div class="stat"><div class="v">${money(spent)}</div><div class="l">Spent this month</div></div>
       <div class="stat"><div class="v">${ready} of ${(c.plans || []).length}</div><div class="l">Plans ready</div></div>
       <div class="stat"><div class="v ${urgent ? "warn" : ""}">${urgent}</div><div class="l">Things to act on</div></div>
@@ -789,6 +793,8 @@ PAGES.plans = async function renderPlans() {
     ${c.untracked_providers.length ? `<p class="small muted" style="margin-top:10px">Also connected, billed per use with no limit set: ${c.untracked_providers.map(pname).map(esc).join(", ")}.</p>` : ""}
     ${(c.spend_this_month || []).length ? `<div class="section-title"><h2>Spending this month</h2></div><div class="card scroll-x"><table class="plain"><tr><th>Model</th><th>Calls</th><th>Cost</th></tr>
       ${c.spend_this_month.map((r) => `<tr><td>${esc((modelByKey(r.provider + ":" + r.model) || { label: r.model }).label)} <span class="muted small">${esc(pname(r.provider))}</span></td><td>${r.calls}</td><td>${money(r.usd)}</td></tr>`).join("")}</table></div>` : ""}`;
+  $("#planChatSend").onclick = () => startPlanChat($("#planChatModel").value, $("#planChatPrompt").value);
+  $$("[data-chat-plan]").forEach((b) => (b.onclick = () => { $("#planChatModel").value = b.dataset.chatPlan; $("#planChatPrompt").focus(); }));
   $("#balRefresh").onclick = (e) => guard(async () => { await api("/api/credits/refresh", { method: "POST" }); toast("Balances refreshed"); PAGES.plans(); }, e.currentTarget);
   $("#addCredit").onclick = addCreditWizard;
   $$("[data-setup]").forEach((b) => (b.onclick = () => planSetup(b.dataset.setup)));
@@ -800,14 +806,30 @@ PAGES.plans = async function renderPlans() {
     $("#yes", m.el).onclick = () => guard(async () => { await api("/api/credits/sources/" + encodeURIComponent(b.dataset.delsrc), { method: "DELETE" }); m.close(); toast("Removed"); PAGES.plans(); });
   }));
 };
+function planChatHtml() {
+  const routes = S.models.filter((m) => m.available && !m.features.includes("image_gen") &&
+    (m.features.includes("cli") || m.features.includes("chat")));
+  return `<div class="card" style="margin-bottom:18px"><h2>Chat with your plans</h2>
+    <p class="small muted">Ask questions, write, research or send machine commands. Automatic routes reply here. App routes open the service and let you paste its answer back.</p>
+    <label class="field">Use<select id="planChatModel"><option value="">Automatic · available plans only</option>
+      ${routes.map((m) => `<option value="${esc(m.key)}">${esc(m.label)}${m.features.includes("handoff") ? " · paste answer" : " · replies here"}</option>`).join("")}</select></label>
+    <label class="field">Message<textarea id="planChatPrompt" rows="3" placeholder="Ask anything, or ask to install an app on one of your computers"></textarea></label>
+    <button class="primary" id="planChatSend">Send chat</button></div>`;
+}
+function startPlanChat(model, prompt) {
+  if (!prompt.trim()) { toast("Enter a message first.", true); return; }
+  if (ASK.busy) { toast("Wait for the current chat request to finish.", true); return; }
+  ASK.who = model || null; ASK.tools = "auto"; ASK.effort = null; ASK.messages = []; ASK.history = []; ASK.pendingSend = true; ASK.billing = "plans_only"; ASK.draft = prompt; ASK.images = [];
+  location.hash = "#ask";
+}
 function planCard(p) {
   const [name, sub] = PLANINFO[p.provider] || [p.label, ""];
-  const badge = p.status === "ready" ? `<span class="badge ok"><span class="dot on"></span>Ready</span>` : p.status === "limit reached" ? '<span class="badge warn">At its limit</span>' : '<span class="badge">Not set up</span>';
-  const line = p.status === "ready" ? `Runs on <b>${esc(p.where)}</b>` : p.status === "limit reached" ? `Resets <b>${esc(fmtWhen(p.resets))}</b>. Other plans take over until then.` : "Install it on one of your machines, then sign in once.";
+  const badge = p.kind === "app" ? '<span class="badge">Open app</span>' : p.status === "ready" ? `<span class="badge ok"><span class="dot on"></span>Ready</span>` : p.status === "limit reached" ? '<span class="badge warn">At its limit</span>' : '<span class="badge">Not set up</span>';
+  const line = p.kind === "app" ? "Send the prompt in the service's app or website, then paste its answer into Switchboard. Sign-in is managed by that service." : p.status === "ready" ? `Runs on <b>${esc(p.where)}</b>` : p.status === "limit reached" ? `Resets <b>${esc(fmtWhen(p.resets))}</b>. Other plans take over until then.` : "Install it on one of your machines, then sign in once.";
   const btns = p.status === "not installed" ? `<button class="sm primary" data-setup="${esc(p.provider)}">Set up</button>`
-    : `${p.can_sign_in ? `<button class="sm" data-signin="${esc(p.provider)}">Sign in</button>` : ""}${p.status === "limit reached" ? `<button class="sm ghost" data-clear="${esc(p.provider)}">It has reset</button>` : ""}<button class="sm ghost" data-setup="${esc(p.provider)}">Manage</button>`;
+    : `${p.can_sign_in ? `<button class="sm" data-signin="${esc(p.provider)}">Sign in</button>` : ""}${p.status === "limit reached" ? `<button class="sm ghost" data-clear="${esc(p.provider)}">It has reset</button>` : ""}${p.kind !== "app" ? `<button class="sm ghost" data-setup="${esc(p.provider)}">Manage</button>` : ""}`;
   return `<div class="card"><div class="row" style="flex-wrap:nowrap"><div class="avatar">${esc(name[0])}</div><div class="grow"><h3>${esc(name)}</h3><div class="small muted">${esc(sub)}</div></div>${badge}</div>
-    <p class="small" style="margin:12px 0">${line}</p><div class="row">${btns}</div></div>`;
+    <p class="small" style="margin:12px 0">${line}</p><div class="row">${p.status === "ready" && S.models.some((m) => m.provider === p.provider && !m.features.includes("image_gen")) ? `<button class="sm primary" data-chat-plan="${esc((S.models.find((m) => m.provider === p.provider && !m.features.includes("image_gen")) || {}).key || "")}">Chat</button>` : ""}${btns}</div></div>`;
 }
 function sourceCard(s) {
   let amount = "";
@@ -1066,15 +1088,40 @@ async function installTool(node, tool, btn, after) {
       return;
     }
     const agreements = pre.agreements || [];
+    const routes = pre.auth_routes || [];
+    let authHandle = null;
     const m = modal({ title: `Install on ${node}?`, body: `<p>Switchboard will run this on <b>${esc(node)}</b>:</p>${copyBox(pre.command)}
       ${agreements.length ? `<p>${agreements.map((a) => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.label)}</a>`).join(" · ")}</p><label><input type="checkbox" id="accept-install"> I accept these installation terms.</label>` : ""}
+      ${routes.length ? `<label class="field">Installation permissions<select id="install-auth"><option value="">Normal permissions on ${esc(node)}</option>${routes.map((r) => `<option value="${esc(r.id)}">Administrator · ${esc(r.label)} via ${esc(r.controller)}</option>`).join("")}</select></label><p class="small muted">The administrator route authenticates over your saved SSH connection. Approve it here; no password is sent to the AI.</p><label class="field">Authenticate with<select id="install-auth-mode"><option value="key">Saved SSH key</option><option value="password">Username and password · encrypted local form</option></select></label><div id="install-credentials" hidden><label class="field">SSH account username<input id="install-user" autocomplete="off" maxlength="128"></label><label class="field">Account password<input type="password" id="install-password" autocomplete="new-password" maxlength="1024"></label><p class="small muted">Use your account password, not a Windows Hello PIN. Credentials stay in memory on this controller for one approved installation, up to five minutes.</p></div><button id="check-install-auth" class="sm">Authenticate administrator connection</button><p id="auth-check-result" class="small"></p>` : ""}
       <p class="small muted" id="install-status">Progress is saved in History. Installation may take several minutes.</p>`,
       foot: `<button data-close>Close</button><button class="primary" id="go" ${agreements.length ? "disabled" : ""}>Install</button>` });
     if (agreements.length) $("#accept-install", m.el).onchange = (e) => { $("#go", m.el).disabled = !e.target.checked; };
+    if (routes.length) {
+      $("#install-auth-mode", m.el).onchange = (ev) => { $("#install-credentials", m.el).hidden = ev.target.value !== "password"; authHandle = null; $("#auth-check-result", m.el).textContent = ""; };
+      $("#install-auth", m.el).onchange = () => { authHandle = null; $("#auth-check-result", m.el).textContent = ""; };
+    }
+    if (routes.length) $("#check-install-auth", m.el).onclick = (ev) => guard(async () => {
+      const route = $("#install-auth", m.el).value;
+      if (!route) { toast("Choose an administrator connection first.", true); return; }
+      const selected = routes.find((r) => r.id === route);
+      let envelope = null;
+      if ($("#install-auth-mode", m.el).value === "password") {
+        if (!globalThis.isSecureContext || !crypto.subtle) throw new Error("Open this controller's local Switchboard app to use the encrypted credential form.");
+        const username = $("#install-user", m.el).value.trim();
+        const password = $("#install-password", m.el).value;
+        if (!username || !password) throw new Error("Enter the SSH account username and password.");
+        try { envelope = await encryptInstallCredentials(selected, node, tool, username, password); }
+        finally { $("#install-password", m.el).value = ""; $("#install-user", m.el).value = ""; }
+      }
+      const checked = await api("/api/tools/install/auth", { body: { node, tool, auth_route: route, credential_envelope: envelope } });
+      authHandle = checked.auth_handle || null;
+      $("#auth-check-result", m.el).textContent = checked.output || (checked.ok ? "Authenticated" : "Authentication failed");
+    }, ev.currentTarget);
     $("#go", m.el).onclick = (e) => guard(async () => {
+      if (routes.length && $("#install-auth", m.el).value && $("#install-auth-mode", m.el).value === "password" && !authHandle) throw new Error("Authenticate the administrator connection first.");
       const go = e.currentTarget;
       go.disabled = true; go.textContent = "Installing…";
-      const r = await api("/api/tools/install", { body: { node, tool, approved: true, accept_agreements: agreements.length ? $("#accept-install", m.el).checked : false } });
+      const r = await api("/api/tools/install", { body: { node, tool, approved: true, auth_handle: authHandle, auth_route: routes.length ? $("#install-auth", m.el).value || null : null, accept_agreements: agreements.length ? $("#accept-install", m.el).checked : false } });
       $("#install-status", m.el).innerHTML = `Installing on ${esc(node)}. <a href="#history">View progress in History</a>`;
       let task;
       do {
@@ -1087,6 +1134,25 @@ async function installTool(node, tool, btn, after) {
       await loadNodes(true); if (after) after();
     }, e.currentTarget);
   }, btn);
+}
+
+async function encryptInstallCredentials(route, node, tool, username, password) {
+  // This endpoint is served directly by the loopback controller, never relayed through the hub.
+  const local = await api("/api/local/install-auth-key");
+  if (local.controller !== route.controller) throw new Error(`Open Switchboard on ${route.controller} to authenticate this saved connection. Credentials cannot be encrypted for another controller through an untrusted hub link.`);
+  const from64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const to64 = (data) => btoa(String.fromCharCode(...new Uint8Array(data)));
+  const rsa = await crypto.subtle.importKey("spki", from64(local.spki), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+  const aes = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plain = new TextEncoder().encode(JSON.stringify({ username, password, profile: route.profile, target_node: node, tool,
+    expires: Date.now() / 1000 + 300, nonce: crypto.randomUUID() }));
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: new TextEncoder().encode("switchboard-install-auth-v1") }, aes, plain);
+  plain.fill(0);
+  const raw = await crypto.subtle.exportKey("raw", aes);
+  const wrapped = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, rsa, raw);
+  new Uint8Array(raw).fill(0);
+  return { key_id: local.key_id, wrapped_key: to64(wrapped), iv: to64(iv), ciphertext: to64(ciphertext) };
 }
 
 function installRequestsHtml(t) {

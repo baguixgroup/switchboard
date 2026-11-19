@@ -20,15 +20,15 @@ from .paths import os_family, platform_tag
 from .runtime import refresh_path, which
 
 
-async def run_cmd(argv: list[str], timeout: float = 30, cwd: str | None = None) -> tuple[int, str, str]:
+async def run_cmd(argv: list[str], timeout: float = 30, cwd: str | None = None, env: dict | None = None, input_data: bytes | None = None) -> tuple[int, str, str]:
     exe = which(argv[0]) or argv[0]
     try:
-        proc = await asyncio.create_subprocess_exec(exe, *argv[1:], cwd=cwd, stdin=asyncio.subprocess.DEVNULL,
+        proc = await asyncio.create_subprocess_exec(exe, *argv[1:], cwd=cwd, env=env, stdin=asyncio.subprocess.PIPE if input_data is not None else asyncio.subprocess.DEVNULL,
                                                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     except (FileNotFoundError, PermissionError, OSError) as exc:
         return 127, "", f"{argv[0]}: {exc}"
     try:
-        out, err = await asyncio.wait_for(proc.communicate(), timeout)
+        out, err = await asyncio.wait_for(proc.communicate(input_data), timeout)
     except asyncio.TimeoutError:
         proc.kill()
         return 124, "", f"{argv[0]} timed out after {timeout:.0f}s"
@@ -233,7 +233,9 @@ async def build_inventory(config, mcp_hub=None, start_mcp: bool = True) -> dict:
         status = mcp_hub.status()
         for name, st in status.items():
             mcp[name] = dict(st, tool_list=all_tools.get(name, []))
+    from .remote_install import routes
     return {
+        "install_routes": routes(config),
         "node": config.node_name, "role": config.role, "platform": platform_tag(), "os": platform.platform(),
         "arch": platform.machine(), "python": sys.version.split()[0], "version": __version__,
         "hostname": socket.gethostname(), "output_dir": str(config.output_dir),

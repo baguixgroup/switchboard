@@ -400,3 +400,35 @@ pytest -q
 
 The tests are offline: they use the `mock` provider and a tiny MCP server
 (`tests/fixtures/echo_mcp.py`), and run a real hub, agent and MCP tool round-trip.
+
+### Chat from Plans and remote installation approval
+
+**Plans → Chat with your plans** sends normal questions, writing, research and machine requests
+using plans-only billing. CLI routes reply in Switchboard. ChatGPT, Claude and Grok app routes
+are explicitly marked: send the copied prompt there, then use **Paste answer** to continue here.
+These app handoffs preserve chat history and never start an image download watcher.
+
+A controller can advertise a saved administrator SSH connection in its `config.yaml`:
+
+```yaml
+remote_installs:
+  windows-admin:
+    target_node: windows-pc
+    host: windows   # existing, host-verified SSH alias on this controller
+    platform: windows
+    label: Windows administrator SSH
+```
+
+In the installation confirmation, choose this administrator connection and authenticate with a
+saved SSH key or the encrypted username/password form. The password form is available in the
+controller's local Switchboard window; it obtains its encryption key directly over loopback.
+The hub relays ciphertext, and the controller holds credentials in memory for one installation
+for that specific app and target, for up to five minutes. Credentials are not put in AI prompts,
+History, command arguments or password files. SSH host-key checking remains enabled. Password
+controllers currently support Mac/Linux; Windows controllers can use saved SSH keys.
+
+Windows administrator installations use a one-time elevated scheduled task in the authenticated
+SSH user's existing desktop session, with a protected result folder and a catalog-only action.
+The scheduled task is removed afterward. Windows must have that user's desktop session active;
+this does not require physically approaching the PC. Store/license agreements still require
+separate explicit acceptance. Pi/Linux routes execute catalog commands through sudo; the encrypted password form can authenticate sudo as well as SSH. Mac per-user native installers use normal agent permissions. Vendor app sign-in and unsupported installers may still require their own workflow.
