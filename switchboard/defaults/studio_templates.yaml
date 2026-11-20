@@ -20,6 +20,28 @@ agents:
     model: ''
     instructions: Review the proposed deliverable against the goal and success criteria. Identify concrete errors, missing evidence and remaining risks. Return a clear acceptance recommendation; you cannot approve on the user's behalf.
 blueprints:
+  - id: managed-team
+    name: Manager-led crew
+    description: A manager proposes up to six assignments for named specialists. Review the plan before delegation, then approve the final handover.
+    billing: plans_only
+    max_cost_usd: 0
+    nodes:
+      - id: manager
+        name: Manager proposes specialist assignments
+        type: agent
+        depends_on: []
+        config:
+          agent: coordinator
+          tools: none
+          revisions: 1
+          contract: {format: team_plan, agents: [researcher, builder, reviewer]}
+          expected: A JSON object with only a tasks array, containing 1–6 assignments. Each assignment has id (short identifier), agent (researcher, builder or reviewer), title, task, expected, and depends_on (task id list). All dependency ids must exist, with no cycles. Tools, budgets and permissions cannot be delegated.
+          prompt: "Break this goal into the smallest useful crew. Choose named specialists and explicit dependencies. Return JSON only.\nGoal and success criteria:\n{{input}}"
+      - {id: crew_approval, name: Approve the proposed crew, type: approval, depends_on: [manager], config: {text: "# Proposed specialist assignments\n\nReview the roles, tasks and expected results below. Approving dispatches these specialists with connected tools off; it does not authorize installations or external actions.\n\n{{steps.manager.output}}"}}
+      - {id: crew, name: Dispatch the approved specialists, type: delegate, depends_on: [crew_approval], config: {plan: '{{steps.manager.output}}', approval: crew_approval, agents: [researcher, builder, reviewer]}}
+      - {id: handover, name: Builder combines specialist results, type: agent, depends_on: [crew], config: {agent: builder, tools: none, prompt: "Produce the final deliverable for this goal:\n{{input}}\n\nSpecialist work:\n{{steps.crew.output}}"}}
+      - {id: final_review, name: Approve the crew handover, type: approval, depends_on: [handover], config: {text: '{{steps.handover.output}}'}}
+      - {id: save, name: Save the approved crew result, type: save, depends_on: [final_review], config: {filename: crew-handover.md, text: '{{steps.final_review.output}}'}}
   - id: agent-team
     name: Specialist team
     description: Research, plan, build and review a goal, then wait for your approval before saving the handover.

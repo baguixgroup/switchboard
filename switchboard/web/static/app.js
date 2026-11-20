@@ -32,6 +32,7 @@ const touch = matchMedia("(pointer: coarse)").matches;
 
 // ---------------------------------------------------------------- icons
 const P = {
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/>',
   history: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   wallet: '<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18M16 15h2"/>',
@@ -258,7 +259,7 @@ function updateBadges() {
 }
 
 // ---------------------------------------------------------------- navigation
-const NAV = [["ask", "Ask", "chat"], ["history", "History", "history"], ["studio", "Agent Studio", "puzzle"], ["plans", "Plans & credits", "wallet"],
+const NAV = [["ask", "Ask", "chat"], ["laith", "Laith", "spark"], ["history", "History", "history"], ["studio", "Agent Studio", "puzzle"], ["plans", "Plans & credits", "wallet"],
   ["machines", "Machines & apps", "monitor"], ["settings", "Settings", "sliders"]];
 const SHORT = { studio: "Studio", plans: "Plans", machines: "Machines" };
 function buildNav() {
@@ -267,12 +268,14 @@ function buildNav() {
 }
 const PAGES = {};
 if (window.installStudio) window.installStudio(PAGES);
+if (window.installLaith) window.installLaith(PAGES);
 let rid = 0;
 const stale = (id) => id !== rid;
 function route() {
   rid++;
   const [page, ...rest] = (location.hash.slice(1) || "ask").split("/");
   const name = PAGES[page] ? page : "ask";
+  document.body.classList.toggle("laith-open", name === "laith");
   $$("[data-page]").forEach((a) => a.classList.toggle("active", a.dataset.page === name));
   document.title = (NAV.find((n) => n[0] === name) || [0, "Switchboard"])[1] + " · Switchboard";
   Promise.resolve(PAGES[name](rest.join("/"))).catch((e) => { view.innerHTML = `<div class="alert critical">${I("alert")}<div><div class="t">Something went wrong</div><div class="m">${esc(e.message)}</div></div></div>`; });

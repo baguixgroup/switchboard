@@ -51,6 +51,8 @@ class Engine:
         self.install_requests: dict[str, list[dict]] = {}
         from .studio import Studio
         self.studio = Studio(self)
+        from .companion import Companion
+        self.companion = Companion(self)
 
     # ---- discovery ----------------------------------------------------------------
     def available_providers(self, refresh: bool = False) -> set[str]:
@@ -377,15 +379,17 @@ class Engine:
         except Exception as exc:
             self.store.save_task(task_id, "failed", error=str(exc))
     def start_task(self, prompt: str, plan: Plan, images: list[Path] | None = None,
-                   history: list[dict] | None = None) -> str:
+                   history: list[dict] | None = None, isolated: bool = False, read_only: bool = False,
+                   estimate_allowance: float | None = None) -> str:
         task_id = datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
         self.store.save_task(task_id, "queued", prompt, plan.to_dict())
-        t = asyncio.create_task(self.run_task(task_id, prompt, plan, images or [], history or []))
+        t = asyncio.create_task(self.run_task(task_id, prompt, plan, images or [], history or [], isolated=isolated,read_only=read_only,estimate_allowance=estimate_allowance))
         self.running[task_id] = t
         t.add_done_callback(lambda _t: self.running.pop(task_id, None))
         return task_id
 
-    async def run_task(self, task_id: str, prompt: str, plan: Plan, images: list[Path], history: list[dict]) -> dict:
+    async def run_task(self, task_id: str, prompt: str, plan: Plan, images: list[Path], history: list[dict], isolated: bool = False, read_only: bool = False,
+                       estimate_allowance: float | None = None) -> dict:
         self.store.save_task(task_id, "running", prompt, plan.to_dict())
         task_dir = outputs.task_folder(self.config.output_dir, prompt)
         attempts: list[Plan] = [plan]
@@ -395,9 +399,12 @@ class Engine:
                 if alternate and "handoff" in alternate.features:
                     continue  # a manual handoff must be chosen and confirmed by the user
                 try:
-                    attempts.append(self.router.plan(prompt, self.available_providers(),
-                                                     TaskProfile(**plan.profile.__dict__), model=alt["key"],
-                                                     effort=plan.effort, billing=plan.billing, limits=self.limits()))
+                    fallback=self.router.plan(prompt, self.available_providers(),
+                                              TaskProfile(**plan.profile.__dict__), model=alt["key"],
+                                              effort=plan.effort, billing=plan.billing, limits=self.limits())
+                    if estimate_allowance is not None and (fallback.effective_cost_usd>estimate_allowance+1e-9 or fallback.needs_confirmation):
+                        continue
+                    attempts.append(fallback)
                 except ValueError:
                     pass
         errors: list[str] = []
@@ -415,13 +422,13 @@ class Engine:
                 toolbox = await self.build_toolbox(attempt, task_dir)
             task_rel = task_dir.relative_to(self.config.output_dir).as_posix()
             remote_cli = is_cli and self.cli_location(attempt.provider) not in (None, self.config.node_name)
-            note = self.recent_work_note(exclude=task_id) if is_cli and "image_gen" not in m.features else ""
+            note = self.recent_work_note(exclude=task_id) if not isolated and is_cli and "image_gen" not in m.features else ""
             run_prompt = prompt + (f"\n\n---\n{note}" if note else "")
             if not remote_cli:  # remote agents fill in their own output folder path
                 run_prompt = run_prompt.replace("{OUTPUT}", str(self.config.output_dir))
             req = RunRequest(prompt=run_prompt, model=m, effort=attempt.native_effort, max_tokens=attempt.max_tokens,
                              history=history, images=images, workdir=task_dir,
-                             allow_edits=bool((self.config.permissions or {}).get("cli_agents_can_edit")),
+                             allow_edits=not read_only and bool((self.config.permissions or {}).get("cli_agents_can_edit")),
                              max_tool_rounds=int(self.config.router.get("max_tool_rounds", 25)),
                              tool_servers=list(attempt.tools) if (is_cli and "tools" in m.features) else [],
                              task_rel=task_rel,

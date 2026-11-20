@@ -458,3 +458,36 @@ requires an explicit confirmation because a remote operation may still finish. S
 steps, without promising cancellation of an already-running provider request. Provider estimates
 gate new requests and actual usage is recorded; the estimate allowance is not a guaranteed billing
 cap. Final run summaries and approved files use the existing output and mirroring system.
+
+### Laith and manager-led crews
+
+Open **Laith** in the app sidebar, or click the lion companion. Laith is an original friendly Atlas
+lion character with persistent conversations. Choose a model and an ability (everyday conversation,
+goal planning, writing or research), then send a message. Create and edit your own reusable abilities
+under **Abilities**; they are prompt instructions, not executable plugin packages.
+
+**Memory** contains only notes you explicitly save. Active notes are sent when **Saved memory** is
+checked; **Project knowledge** separately includes matching source excerpts. Archive/restore notes
+and conversations in the app. Archiving excludes a memory from future requests, while previous
+requests retain the exact context originally sent. Up to 12 completed exchanges are included in a
+new request. CLI requests omit the unrelated recent-work context used by ordinary one-shot tasks.
+Connected tools are off by default. Their confirmation and existing installation/credential controls
+remain in force. Plans and free models with a zero API allowance are the defaults.
+
+Click **Turn into a team goal** below a completed response to save a planned goal. It does not start
+work. Choose **Manager-led crew** when creating a goal to have the Coordinator propose 1–6 tasks,
+named specialists, expected results and dependencies. The app checks the plan, shows the assignments
+for approval, then dispatches only the approved specialists with connected tools off. Results pass to
+the handover step, which pauses again for your final approval. Manager output cannot add tools,
+models, budgets, permissions, recursive crews or executable scripts. Specialists run in dependency
+order using the agent profiles snapshotted at the start.
+
+Agent blueprint steps also support **Expected deliverable**, JSON or word/required-text **Output
+checks**, and up to two automatic output revisions with feedback. Revisions require connected tools
+off and use the CLI provider's read-only mode. Every attempt remains linked to task history and is
+included in recorded usage and budget admission. Deterministic checks establish format requirements,
+not factual correctness; human review remains a separate step.
+
+Laith's **On your radar** shows observed team states and machine connectivity. **Check-ins** are
+persistent one-time or repeating in-app reminders, visible while Laith is open; they never call a
+model, start a goal or send an external message by themselves.

@@ -1,3 +1,3 @@
 """Switchboard: one control plane for your AI models, credits, MCP tools, devices and machines."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

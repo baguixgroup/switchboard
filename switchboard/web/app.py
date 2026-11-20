@@ -286,6 +286,8 @@ def create_app(engine) -> FastAPI:
 
     from .studio_api import install_studio_routes
     install_studio_routes(app, engine, auth)
+    from .companion_api import install_companion_routes
+    install_companion_routes(app, engine, auth)
 
     @app.get("/api/usage", dependencies=[Depends(auth)])
     async def usage(days: int = 30) -> list[dict]:
