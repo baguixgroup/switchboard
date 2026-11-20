@@ -7,6 +7,7 @@ background process does everything.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import importlib.util
 import json
 import logging
@@ -218,8 +219,16 @@ def run_tray(config) -> None:
     def plan_items():
         return [pystray.MenuItem(line[:90], None, enabled=False) for line in state.plan_lines()]
 
+    def pet_action(action):
+        from .desktop_pet import control
+        try:control(config,action)
+        except Exception:log.exception('desktop Laith action failed')
+
     menu = pystray.Menu(
         pystray.MenuItem("Open Switchboard", lambda *_: open_app(url), default=True),
+        pystray.MenuItem('Show Laith',lambda *_:pet_action('show')),
+        pystray.MenuItem('Talk to Laith',lambda *_:pet_action('panel')),
+        pystray.MenuItem('Hide Laith',lambda *_:pet_action('hide')),
         pystray.MenuItem(lambda _: state.status_line, None, enabled=False),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Alerts", pystray.Menu(alert_items)),
@@ -272,6 +281,9 @@ def run_tray(config) -> None:
         stop_event = asyncio.Event()
 
         async def main() -> None:
+            from .desktop_pet import available,control,preferences
+            if available() and preferences(config)['enabled']:
+                with contextlib.suppress(Exception):await asyncio.to_thread(control,config,'show',False)
             tasks = [asyncio.create_task(_poll(config, state, on_change, stop_event))]
             if config.role == "agent":
                 from .agent import run_agent
@@ -280,6 +292,7 @@ def run_tray(config) -> None:
             for t in tasks:
                 t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            with contextlib.suppress(Exception):await asyncio.to_thread(control,config,'stop',False)
 
         loop.run_until_complete(main())
 

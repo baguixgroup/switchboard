@@ -24,6 +24,8 @@ fi
 "$VENV/bin/pyinstaller" --noconfirm --clean --log-level WARN --distpath dist --workpath build/pyinstaller packaging/switchboard.spec
 
 APP="dist/Switchboard.app"
+mkdir -p "$APP/Contents/Helpers"
+ditto dist/Laith.app "$APP/Contents/Helpers/Laith.app"
 # Ad-hoc signature with a fixed identifier: no Apple account needed, and macOS keeps the app's
 # Local Network permission across updates. Use DEVELOPER_ID="Developer ID Application: ..." to sign properly.
 # (Hardened runtime only with a real identity: with an ad-hoc signature it blocks loading the bundled Python.)

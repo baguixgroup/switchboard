@@ -461,6 +461,25 @@ cap. Final run summaries and approved files use the existing output and mirrorin
 
 ### Laith and manager-led crews
 
+**Laith can also live on your desktop.** In the installed Mac or Windows app, choose **Show Laith**
+on the Laith page or from the Switchboard tray/menu-bar icon. He appears as a transparent, animated,
+draggable lion above other apps. Click him to open a native task/chat panel; right-click for size,
+pause-animation and hide controls. Closing the main Switchboard window leaves him available. Your
+show/hide preference and position survive relaunches; unplugging a monitor brings him back on-screen.
+
+Copy text in another app, choose **Use copied text** in Laith's panel, review the draft and press
+**Send**. **Copy answer** puts the reply on the clipboard for pasting back. There is no clipboard
+watcher or automatic capture of other apps. The panel uses the same conversations, models, memories
+and goals as Switchboard, defaults to plans/free models with a zero API estimate allowance, and can
+use configured connected tools after confirmation. **Review task / approvals** opens the actual task
+and existing secure approval forms in Switchboard. A planned team goal still needs Start team.
+
+The companion has a separate native process and private, authenticated loopback controls. Mac and
+Windows installers bundle its runtime; no separate Python or npm installation is needed. The current
+Intel Mac pet build requires macOS 14.4 or later. Raspberry Pi remains the hub; a headless Pi does not
+display the desktop companion. Source installs can use `pip install ".[tray]"`, then `switchboard pet
+show`, `panel`, `hide`, `pause` or `resume`. `stop` ends the pet process without changing your preference.
+
 Open **Laith** in the app sidebar, or click the lion companion. Laith is an original friendly Atlas
 lion character with persistent conversations. Choose a model and an ability (everyday conversation,
 goal planning, writing or research), then send a message. Create and edit your own reusable abilities

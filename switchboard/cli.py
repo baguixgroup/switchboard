@@ -184,9 +184,16 @@ def cmd_launch(cfg: Config, a) -> None:
     if setup_wizard.has_display():
         from .window import open_window
 
-        open_window(url)  # app window (Windows/macOS), else the browser
+        open_window(url,page=getattr(a,'page',None))  # app window (Windows/macOS), else the browser
     else:
         print(f"Switchboard is set up as {cfg.role} '{cfg.node_name}'. Dashboard: {url}")
+
+
+def cmd_pet(cfg: Config, a) -> None:
+    from .desktop_pet import control, run
+    if a.action=='run' and not paths.is_frozen():run(cfg,a.panel)
+    elif a.action=='run':print(json.dumps(control(cfg,'panel' if a.panel else 'show'),indent=2))
+    else:print(json.dumps(control(cfg,a.action),indent=2))
 
 
 def cmd_serve(cfg: Config, a) -> None:
@@ -590,7 +597,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--token", help="agents: the hub's token, instead of a pairing code")
     s.add_argument("--no-start", action="store_true", help="only write the config; don't register start-at-login")
 
-    sub.add_parser("launch", help="open Switchboard: the setup wizard the first time, then the dashboard")
+    s=sub.add_parser("launch", help="open Switchboard: the setup wizard the first time, then the dashboard")
+    s.add_argument('--page',help='open a Switchboard page, e.g. #laith')
+    s=sub.add_parser('pet',help='show or hide Laith, your animated desktop companion')
+    s.add_argument('action',choices=['show','hide','panel','pause','resume','stop','status','run'],default='show',nargs='?')
+    s.add_argument('--panel',action='store_true',help=argparse.SUPPRESS)
 
     s = sub.add_parser("serve", help="run the hub (dashboard, API, router, scheduler)")
     s.add_argument("--host")
@@ -684,7 +695,7 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-COMMANDS = {"init": cmd_init, "setup": cmd_setup, "launch": cmd_launch, "serve": cmd_serve, "agent": cmd_agent, "tray": cmd_tray, "ask": cmd_ask, "plan": cmd_plan,
+COMMANDS = {"init": cmd_init, "setup": cmd_setup, "launch": cmd_launch, "pet": cmd_pet, "serve": cmd_serve, "agent": cmd_agent, "tray": cmd_tray, "ask": cmd_ask, "plan": cmd_plan,
             "credits": cmd_credits, "alerts": cmd_alerts, "models": cmd_models, "nodes": cmd_nodes,
             "device": cmd_device, "tools": cmd_tools, "mcp": cmd_mcp, "service": cmd_service, "doctor": cmd_doctor}
 

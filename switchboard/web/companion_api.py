@@ -57,6 +57,20 @@ def install_companion_routes(app,engine,auth):
         try:return fn(*args,**kwargs)
         except (ValueError,TypeError,KeyError) as exc:raise HTTPException(400,str(exc)) from None
 
+    @app.get('/api/local/laith-desktop',dependencies=deps)
+    async def desktop_status():
+        import asyncio
+        from ..desktop_pet import status
+        return await asyncio.to_thread(status,engine.config)
+
+    @app.post('/api/local/laith-desktop',dependencies=deps)
+    async def desktop_action(body:dict):
+        import asyncio
+        from ..desktop_pet import control
+        if body.get('action') not in ('show','hide','panel','pause','resume'):raise HTTPException(400,'Unknown desktop companion action.')
+        try:return await asyncio.to_thread(control,engine.config,body['action'])
+        except ValueError as exc:raise HTTPException(400,str(exc)) from None
+
     @app.get('/api/laith',dependencies=deps)
     async def overview():return {'chats':c.chats(),'archived_chats':c.chats(True),'memories':c.memories(),'abilities':c.abilities(),'pulse':c.pulse()}
 

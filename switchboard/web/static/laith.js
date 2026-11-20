@@ -1,6 +1,6 @@
 /* Laith is part of Switchboard: shared providers, authenticated storage and Studio goals. */
 window.installLaith = function(pages) {
-  let library, chat, routeArg="";
+  let library, chat, routeArg="", desktop={available:false};
   const options={model:"",ability:"conversation",memory:true,knowledge:false,tools:false,billing:"plans_only",budget:0};
   const drafts={};
   const portrait=`<img src="/static/laith.png" alt="Laith, a friendly Atlas lion" class="laith-portrait">`;
@@ -12,11 +12,12 @@ window.installLaith = function(pages) {
 
   pages.laith=async function(arg="") {
     const me=rid;routeArg=arg;
-    library=await api("/api/laith");if(stale(me))return;
+    [library,desktop]=await Promise.all([api("/api/laith"),api("/api/local/laith-desktop").catch(()=>({available:false}))]);if(stale(me))return;
     chat=null;
     if(arg.startsWith("chat/")){chat=await api("/api/laith/chats/"+encodeURIComponent(arg.slice(5)));if(stale(me))return;}
     const tab=["memory","abilities","checkins"].includes(arg)?arg:"";
-    view.innerHTML=head("Laith","Your friendly Atlas lion. A little warmth, a clearer goal, and help getting there.",'<button class="primary" id="laithNew">New conversation</button>')+tabs(tab)+`<div id="laithContent"></div>`;
+    view.innerHTML=head("Laith","Your friendly Atlas lion. A little warmth, a clearer goal, and help getting there.",`<div class="row"><button id="laithDesktop" ${desktop.available?"":"disabled"} title="${desktop.available?"Your independent desktop companion":"Available in the installed Mac and Windows app"}">${desktop.visible?"Hide Laith":"Show Laith"}</button><button class="primary" id="laithNew">New conversation</button></div>`)+tabs(tab)+`<div id="laithContent"></div>`;
+    $("#laithDesktop").onclick=(e)=>{const button=e.currentTarget;return guard(async()=>{const action=desktop.visible?"hide":"show";await api("/api/local/laith-desktop",{body:{action}});desktop.visible=action==="show";button.textContent=desktop.visible?"Hide Laith":"Show Laith";},button);};
     $("#laithNew").onclick=(e)=>newChat("",e.currentTarget);
     if(tab==="memory")renderMemories();else if(tab==="abilities")renderAbilities();else if(tab==="checkins")renderCheckins();else renderConversation();
     if(chat&&activeTurn())setTimeout(()=>{if(!stale(me))pages.laith(arg);},2000);

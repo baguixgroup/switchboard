@@ -48,6 +48,19 @@ def build_proxy_app(config) -> Starlette:
         if not local_request_ok(request):
             return JSONResponse({"detail": "Refused: requests must come from this computer's own dashboard."}, 403)
         path = request.url.path
+        if path == '/api/local/laith-desktop':
+            from .desktop_pet import control,status
+            try:
+                if request.method=='GET':return JSONResponse(await asyncio.to_thread(status,config),headers={'Cache-Control':'no-store'})
+                if request.method!='POST':return JSONResponse({'detail':'Method not allowed'},405)
+                if request.headers.get('origin')=='null':return JSONResponse({'detail':'Use your local Switchboard app.'},403)
+                raw=await request.body()
+                if len(raw)>256:raise ValueError('Request is too large.')
+                import json
+                action=json.loads(raw).get('action')
+                if action not in ('show','hide','panel','pause','resume'):raise ValueError('Unknown desktop companion action.')
+                return JSONResponse(await asyncio.to_thread(control,config,action),headers={'Cache-Control':'no-store'})
+            except (ValueError,TypeError,AttributeError) as exc:return JSONResponse({'detail':str(exc)},400)
         if path == "/api/local/install-auth-key":
             from .install_auth import public_key
             if request.method != "GET":

@@ -74,6 +74,9 @@ def self_command(*args: str, gui: bool = False) -> list[str]:
     if not is_frozen():
         return [sys.executable, "-m", "switchboard", *args]
     exe = Path(sys.executable)
+    if os_family() == 'macos' and exe.name == 'Laith' and len(exe.parents)>4 and exe.parents[3].name=='Helpers':
+        main=exe.parents[4]/'MacOS'/'Switchboard'
+        if main.exists():exe=main
     if os_family() == "windows":
         want = exe.with_name("Switchboard.exe" if gui else "switchboard-cli.exe")
         if want.exists():

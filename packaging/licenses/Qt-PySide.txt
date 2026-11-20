@@ -1,0 +1,7 @@
+Laith uses unmodified, dynamically linked Qt for Python / PySide6 Essentials and Shiboken6.
+The desktop builds currently use version 6.12.0, distributed under the LGPL-3.0 option.
+Copyright The Qt Company Ltd. and other contributors. Full LGPL-3.0 and GPL-3.0 texts accompany this notice.
+Project and corresponding library sources: https://code.qt.io/cgit/pyside/pyside-setup.git/ (tag v6.12.0)
+Qt library sources: https://code.qt.io/cgit/qt/ (Qt 6.12.0 component tags)
+Binary wheels and metadata: https://pypi.org/project/PySide6-Essentials/6.12.0/ and https://pypi.org/project/shiboken6/6.12.0/
+Switchboard's desktop build scripts and separate helper retain dynamically loaded Qt libraries. The LGPL option does not require a paid Qt subscription.

@@ -15,6 +15,10 @@ def main() -> None:
     big.save(out / "switchboard.png")
     big.save(out / "switchboard.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
     big.save(out / "switchboard.icns")
+    from PIL import Image
+    with Image.open(ROOT/'switchboard/web/static/laith.png') as lion:
+        lion.save(out/'laith.icns')
+        lion.save(out/'laith.ico',sizes=[(32,32),(64,64),(128,128),(256,256)])
     print(f"icons in {out}")
 
 
