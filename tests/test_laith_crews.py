@@ -245,3 +245,14 @@ async def test_failover_cannot_exceed_a_scoped_request_estimate(tmp_path,monkeyp
     await e.running[key]
     assert len(calls)==1 and e.store.get_task(key)['status']=='failed'
     await e.close()
+
+
+async def test_long_companion_request_includes_each_explicitly_named_document(tmp_path):
+    e=make_engine(tmp_path);c=e.companion;chat=c.create_chat()
+    first=e.studio.knowledge.put('Workspace handbook','Retries preserve checkpoints.','handbook.md')
+    second=e.studio.knowledge.put('Delivery checklist','Validate outputs before approval.','checklist.md')
+    message=('Help me make a useful practical internal goal brief and success criteria. '*8)+'Use Workspace handbook and Delivery checklist.'
+    turn=await c.prepare(chat['id'],message,model='mock:mock-small',use_knowledge=True)
+    assert {first['id'],second['id']}<={s['document_id'] for s in turn['sources']}
+    assert [s['citation'] for s in turn['sources']]==['S'+str(i+1) for i in range(len(turn['sources']))]
+    await e.close()

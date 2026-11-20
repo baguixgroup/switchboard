@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 
 from .router import Plan
@@ -139,7 +140,18 @@ class Companion:
             if not selected:raise ValueError('Ability not found.')
             history=[{'user':t['message'][:12000],'laith':t.get('answer','')[:12000]} for t in turns if t['status']=='done'][-12:]
             memories=[m['content'] for m in self.memories() if m['active']] if use_memory else []
-            excerpts=self.engine.studio.knowledge.search(message,limit=3) if use_knowledge else []
+            excerpts=[]
+            if use_knowledge:
+                knowledge=self.engine.studio.knowledge
+                named=[d for d in knowledge.list() if re.search(r'(?<!\w)'+re.escape(d['title'])+r'(?!\w)',message,re.I)]
+                # Preserve explicitly requested source identities even in a long conversational query.
+                for document in named:
+                    excerpts.extend(knowledge.search(document['title'],limit=1,documents=[document['id']]))
+                excerpts.extend(knowledge.search(message[:2000],limit=3))
+                unique={}
+                for item in excerpts:unique.setdefault(item['id'],item)
+                excerpts=list(unique.values())[:max(3,min(8,len(named)))]
+                for index,item in enumerate(excerpts):item['citation']='S'+str(index+1)
             pulse=self.pulse()
             facts={name:[{'title':g['title'],'status':g['status']} for g in pulse[name]][:8] for name in ('reviews','attention','working','completed')}
             facts['machines']=pulse['machines']

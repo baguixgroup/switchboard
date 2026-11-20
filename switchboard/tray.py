@@ -25,6 +25,27 @@ from .paths import os_family
 log = logging.getLogger("switchboard.tray")
 COLORS = {"ok": (31, 138, 76), "warn": (214, 137, 16), "crit": (205, 52, 52), "off": (128, 134, 145)}
 ACCENT = (58, 91, 217)
+_MAC_REOPEN_CLASS = None
+
+
+def macos_reopen_delegate(app, callback):
+    """Finder reopens the existing tray process; forward that event to the app window."""
+    global _MAC_REOPEN_CLASS
+    if _MAC_REOPEN_CLASS is None:
+        from Foundation import NSObject
+        import objc
+
+        class SwitchboardReopenDelegate(NSObject, protocols=[objc.protocolNamed('NSApplicationDelegate')]):
+            def applicationShouldHandleReopen_hasVisibleWindows_(self, sender, visible):
+                try:self.on_reopen()
+                except Exception:log.exception('could not reopen the app window')
+                return False  # We handle the event; the tray must not create its own blank window.
+
+        _MAC_REOPEN_CLASS = SwitchboardReopenDelegate
+    delegate = _MAC_REOPEN_CLASS.alloc().init()
+    delegate.on_reopen = callback
+    app.setDelegate_(delegate)
+    return delegate
 
 
 def tray_available() -> bool:
@@ -217,6 +238,12 @@ def run_tray(config) -> None:
         except Exception:  # noqa: BLE001
             log.debug("could not hide the Dock icon", exc_info=True)
     icon = pystray.Icon("switchboard", make_icon(64, "off"), "Switchboard", menu)
+    if os_family() == 'macos':
+        try:
+            from AppKit import NSApplication
+            # NSApplication's delegate is weak: retain it for the tray's full lifetime.
+            icon._switchboard_reopen_delegate = macos_reopen_delegate(NSApplication.sharedApplication(), lambda: open_app(url))
+        except Exception:log.exception('could not register Finder reopen handling')
     last = {"status": None}
 
     def on_change() -> None:
