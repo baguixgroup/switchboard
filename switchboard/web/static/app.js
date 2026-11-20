@@ -1,5 +1,5 @@
 "use strict";
-/* Switchboard dashboard: plain JavaScript, no build step. Pages: Ask, History, Plans & credits, Machines & apps, Settings. */
+/* Switchboard dashboard: plain JavaScript, no build step. Pages: Ask, Agent Studio, History, Plans & credits, Machines & apps, Settings. */
 
 // ---------------------------------------------------------------- helpers
 const $ = (s, el = document) => el.querySelector(s);
@@ -258,14 +258,15 @@ function updateBadges() {
 }
 
 // ---------------------------------------------------------------- navigation
-const NAV = [["ask", "Ask", "chat"], ["history", "History", "history"], ["plans", "Plans & credits", "wallet"],
+const NAV = [["ask", "Ask", "chat"], ["history", "History", "history"], ["studio", "Agent Studio", "puzzle"], ["plans", "Plans & credits", "wallet"],
   ["machines", "Machines & apps", "monitor"], ["settings", "Settings", "sliders"]];
-const SHORT = { plans: "Plans", machines: "Machines" };
+const SHORT = { studio: "Studio", plans: "Plans", machines: "Machines" };
 function buildNav() {
   $("#nav").innerHTML = NAV.map(([id, label, icon]) => `<a href="#${id}" data-page="${id}">${I(icon)}<span>${label}</span>${id === "plans" ? '<span class="count hide" data-count="plans"></span>' : ""}</a>`).join("");
   $("#tabbar").innerHTML = NAV.map(([id, label, icon]) => `<a href="#${id}" data-page="${id}">${I(icon)}<span>${SHORT[id] || label}</span>${id === "plans" ? '<span class="count hide" data-count="plans"></span>' : ""}</a>`).join("");
 }
 const PAGES = {};
+if (window.installStudio) window.installStudio(PAGES);
 let rid = 0;
 const stale = (id) => id !== rid;
 function route() {

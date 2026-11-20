@@ -105,6 +105,7 @@ def create_app(engine) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        engine.studio.recover()
         for task in engine.store.recent_tasks(limit=10000):
             if task["status"] in ("queued", "running") and (task.get("plan") or {}).get("kind") == "installation":
                 engine.store.save_task(task["id"], "failed", error="Hub restarted before installation status was received. Rescan the target before retrying; its installer may still be running.")
@@ -282,6 +283,9 @@ def create_app(engine) -> FastAPI:
         cfg.save_credits(data)
         engine.ledger.reload()
         return {"ok": True}
+
+    from .studio_api import install_studio_routes
+    install_studio_routes(app, engine, auth)
 
     @app.get("/api/usage", dependencies=[Depends(auth)])
     async def usage(days: int = 30) -> list[dict]:

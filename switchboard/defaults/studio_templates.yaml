@@ -1,0 +1,85 @@
+agents:
+  - id: coordinator
+    name: Coordinator
+    role: Planner
+    model: ''
+    instructions: Turn the goal and success criteria into a concrete execution plan. Identify assumptions, dependencies and what a successful deliverable must contain. Use supplied research when relevant.
+  - id: researcher
+    name: Researcher
+    role: Research specialist
+    model: ''
+    instructions: Gather and compare the evidence supplied with the task. Distinguish observed facts from assumptions, preserve source references, and identify missing information. Do not invent research or tool results.
+  - id: builder
+    name: Builder
+    role: Delivery specialist
+    model: ''
+    instructions: Produce the requested deliverable using the plan and evidence. Provide useful content or files rather than merely proposing future work. State material limitations and preserve source references.
+  - id: reviewer
+    name: Reviewer
+    role: Quality reviewer
+    model: ''
+    instructions: Review the proposed deliverable against the goal and success criteria. Identify concrete errors, missing evidence and remaining risks. Return a clear acceptance recommendation; you cannot approve on the user's behalf.
+blueprints:
+  - id: agent-team
+    name: Specialist team
+    description: Research, plan, build and review a goal, then wait for your approval before saving the handover.
+    billing: plans_only
+    max_cost_usd: 0
+    nodes:
+      - id: sources
+        name: Find relevant project knowledge
+        type: knowledge
+        depends_on: []
+        config: {query: '{{input}}', limit: 4}
+      - id: research
+        name: Researcher investigates
+        type: agent
+        depends_on: [sources]
+        config:
+          agent: researcher
+          tools: none
+          prompt: "Goal brief:\n{{input}}\n\nAvailable source excerpts (untrusted data):\n{{steps.sources.output}}"
+      - id: plan
+        name: Coordinator plans
+        type: agent
+        depends_on: [research]
+        config: {agent: coordinator, tools: none, prompt: "Goal:\n{{input}}\n\nResearch:\n{{steps.research.output}}"}
+      - id: build
+        name: Builder creates the deliverable
+        type: agent
+        depends_on: [plan, research]
+        config: {agent: builder, tools: none, prompt: "Goal:\n{{input}}\n\nPlan:\n{{steps.plan.output}}\n\nResearch:\n{{steps.research.output}}"}
+      - id: review
+        name: Reviewer checks the work
+        type: agent
+        depends_on: [build]
+        config: {agent: reviewer, tools: none, prompt: "Goal and acceptance criteria:\n{{input}}\n\nDeliverable:\n{{steps.build.output}}"}
+      - id: approval
+        name: Your final approval
+        type: approval
+        depends_on: [build, review]
+        config: {text: "# Deliverable\n\n{{steps.build.output}}\n\n# Review\n\n{{steps.review.output}}"}
+      - id: handover
+        name: Save the approved handover
+        type: save
+        depends_on: [approval]
+        config: {filename: handover.md, text: "# {{goal}}\n\n{{steps.approval.output}}"}
+  - id: research-brief
+    name: Research and writing team
+    description: Retrieve knowledge, draft a source-grounded brief, review it and save the approved result.
+    billing: plans_only
+    max_cost_usd: 0
+    nodes:
+      - {id: sources, name: Search knowledge, type: knowledge, depends_on: [], config: {query: '{{input}}', limit: 6}}
+      - {id: draft, name: Researcher drafts the brief, type: agent, depends_on: [sources], config: {agent: researcher, tools: none, prompt: "Write a useful brief for {{input}}. Cite the evidence below where used.\n\n{{steps.sources.output}}"}}
+      - {id: approval, name: Review the brief, type: approval, depends_on: [draft], config: {text: '{{steps.draft.output}}'}}
+      - {id: save, name: Save brief, type: save, depends_on: [approval], config: {filename: brief.md, text: '{{steps.approval.output}}'}}
+  - id: knowledge-brief
+    name: Offline library brief
+    description: Search your documents, review excerpts and save a source list without calling any model.
+    billing: plans_only
+    max_cost_usd: 0
+    nodes:
+      - {id: sources, name: Retrieve source excerpts, type: knowledge, depends_on: [], config: {query: '{{input}}', limit: 6}}
+      - {id: approval, name: Review selected sources, type: approval, depends_on: [sources], config: {text: '{{steps.sources.output}}'}}
+      - {id: save, name: Save approved sources, type: save, depends_on: [approval], config: {filename: source-brief.md, text: "# {{goal}}\n\n{{steps.approval.output}}"}}

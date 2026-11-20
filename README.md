@@ -432,3 +432,29 @@ SSH user's existing desktop session, with a protected result folder and a catalo
 The scheduled task is removed afterward. Windows must have that user's desktop session active;
 this does not require physically approaching the PC. Store/license agreements still require
 separate explicit acceptance. Pi/Linux routes execute catalog commands through sudo; the encrypted password form can authenticate sudo as well as SSH. Mac per-user native installers use normal agent permissions. Vendor app sign-in and unsupported installers may still require their own workflow.
+
+### Agent Studio: teams and goals
+
+Open **Agent Studio → New goal**, describe the deliverable and success criteria, and select a team.
+The default team gives the work to a Researcher, Coordinator, Builder and Reviewer, then pauses for
+your approval before saving the handover. Every model request links to its existing Switchboard task
+and files. Set the model and instructions for each specialist under **Agents**. Plans-only billing
+and a zero API allowance are the defaults.
+
+**Knowledge** searches the text documents you add, with document and line references. Import
+UTF-8 text documents up to 2 MB each. Source content is treated as untrusted data, not as executable
+instructions. Model steps may receive selected excerpts. Local models can use a configured Ollama
+provider; model runtimes and weights are installed separately.
+
+**Team blueprints** support explicit dependencies, AI agents, input text, knowledge retrieval,
+conditions, human approval and output files. Edit steps in the UI or import/export Switchboard JSON.
+Imports are validated and do not execute automatically.
+Connected tools are off by default; enabling them preserves Switchboard's existing permissions and
+separate install/legal authorization. Automatic retries are bounded and restricted to steps without
+connected tools.
+
+Completed checkpoints survive restarts. Interrupted requests are marked for inspection; a retry
+requires an explicit confirmation because a remote operation may still finish. Stops prevent future
+steps, without promising cancellation of an already-running provider request. Provider estimates
+gate new requests and actual usage is recorded; the estimate allowance is not a guaranteed billing
+cap. Final run summaries and approved files use the existing output and mirroring system.

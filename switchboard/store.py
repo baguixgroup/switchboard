@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from contextlib import contextmanager
 import time
 from pathlib import Path
 from typing import Any
@@ -67,6 +68,17 @@ class Store:
             rows = cur.fetchall()
             self._db.commit()
             return rows
+
+    @contextmanager
+    def transaction(self):
+        """Atomic multi-statement update under the connection's existing lock."""
+        with self._lock:
+            try:
+                yield self._db
+                self._db.commit()
+            except BaseException:
+                self._db.rollback()
+                raise
 
     # ---- usage ---------------------------------------------------------------
     def record_usage(self, provider: str, model: str, source_id: str | None, input_tokens: int,

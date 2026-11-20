@@ -49,6 +49,8 @@ class Engine:
         self._bg: set[asyncio.Task] = set()
         self.installing: dict[tuple[str, str], str] = {}
         self.install_requests: dict[str, list[dict]] = {}
+        from .studio import Studio
+        self.studio = Studio(self)
 
     # ---- discovery ----------------------------------------------------------------
     def available_providers(self, refresh: bool = False) -> set[str]:
@@ -673,6 +675,7 @@ class Engine:
             await asyncio.sleep(every)
 
     async def close(self) -> None:
+        await self.studio.close()
         for t in list(self.running.values()) + list(self._bg):
             t.cancel()
         await self.mcp.close()
