@@ -159,3 +159,31 @@ def test_finished_followup_does_not_show_an_old_failure_as_current(app,tmp_path,
     panel.show_chat({'id':'chat-test','turns':[{'id':'old','message':'Earlier','status':'failed','error':'Old failure'}, {'id':'new','message':'Next','status':'done','answer':'Finished.'}]})
     assert not panel.retry_turn and not panel.busy and not panel.connection.text()
     panel.timer.stop();lion.animation.stop();panel.deleteLater();lion.deleteLater();app.processEvents()
+
+
+def test_personalization_bounds_movement_and_quiet_mode_stops_animation(app,tmp_path,monkeypatch):
+    from switchboard.personalization import fresh, presentation
+    monkeypatch.setattr(ui,'PetClient',FakeClient)
+    lion=ui.Lion(Config(make_home(tmp_path)));settle(app,lambda:lion.panel.metadata_loaded)
+    p=fresh();p['settings'].update(roamingActivity='low',moodExpressiveness='off')
+    lion.apply_personalization({'settings':p['settings'],'presentation':presentation(p)})
+    lion.show_pet();before=lion.frame;lion.advance();assert lion.frame==before
+    lion.next_roam=0;lion.move_tick();assert lion.behavior.state=='roaming'
+    before=lion.pos();lion.move_tick();assert lion.pos()!=before
+    lion.show_panel();lion.move_tick();assert lion.behavior.state=='idle'
+    lion.panel.hide();lion.set_activity('working');lion.next_roam=0;before=lion.pos();lion.move_tick()
+    assert lion.pos()==before and lion.behavior.state=='working'
+    p['settings'].update(quietMode=True,moodExpressiveness='medium')
+    lion.apply_personalization({'settings':p['settings'],'presentation':presentation(p)})
+    before=lion.frame;lion.advance();assert lion.frame==before
+    lion.action('hide');assert not lion.movement.isActive() and lion.behavior.state=='resting'
+    lion.panel.timer.stop();lion.profile_timer.stop();lion.panel.deleteLater();lion.deleteLater();app.processEvents()
+
+
+def test_missing_or_corrupt_animation_uses_default_portrait(app,tmp_path,monkeypatch):
+    monkeypatch.setattr(ui,'PetClient',FakeClient)
+    def broken(*args):raise ui.zipfile.BadZipFile('bad animation')
+    monkeypatch.setattr(ui.zipfile,'ZipFile',broken)
+    lion=ui.Lion(Config(make_home(tmp_path)));settle(app,lambda:lion.panel.metadata_loaded)
+    assert len(lion.frames)==1 and not lion.frames[0].isNull() and not lion.mask().isEmpty()
+    lion.panel.timer.stop();lion.profile_timer.stop();lion.animation.stop();lion.panel.deleteLater();lion.deleteLater();app.processEvents()

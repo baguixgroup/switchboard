@@ -5,16 +5,24 @@ import re
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
+from PyInstaller.utils.hooks import collect_submodules, copy_metadata
 
 ROOT = Path(SPECPATH).parent
 VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "switchboard" / "__init__.py").read_text()).group(1)
 ICONS = ROOT / "build" / "icons"
 WIN, MAC = sys.platform.startswith("win"), sys.platform == "darwin"
 
+
+def package_data():
+    # Build from this checkout, not an older installed switchboard wheel in the
+    # build environment. Otherwise new manifests/UI assets can silently vanish.
+    return [(str(p), str(p.parent.relative_to(ROOT)))
+            for pattern in ('defaults/*.yaml', 'web/static/*')
+            for p in (ROOT/'switchboard').glob(pattern) if p.is_file()]
+
 hidden = (collect_submodules("switchboard") + collect_submodules("pypdf") + collect_submodules("uvicorn") + collect_submodules("mcp", filter=lambda n: not n.startswith("mcp.cli"))
           + collect_submodules("pystray") + (collect_submodules("webview") if (WIN or MAC) else []))
-datas = collect_data_files("switchboard")
+datas = package_data()
 datas += [(str(p),'licenses') for p in (ROOT/'packaging/licenses').glob('*.txt')]
 for dist in ("switchboard-ai", "pypdf", "mcp", "fastapi", "starlette", "pydantic", "anthropic", "openai", "httpx", "uvicorn"):
     try:
@@ -28,7 +36,7 @@ pyz = PYZ(a.pure)
 
 pet_a=pet_pyz=None
 if WIN or MAC:
-    pet_datas=collect_data_files('switchboard')
+    pet_datas=package_data()
     pet_datas += [(str(p),'licenses') for p in (ROOT/'packaging/licenses').glob('*.txt')]
     for package in ('PySide6_Essentials','shiboken6'):
         pet_datas+=copy_metadata(package)

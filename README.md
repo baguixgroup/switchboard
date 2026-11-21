@@ -461,6 +461,13 @@ cap. Final run summaries and approved files use the existing output and mirrorin
 
 ### Laith and manager-led crews
 
+**Personalization (Mac, Windows and Pi dashboard):** open **Laith → Chat settings →
+Personality & appearance** to configure reply style, profession and appearance,
+review learned suggestions, or enable quiet/private personalization modes.
+Learning defaults off. The desktop pet supports optional bounded movement;
+unavailable outfits and expressions use the default lion artwork. Mobile apps
+are on hold. See [scope, privacy boundaries and platform limits](docs/laith-personalization.md).
+
 **Chat comes first.** Switchboard opens to a simple Laith conversation. Model, context and spending
 choices live in Chat settings. The navigation separates Chat, Create, Goals, Activity and Connections;
 credits and application preferences stay in the secondary navigation. Chat history opens only when you ask for it.

@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFormLayout, 
     QLabel, QMenu, QMessageBox, QPlainTextEdit, QPushButton, QTextBrowser, QVBoxLayout, QWidget, QDialog, QFrame, QToolButton)
 
 from .desktop_pet import PetClient, atomic_json, endpoint_path, fit_position, ipc, preferences, update_preferences
+from .personalization import CharacterBehavior, Settings, assets
 
 
 class Signals(QObject):
@@ -119,6 +120,7 @@ class TaskPanel(QWidget):
         note=QLabel('Uses your plans and free models. Saved memories are included. Copied text is read only when you choose +.');note.setWordWrap(True);note.setStyleSheet('font-size:12px;color:#8c8278;');options.addWidget(note)
         reconnect=QPushButton('Reconnect');reconnect.clicked.connect(self.connect_hub);options.addWidget(reconnect)
         app=QPushButton('Open Switchboard');app.clicked.connect(lambda:self.open_switchboard('#laith'));options.addWidget(app)
+        personalize=QPushButton('Personality & appearance');personalize.clicked.connect(lambda:self.open_switchboard('#laith/personality'));options.addWidget(personalize)
         done=QPushButton('Done');done.clicked.connect(self.settings.accept);options.addWidget(done);options.addStretch()
         self.timer=QTimer(self);self.timer.setInterval(1800);self.timer.timeout.connect(self.poll)
         self.reconnect_timer=QTimer(self);self.reconnect_timer.setInterval(6000);self.reconnect_timer.timeout.connect(self.connect_hub)
@@ -150,9 +152,11 @@ class TaskPanel(QWidget):
 
     def failed(self,message):
         self.busy=False;self.polling=False;self.new.setEnabled(True);self.send.setEnabled(self.metadata_loaded);self.status(message,'Try again');self.subtitle.setText('Needs a hand')
+        self.pet.behavior.cancel()
 
     def loaded(self,data):
         self.connecting=False;self.metadata_loaded=True;self.reconnect_timer.stop();self.subtitle.setText('Here to help');self.status()
+        if data['library'].get('personalization'):self.pet.apply_personalization(data['library']['personalization'])
         selected_model=self.model.currentData() or preferences(self.config)['model'];selected_ability=self.ability.currentData()
         self.model.clear();self.model.addItem('Automatic','')
         for m in data['models']:
@@ -168,6 +172,7 @@ class TaskPanel(QWidget):
         if self.busy and not self.waiting_turn:return
         self.timer.stop();self.chat_id='';self.chat=None;self.latest_answer='';self.goal_turn=None;self.latest_task=None;self.waiting_turn=None;self.retry_turn=None;self.prepared=None;self.busy=False;self.polling=False;self.rendered=None;self.send_error=''
         self.reply_actions.hide();self.status();self.transcript.clear();self.message.clear();self.message.setFocus();self.send.setEnabled(self.metadata_loaded);self.subtitle.setText('A fresh start');update_preferences(self.config,chat_id='')
+        self.pet.behavior.cancel()
 
     def use_clipboard(self):
         value=QApplication.clipboard().text()
@@ -185,6 +190,7 @@ class TaskPanel(QWidget):
         if self.busy or not message or not self.metadata_loaded:return
         if len(message)>12000:self.status('Keep the message under 12,000 characters.');return
         self.busy=True;self.send.setEnabled(False);self.status('Connecting to your model…');self.subtitle.setText('Getting ready')
+        self.pet.set_activity('working')
         model=self.model.currentData() or '';ability=self.ability.currentData() or 'conversation';tools=self.tools.isChecked();knowledge=self.knowledge.isChecked();key=self.chat_id
         update_preferences(self.config,model=model)
         def work():
@@ -199,7 +205,7 @@ class TaskPanel(QWidget):
             box=QMessageBox(self);box.setWindowTitle('Confirm request');box.setTextFormat(Qt.TextFormat.PlainText)
             box.setText('Send to '+plan['model_label']+'?\n\nEstimated API use: $'+str(plan.get('effective_cost_usd',0))+'\nConnected tools: '+('enabled' if turn.get('tools_enabled') else 'off')+'\nSaved memories: '+str(turn.get('memory_count',0))+'\nKnowledge excerpts: '+str(len(turn.get('sources',[])))+'\n\n'+' '.join(plan.get('warnings',[])));box.setStandardButtons(QMessageBox.StandardButton.Ok|QMessageBox.StandardButton.Cancel)
             if box.exec()!=QMessageBox.StandardButton.Ok:
-                self.busy=False;self.send.setEnabled(True);self.prepared=None;self.status('Request kept as a draft.');self.poll();return
+                self.busy=False;self.send.setEnabled(True);self.prepared=None;self.pet.behavior.cancel();self.status('Request kept as a draft.');self.poll();return
         self.busy=True;self.send.setEnabled(False);self.subtitle.setText('Thinking');self.status('Sending your message…');self.send_error=''
         self.call(lambda:self.client.send(key,turn['id']),lambda _:self.sent(),self.delivery_unknown)
 
@@ -250,12 +256,14 @@ class TaskPanel(QWidget):
         self.copy.setEnabled(bool(self.latest_answer));self.goal.setEnabled(bool(self.goal_turn) and not active);self.reply_actions.setVisible(bool(self.latest_answer) and not active)
         self.busy=bool(active);self.send.setEnabled(not self.busy and self.metadata_loaded);self.new.setEnabled(not self.busy or bool(self.waiting_turn))
         if active:
+            self.pet.set_activity('working')
             self.timer.start()
             if self.waiting_turn:self.subtitle.setText('Waiting for another app');self.status('Your model needs a manual app handoff. Let Laith answer here instead.','Reply here instead')
             else:
                 elapsed=max(0,int(time.time()-active['created']));self.subtitle.setText('Thinking · '+str(elapsed)+'s')
                 self.status('This is taking longer than usual. You can inspect the request in activity.' if elapsed>90 else '')
         else:
+            self.pet.set_activity('reacting' if self.latest_answer else 'idle')
             self.timer.stop();self.subtitle.setText('Here to help')
             if self.retry_turn:self.status('That reply did not finish. Your message is saved.','Try again')
             elif self.send_error:self.status('Your message was not sent. Your draft is still here.','Try again')
@@ -291,6 +299,8 @@ class TaskPanel(QWidget):
 class Lion(QWidget):
     def __init__(self,config):
         super().__init__();self.config=config;self.opts=preferences(config);self.frame=0;self.drag=None;self.moved=False
+        self.behavior=CharacterBehavior();self.personal_settings=Settings().model_dump();self.profile_job=False;self.profile_revision=-1
+        self.next_roam=time.monotonic()+90;self.roam_until=0;self.roam_direction=1;self.reaction_until=0
         self.setWindowTitle('Laith — desktop companion');self.setAccessibleName('Laith desktop companion')
         self.setWindowFlags(Qt.WindowType.Tool|Qt.WindowType.FramelessWindowHint|Qt.WindowType.WindowStaysOnTopHint|Qt.WindowType.WindowDoesNotAcceptFocus)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground);self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
@@ -300,14 +310,64 @@ class Lion(QWidget):
         self.frames=[]
         frames=static.joinpath('laith-wave-frames.zip')
         if frames.is_file():
-            with zipfile.ZipFile(str(frames)) as archive:
-                for name in sorted(archive.namelist()):
-                    if name.endswith('.png'):
-                        pix=QPixmap();pix.loadFromData(archive.read(name));self.frames.append(pix)
+            try:
+                with zipfile.ZipFile(str(frames)) as archive:
+                    for name in sorted(archive.namelist()):
+                        if name.endswith('.png'):
+                            pix=QPixmap();pix.loadFromData(archive.read(name))
+                            if not pix.isNull():self.frames.append(pix)
+            except (OSError,zipfile.BadZipFile):self.frames=[]
         if not self.frames:self.frames=[QPixmap(str(static.joinpath('laith.png')))]
         self.panel=TaskPanel(self,PetClient(config),config)
-        self.animation=QTimer(self);self.animation.setInterval(140);self.animation.timeout.connect(self.advance)
+        self.clip=assets()['clips']['wave']
+        self.animation=QTimer(self);self.animation.setInterval(self.clip['intervalMs']);self.animation.timeout.connect(self.advance)
+        self.movement=QTimer(self);self.movement.setInterval(80);self.movement.timeout.connect(self.move_tick)
+        self.profile_timer=QTimer(self);self.profile_timer.setInterval(5000);self.profile_timer.timeout.connect(self.refresh_personalization);self.profile_timer.start()
         self.resize_pet(self.opts['size']);self.place()
+
+    def refresh_personalization(self):
+        if self.profile_job or not hasattr(self.panel.client,'personalization'):return
+        self.profile_job=True
+        def loaded(value):
+            self.profile_job=False;self.apply_personalization(value)
+        def failed(message):
+            self.profile_job=False
+            # A disconnected device cannot keep acting on revoked hub consent.
+            self.personal_settings=dict(self.personal_settings,quietMode=True)
+            self.behavior.configure(self.personal_settings);self.behavior.cancel();self.frame=0;self.refresh_mask();self.update()
+        self.panel.call(self.panel.client.personalization,loaded,failed)
+
+    def apply_personalization(self,profile):
+        revision=profile.get('revision',0)
+        if revision<self.profile_revision:return
+        self.profile_revision=revision
+        self.personal_settings=profile['settings'];self.behavior.configure(self.personal_settings)
+        missing=profile['presentation']['missingAssets'];role=profile['presentation']['activeRole']
+        detail=(' · '+role if role else '')+(' · Default artwork (requested assets unavailable)' if missing else '')
+        self.setToolTip('Laith'+detail+' · '+self.behavior.state+' · Click to talk, drag to move, right-click for options.')
+        self.setAccessibleDescription('Atlas lion. '+self.behavior.state+detail)
+        if self.behavior.quiet or self.personal_settings['moodExpressiveness']=='off':self.frame=0;self.refresh_mask();self.update()
+
+    def set_activity(self,state):
+        if self.behavior.transition(state,interrupt=True) and state=='reacting':self.reaction_until=time.monotonic()+2
+        mood='' if self.personal_settings['moodExpressiveness']=='off' else ' · '+self.behavior.mood
+        self.setAccessibleDescription('Laith · '+self.behavior.state+mood)
+        self.setToolTip('Laith · '+self.behavior.state+mood+' · Click to talk, drag to move, right-click for options.')
+
+    def move_tick(self):
+        now=time.monotonic()
+        if self.behavior.state=='reacting' and now>=self.reaction_until:self.behavior.cancel()
+        if not self.isVisible() or self.drag is not None or self.panel.isVisible() or self.behavior.quiet or not self.behavior.roaming or not self.opts['animation']:
+            if self.behavior.state=='roaming':self.behavior.cancel()
+            self.roam_until=0;self.next_roam=now+90;return
+        if self.behavior.state=='roaming':
+            if now>=self.roam_until:
+                self.behavior.cancel();update_preferences(self.config,x=self.x(),y=self.y());return
+            point=fit_position(self.x()+self.roam_direction*2,self.y(),self.width(),self.height(),screens())
+            self.move(*point)
+        elif now>=self.next_roam and self.behavior.transition('roaming'):
+            self.roam_direction*=-1;self.roam_until=now+1.5
+            self.next_roam=now+(90 if self.personal_settings['roamingActivity']=='low' else 45)
 
     def resize_pet(self,size):
         self.setFixedSize(size,size);self.scaled=[p.scaled(size,size,Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation) for p in self.frames]
@@ -325,13 +385,15 @@ class Lion(QWidget):
         painter=QPainter(self);pix=self.scaled[self.frame];painter.drawPixmap((self.width()-pix.width())//2,self.height()-pix.height(),pix)
 
     def advance(self):
-        if not self.isVisible() or not self.opts['animation']:return
+        if not self.isVisible() or not self.opts['animation'] or self.behavior.quiet or self.personal_settings['moodExpressiveness']=='off':return
         self.frame=(self.frame+1)%len(self.scaled);self.refresh_mask();self.update()
-        self.animation.setInterval(3500 if self.frame==0 else 140)
+        intensity=2 if self.personal_settings['moodExpressiveness']=='low' else 1
+        self.animation.setInterval(self.clip['idlePauseMs']*intensity if self.frame==0 else self.clip['intervalMs'])
 
     def show_pet(self):
         self.show()
         if self.opts['animation']:self.animation.start()
+        self.movement.start()
 
     def show_panel(self):
         self.show_pet();self.panel.move(*fit_position(self.x()-self.panel.width()+self.width(),self.y()-self.panel.height(),self.panel.width(),self.panel.height(),screens()))
@@ -341,7 +403,7 @@ class Lion(QWidget):
     def action(self,action):
         if action=='show':self.show_pet();update_preferences(self.config,enabled=True)
         elif action=='panel':self.show_panel();update_preferences(self.config,enabled=True)
-        elif action=='hide':self.hide();self.panel.hide();self.animation.stop();update_preferences(self.config,enabled=False)
+        elif action=='hide':self.hide();self.panel.hide();self.animation.stop();self.movement.stop();self.behavior.cancel();update_preferences(self.config,enabled=False)
         elif action in ('pause','resume'):
             self.opts['animation']=action=='resume';update_preferences(self.config,animation=self.opts['animation'])
             if self.opts['animation']:self.animation.start()
@@ -376,6 +438,7 @@ class Lion(QWidget):
     def open_menu(self,position):
         menu=QMenu(self)
         menu.addAction('Talk to Laith',self.show_panel)
+        menu.addAction('Personality & appearance',lambda:self.panel.open_switchboard('#laith/personality'))
         animate=menu.addAction('Animate Laith');animate.setCheckable(True);animate.setChecked(self.opts['animation']);animate.triggered.connect(lambda checked:self.action('resume' if checked else 'pause'))
         sizes=menu.addMenu('Size')
         for name,size in [('Small',120),('Medium',180),('Large',240)]:sizes.addAction(name,lambda checked=False,size=size:self.resize_pet(size))

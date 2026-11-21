@@ -134,8 +134,9 @@ class PetClient:
         base=f'http://127.0.0.1:{int(port)}' if port else config.hub_url
         self.http=httpx.Client(base_url=base,headers={'Authorization':'Bearer '+config.token},timeout=httpx.Timeout(60,connect=8),trust_env=False)
 
-    def request(self,path,body=None):
-        r=self.http.get(path) if body is None else self.http.post(path,json=body)
+    def request(self,path,body=None,timeout=None):
+        options={} if timeout is None else {'timeout':timeout}
+        r=self.http.get(path,**options) if body is None else self.http.post(path,json=body,**options)
         if r.is_error:
             try:message=r.json().get('detail',r.text)
             except ValueError:message=r.text
@@ -143,6 +144,7 @@ class PetClient:
         return r.json()
 
     def overview(self):return {'library':self.request('/api/laith'),'models':self.request('/api/models')}
+    def personalization(self):return self.request('/api/laith/personalization',timeout=5)
     def chat(self,key):return self.request('/api/laith/chats/'+key)
     def new_chat(self):return self.request('/api/laith/chats',{'title':'Laith desktop conversation'})
     def prepare(self,key,message,model='',ability='conversation',tools=False,knowledge=False):

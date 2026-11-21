@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "identity": "atlas-lion",
+  "defaultImage": "laith.png",
+  "clips": {
+    "wave": {"archive": "laith-wave-frames.zip", "frames": 16, "intervalMs": 140, "idlePauseMs": 3500}
+  },
+  "outfits": [],
+  "presentations": ["default"],
+  "expressions": [],
+  "fallback": "Default Atlas lion artwork with activity and mood labels. Profession outfits, alternate presentations and facial expressions are not yet available."
+}

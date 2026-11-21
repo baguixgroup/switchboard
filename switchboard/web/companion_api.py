@@ -1,6 +1,7 @@
 """Authenticated Laith companion endpoints; request plans are stored server-side."""
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
+from ..personalization import (ProfilePatch, PreferenceIn, RevisionIn, AppearanceIn, DecisionIn, ProfileConflict)
 
 
 class ChatIn(BaseModel):
@@ -55,7 +56,29 @@ def install_companion_routes(app,engine,auth):
     c=engine.companion;deps=[Depends(auth)]
     def call(fn,*args,**kwargs):
         try:return fn(*args,**kwargs)
+        except ProfileConflict as exc:raise HTTPException(409,str(exc)) from None
         except (ValueError,TypeError,KeyError) as exc:raise HTTPException(400,str(exc)) from None
+
+    @app.get('/api/laith/personalization',dependencies=deps)
+    async def personalization():return c.personalization.overview()
+
+    @app.post('/api/laith/personalization',dependencies=deps)
+    async def update_personalization(body:ProfilePatch):return call(c.personalization.update,body)
+
+    @app.post('/api/laith/personalization/preferences',dependencies=deps)
+    async def preference(body:PreferenceIn):return call(c.personalization.set_preference,body)
+
+    @app.post('/api/laith/personalization/preferences/{key}/delete',dependencies=deps)
+    async def delete_preference(key:str,body:RevisionIn):return call(c.personalization.delete_preference,key,body.revision)
+
+    @app.post('/api/laith/personalization/appearance',dependencies=deps)
+    async def appearance(body:AppearanceIn):return call(c.personalization.request_appearance,body)
+
+    @app.post('/api/laith/personalization/suggestions/{key}/decision',dependencies=deps)
+    async def decision(key:str,body:DecisionIn):return call(c.personalization.decide,key,body)
+
+    @app.post('/api/laith/personalization/reset',dependencies=deps)
+    async def reset(body:RevisionIn):return call(c.personalization.reset,body.revision)
 
     @app.get('/api/local/laith-desktop',dependencies=deps)
     async def desktop_status():
@@ -72,7 +95,7 @@ def install_companion_routes(app,engine,auth):
         except ValueError as exc:raise HTTPException(400,str(exc)) from None
 
     @app.get('/api/laith',dependencies=deps)
-    async def overview():return {'chats':c.chats(),'archived_chats':c.chats(True),'memories':c.memories(),'abilities':c.abilities(),'pulse':c.pulse()}
+    async def overview():return {'chats':c.chats(),'archived_chats':c.chats(True),'memories':c.memories(),'abilities':c.abilities(),'pulse':c.pulse(),'personalization':c.personalization.overview()}
 
     @app.get('/api/laith/pulse',dependencies=deps)
     async def pulse():return c.pulse()
