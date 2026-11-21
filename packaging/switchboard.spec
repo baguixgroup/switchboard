@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules, copy_metadata
+from PyInstaller.utils.hooks import collect_submodules, copy_metadata, collect_all
 
 ROOT = Path(SPECPATH).parent
 VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "switchboard" / "__init__.py").read_text()).group(1)
@@ -22,16 +22,18 @@ def package_data():
 
 hidden = (collect_submodules("switchboard") + collect_submodules("pypdf") + collect_submodules("uvicorn") + collect_submodules("mcp", filter=lambda n: not n.startswith("mcp.cli"))
           + collect_submodules("pystray") + (collect_submodules("webview") if (WIN or MAC) else []))
-datas = package_data()
+speech_datas,speech_binaries,speech_imports=collect_all('sherpa_onnx')
+hidden+=speech_imports
+datas = package_data()+speech_datas
 datas += [(str(p),'licenses') for p in (ROOT/'packaging/licenses').glob('*.txt')]
-for dist in ("switchboard-ai", "pypdf", "mcp", "fastapi", "starlette", "pydantic", "anthropic", "openai", "httpx", "uvicorn"):
+for dist in ("switchboard-ai", "pypdf", "mcp", "fastapi", "starlette", "pydantic", "anthropic", "openai", "httpx", "uvicorn", "sherpa-onnx", "sherpa-onnx-core", "numpy"):
     try:
         datas += copy_metadata(dist)  # packages that read their own version via importlib.metadata
     except Exception:
         pass
 
-a = Analysis([str(ROOT / "packaging" / "entry.py")], pathex=[str(ROOT)], hiddenimports=hidden, datas=datas,
-             excludes=["tkinter", "pytest", "IPython", "matplotlib", "numpy", "PySide6", "switchboard.desktop_pet_ui"], noarchive=False)
+a = Analysis([str(ROOT / "packaging" / "entry.py")], pathex=[str(ROOT)], hiddenimports=hidden, datas=datas, binaries=speech_binaries,
+             excludes=["tkinter", "pytest", "IPython", "matplotlib", "PySide6", "switchboard.desktop_pet_ui"], noarchive=False)
 pyz = PYZ(a.pure)
 
 pet_a=pet_pyz=None
@@ -61,7 +63,7 @@ elif MAC:
     pet_app=BUNDLE(pet_coll,name='Laith.app',icon=str(ICONS/'laith.icns'),bundle_identifier='com.baguixgroup.switchboard.laith',version=VERSION,
                   info_plist={'CFBundleName':'Laith','CFBundleDisplayName':'Laith','CFBundleShortVersionString':VERSION,'CFBundleVersion':VERSION,
                               'LSUIElement':True,'LSMinimumSystemVersion':'14.4',
-                              'NSMicrophoneUsageDescription':'Laith uses your microphone only when you start a voice conversation.',
+                              'NSMicrophoneUsageDescription':'Laith uses your microphone only when you start dictation or voice chat.',
                               'NSLocalNetworkUsageDescription':'Laith connects to your Tazrivo hub to handle the tasks you send.'})
     coll = COLLECT(exe("Tazrivo", False), exe("Switchboard", False), a.binaries, a.datas, strip=False, upx=False, name="Tazrivo")
     app = BUNDLE(coll, name="Tazrivo.app", icon=str(ICONS / "tazrivo.icns"),
@@ -75,7 +77,7 @@ elif MAC:
                      # macOS asks once before the app may talk to the hub on your network.
                      "NSLocalNetworkUsageDescription": "Tazrivo connects to your Tazrivo hub and other computers on your network.",
                      "NSAppleEventsUsageDescription": "Tazrivo opens apps such as ChatGPT when a task needs them.",
-                     "NSMicrophoneUsageDescription": "Tazrivo uses your microphone only when you start a voice conversation with Laith.",
+                     "NSMicrophoneUsageDescription": "Tazrivo uses your microphone only when you start dictation or voice chat with Laith.",
                  })
 else:
     coll = COLLECT(exe("tazrivo", True),exe("switchboard", True), a.binaries, a.datas, strip=False, upx=False, name="switchboard")

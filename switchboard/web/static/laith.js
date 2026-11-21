@@ -4,6 +4,7 @@ window.installLaith = function(pages) {
   const options={model:"",ability:"conversation",memory:true,knowledge:false,tools:false,billing:"plans_only",budget:0,effort:""};
   const drafts={},attachments={};
   let previewEpoch=0;
+  const voice=window.createLaithVoice({send:sendVoiceMessage,portrait:()=>portrait()});
   const effortChoices=[["","Auto"],["low","Low"],["medium","Medium"],["high","High"],["xhigh","Extra high"],["max","Max"]];
   const portrait=()=>`<img src="${esc(library?.personalization?.presentation?.image||'/static/laith.png')}" alt="Laith, a friendly Atlas lion" class="laith-portrait">`;
   const field=(name,html)=>`<label class="field">${name}${html}</label>`;
@@ -25,6 +26,7 @@ window.installLaith = function(pages) {
     $("#laithHistory").onclick=()=>{sessionsOpen=!sessionsOpen;if($(".laith-layout"))$(".laith-layout").classList.toggle('sessions-open',sessionsOpen);else location.hash='#laith';};
     if(tab==="personality")renderPersonalization();else if(tab==="memory")renderMemories();else if(tab==="abilities")renderAbilities();else if(tab==="checkins")renderCheckins();else renderConversation();
     applyCharacterLook();
+    if(arg==='voice')voice.talk();
     if(chat&&activeTurn())pollChat(chat.id,me);
     else if(tab==="checkins")setTimeout(()=>{if(!stale(me))pages.laith(arg);},15000);
   };
@@ -77,6 +79,10 @@ window.installLaith = function(pages) {
     renderAttachments();$("#laithFile").onchange=e=>guard(async()=>{const file=e.target.files[0];if(!file)return;if((attachments[draftKey]||[]).length>=4)throw Error('Choose up to four files.');const uploaded=await window.uploadCapabilityInput(file);(attachments[draftKey]||=([])).push(uploaded);renderAttachments();queueChatPreview();},$("#laithSend"));
     wireTranscript();refreshBusy();updateChatChoices();queueChatPreview();
     $('#laithWho').onclick=()=>chooseChatOption('model');$('#laithSpend').onclick=()=>chooseChatOption('billing');$('#laithEffort').onclick=()=>chooseChatOption('effort');
+    const dictate=document.createElement('button');dictate.type='button';dictate.className='ghost icon';dictate.id='laithDictate';dictate.setAttribute('aria-label','Dictate message');dictate.title='Dictate message';
+    const talk=document.createElement('button');talk.type='button';talk.className='ghost icon';talk.id='laithVoice';talk.setAttribute('aria-label','Start voice chat');talk.title='Voice chat with Laith';talk.innerHTML=I('waveform');
+    $('#laithPaste').after(dictate,talk);
+    voice.bind({input,dictate,talk,chatId:chat?.id||''});
   }
   function updateChatChoices(){
     const selected=S.models.find(m=>m.key===options.model);
@@ -128,21 +134,44 @@ window.installLaith = function(pages) {
     $$("a",m.el).forEach(a=>a.addEventListener('click',m.close));
     if($("#archiveLaith",m.el))$("#archiveLaith",m.el).onclick=()=>guard(async()=>{await api(`/api/laith/chats/${chat.id}/archive`,{body:{archived:true}});m.close();location.hash='#laith';},$("#archiveLaith",m.el));
   }
-  async function dispatchTurn(key,turn){
+  async function dispatchTurn(key,turn,{preserveDraft=false,waitForDecision=false}={}){
     const send=async()=>{
       try{await api(`/api/laith/chats/${key}/send`,{body:{turn_id:turn.id,confirm:true}});}
       catch(e){const saved=await api('/api/laith/chats/'+key);if(!saved.turns.some(t=>t.id===turn.id&&['queued','running','waiting','done','failed'].includes(t.status)))throw e;}
-      drafts[key]='';drafts.new='';await pages.laith('chat/'+key);if(location.hash!=='#laith/chat/'+key)location.hash='#laith/chat/'+key;
+      if(!preserveDraft){drafts[key]='';drafts.new='';}await pages.laith('chat/'+key);if(location.hash!=='#laith/chat/'+key)location.hash='#laith/chat/'+key;
     };
     if(turn.plan.needs_confirmation||turn.tools_enabled||turn.plan.effective_cost_usd>0){
-      const m=modal({title:'Send this request?',body:`<p><b>${esc(turn.plan.model_label)}</b> · Estimated ${money(turn.plan.effective_cost_usd)}</p><p class="small">${turn.memory_count} saved memories · ${turn.sources.length} knowledge excerpts · ${turn.tools_enabled?'Connected tools enabled':'Connected tools off'}</p><p class="small muted">${esc((turn.plan.warnings||[]).join(' '))}</p>`,foot:'<button data-close>Cancel</button><button class="primary" id="confirmLaithSend">Send</button>'});
-      $("#confirmLaithSend",m.el).onclick=()=>guard(async()=>{await send();m.close();},$("#confirmLaithSend",m.el));
-    }else await send();
+      let settled=false,resolveDecision;
+      const decision=new Promise(resolve=>resolveDecision=resolve);
+      if(waitForDecision)voice.phase('Review this request to continue');
+      const m=modal({title:'Send this request?',body:`<p><b>${esc(turn.plan.model_label)}</b> · Estimated ${money(turn.plan.effective_cost_usd)}</p><p class="small">${turn.memory_count} saved memories · ${turn.sources.length} knowledge excerpts · ${turn.tools_enabled?'Connected tools enabled':'Connected tools off'}</p><p class="small muted">${esc((turn.plan.warnings||[]).join(' '))}</p>`,foot:'<button data-close>Cancel</button><button class="primary" id="confirmLaithSend">Send</button>',onClose:()=>{if(!settled)resolveDecision(null);}});
+      $("#confirmLaithSend",m.el).onclick=()=>guard(async()=>{await send();settled=true;resolveDecision({chatId:key,turnId:turn.id});m.close();},$("#confirmLaithSend",m.el));
+      if(waitForDecision)return await decision;
+    }else{await send();return {chatId:key,turnId:turn.id};}
+  }
+  async function sendVoiceMessage(message,signal){
+    if(signal?.aborted)return null;
+    if(sending||activeTurn())throw Error('A reply is already in progress. Wait for it in chat, then Resume.');
+    if(!$('#laithMessage'))throw Error('Open your Laith conversation to continue.');
+    sending=true;refreshBusy();
+    try{
+      const intent=await api('/api/capabilities/intent',{body:{prompt:message,asset_ids:[]}});
+      if(signal?.aborted)return null;
+      if(intent.use_capability){const input=$('#laithMessage');input.value+=(input.value?'\n':'')+message;input.dispatchEvent(new Event('input'));throw Error('This task needs a review in chat. Your words are in the draft; send them when ready.');}
+      const key=chat?chat.id:(await api('/api/laith/chats',{body:{}})).id;
+      if(signal?.aborted)return null;
+      voice.expectChat(key);
+      if(!chat)drafts[key]=drafts.new||'';
+      const turn=await api(`/api/laith/chats/${key}/prepare`,{body:{message,model:options.model,ability:options.ability,use_memory:options.memory,use_knowledge:options.knowledge,effort:options.effort,tools:options.tools?'auto':'none',billing:options.billing,max_cost_usd:options.budget}});
+      if(signal?.aborted)return null;
+      return await dispatchTurn(key,turn,{preserveDraft:true,waitForDecision:true});
+    }finally{sending=false;refreshBusy();}
   }
   async function sendMessage(button){
     if(sending||activeTurn())return;sending=true;refreshBusy();
     try{
       const message=$("#laithMessage").value.trim();if(!message)return;
+      voice.stop();
       const key=chat?chat.id:(await api('/api/laith/chats',{body:{}})).id;drafts[key]=message;
       const files=attachments[chat?chat.id:'new']||[];
       const intent=await api('/api/capabilities/intent',{body:{prompt:message,asset_ids:files.map(f=>f.id)}});

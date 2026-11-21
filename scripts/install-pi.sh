@@ -10,7 +10,7 @@ SRC="$(cd "$(dirname "$0")/.." && pwd)"
 BASE="$HOME/.local/share/switchboard"
 
 sudo apt-get update -qq
-sudo apt-get install -y -qq python3 python3-venv python3-pip git openssh-client rsync
+sudo apt-get install -y -qq python3 python3-venv python3-pip git openssh-client rsync espeak-ng
 
 python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' || {
   echo "Python 3.10+ is required (Raspberry Pi OS Bookworm ships 3.11)."; exit 1; }
@@ -18,7 +18,7 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' || {
 mkdir -p "$BASE"
 python3 -m venv "$BASE/venv"
 "$BASE/venv/bin/pip" install --upgrade pip --quiet
-"$BASE/venv/bin/pip" install "$SRC" --quiet
+"$BASE/venv/bin/pip" install "$SRC[documents,voice]" --quiet
 
 mkdir -p "$HOME/.local/bin"
 ln -sf "$BASE/venv/bin/switchboard" "$HOME/.local/bin/switchboard"

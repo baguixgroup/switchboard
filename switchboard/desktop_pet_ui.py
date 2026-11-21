@@ -101,6 +101,7 @@ class TaskPanel(QWidget):
         titles=QVBoxLayout();titles.setSpacing(1);title=QLabel('Laith');title.setObjectName('Title');titles.addWidget(title)
         self.subtitle=QLabel('Your companion');self.subtitle.setObjectName('Subtitle');titles.addWidget(self.subtitle);top.addLayout(titles,1)
         self.new=QToolButton();self.new.setText('＋');self.new.setAccessibleName('New chat');self.new.setToolTip('New chat');self.new.clicked.connect(self.new_chat);top.addWidget(self.new)
+        talk=QPushButton('Voice');talk.setAccessibleName('Voice chat with Laith');talk.setToolTip('Open voice chat in Tazrivo');talk.clicked.connect(lambda:self.open_switchboard('#laith/voice'));top.addWidget(talk)
         settings=QToolButton();settings.setText('⋯');settings.setAccessibleName('Chat settings');settings.setToolTip('Chat settings');settings.clicked.connect(self.open_settings);top.addWidget(settings);layout.addLayout(top)
         self.transcript=QTextBrowser();self.transcript.setOpenExternalLinks(False);self.transcript.setOpenLinks(False);self.transcript.anchorClicked.connect(self.open_link);self.transcript.setAccessibleName('Conversation with Laith');layout.addWidget(self.transcript,1)
         self.notice=QFrame();self.notice.setObjectName('Notice');notice=QVBoxLayout(self.notice);notice.setContentsMargins(12,10,12,10);notice.setSpacing(5)

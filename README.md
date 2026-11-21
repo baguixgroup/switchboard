@@ -246,6 +246,27 @@ or `~/.config/switchboard` (Linux/Pi):
 | `credits.yaml` | your credits, free tiers, subscriptions, budgets |
 | `models.yaml` | your catalog overrides (written by `models sync`) |
 
+## Voice chat and dictation
+
+The microphone beside Laith's prompt starts **dictation**. Speak, choose **Finish dictation**,
+then review the words in your draft before sending. Cancel discards the recording.
+
+The waveform button starts **voice chat**. Laith listens, sends your recognized message through
+the model, plan and effort you selected, and speaks the reply using a device voice. The microphone
+pauses while a reply is generated and spoken, then resumes. Mute and End conversation remain visible.
+Spending and connected-tool approvals still apply. The desktop companion's Voice button opens this view.
+
+First use offers a one-time 117 MB speech model download. Recognition runs on the computer serving
+your workspace: the Mac/Windows agent when using its local app, or the hub when opened directly.
+Recordings are processed in memory and are not saved or sent to a transcription API. Dictation
+has no per-minute API fee; voice chat uses your normal model allowance. Recognized voice-chat
+messages and answers are saved in the conversation. Language and reply voice are under Voice options.
+
+Allow microphone access when you start. Use the installed app, localhost or HTTPS; browsers block
+microphones on plain HTTP LAN pages. Dictation is limited to 60 seconds per recording, and a voice
+conversation ends after 10 minutes. Device speech is AI-generated. The optional paid realtime service
+remains available separately under Audio & files when configured.
+
 ## Writing assistant and writing services
 
 In chat, click **Writing** to proofread, improve clarity, paraphrase, shorten, summarize or translate.

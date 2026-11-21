@@ -41,6 +41,8 @@ def local_request_ok(request: Request) -> bool:
 
 
 def build_proxy_app(config) -> Starlette:
+    from .web.voice_api import VoiceAPI
+    voice=VoiceAPI(config)
     hub = config.hub_url
     client = httpx.AsyncClient(base_url=hub, timeout=httpx.Timeout(300, connect=8))
 
@@ -48,6 +50,8 @@ def build_proxy_app(config) -> Starlette:
         if not local_request_ok(request):
             return JSONResponse({"detail": "Refused: requests must come from this computer's own dashboard."}, 403)
         path = request.url.path
+        if path.startswith('/api/local/voice/'):
+            return await voice.handle(request)
         if path == '/api/local/laith-desktop':
             from .desktop_pet import control,status
             try:

@@ -32,6 +32,9 @@ const touch = matchMedia("(pointer: coarse)").matches;
 
 // ---------------------------------------------------------------- icons
 const P = {
+  mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/>',
+  waveform: '<path d="M3 10v4M7 6v12M12 3v18M17 7v10M21 10v4"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/>',
   history: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',

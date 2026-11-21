@@ -541,6 +541,19 @@ def cmd_service(cfg: Config, a) -> None:
     print(service.install(role) if a.action == "install" else service.uninstall(role))
 
 
+def cmd_voice(cfg: Config, a) -> None:
+    from .voice import LocalVoice,MAX_AUDIO_BYTES
+    voice=LocalVoice(cfg)
+    if a.action=='setup':value=voice.install()
+    elif a.action=='transcribe':
+        if not a.file:raise ValueError('Choose a WAV recording to transcribe.')
+        path=Path(a.file).expanduser()
+        if path.stat().st_size>MAX_AUDIO_BYTES:raise ValueError('Choose a recording of up to 60 seconds.')
+        value=voice.transcribe(path.read_bytes(),a.language)
+    else:value=voice.status()
+    print(json.dumps(value,ensure_ascii=False,indent=2))
+
+
 def cmd_doctor(cfg: Config, a) -> None:
     ok = lambda b: "ok " if b else "-- "  # noqa: E731
     print(f"Tazrivo {__version__}  python {sys.version.split()[0]}  platform {paths.platform_tag()}")
@@ -691,13 +704,17 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("action", choices=["install", "uninstall"])
     s.add_argument("--role", choices=["hub", "agent"])
 
+    s=sub.add_parser('voice',help='set up local speech or transcribe a short WAV recording')
+    s.add_argument('action',choices=['status','setup','transcribe'])
+    s.add_argument('file',nargs='?')
+    s.add_argument('--language',default='',help='language code, such as en, fr or ar; empty detects automatically')
     sub.add_parser("doctor", help="check this machine's setup")
     return p
 
 
 COMMANDS = {"init": cmd_init, "setup": cmd_setup, "launch": cmd_launch, "pet": cmd_pet, "serve": cmd_serve, "agent": cmd_agent, "tray": cmd_tray, "ask": cmd_ask, "plan": cmd_plan,
             "credits": cmd_credits, "alerts": cmd_alerts, "models": cmd_models, "nodes": cmd_nodes,
-            "device": cmd_device, "tools": cmd_tools, "mcp": cmd_mcp, "service": cmd_service, "doctor": cmd_doctor}
+            "device": cmd_device, "tools": cmd_tools, "mcp": cmd_mcp, "service": cmd_service, "doctor": cmd_doctor, "voice":cmd_voice}
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -12,7 +12,7 @@ Open **Audio & files** or attach a file to Laith. Describe your request, review 
 | Scanned images/PDF | Tesseract; pdftoppm for scanned PDFs | Install tools and language data on the selected machine | Real OCR on the Pi; availability depends on machine inventory |
 | Transcription and meeting notes | OpenAI-compatible audio HTTP API | User-owned API account or compatible local transcription service | Simulated service contract; paid transcription not exercised |
 | Speech synthesis | OpenAI-compatible speech HTTP API | Model, voice and API key, or a compatible local service | WAV validation and simulated service contract |
-| Live voice | Server-mediated WebRTC session with direct encrypted media | Compatible realtime API, microphone permission, localhost or HTTPS | Session, billing approval, transcript and hangup contract tests; live audio not exercised |
+| Realtime API voice | Server-mediated WebRTC session with direct encrypted media | Compatible realtime API, microphone permission, localhost or HTTPS | Session, billing approval, transcript and hangup contract tests; live audio not exercised |
 | Image/video generation | ComfyUI prompt/history/view APIs | Independently installed worker, models and reviewed API workflow | Recovery, polling and actual artifact validation with simulated worker |
 | Media conversion | Allowlisted FFmpeg jobs | FFmpeg installed on an online machine | Real FFmpeg audio conversion on Windows; codecs depend on the installed build |
 | Embeddings/local inference | Ollama embed/generate APIs | Separately installed Ollama and a compatible model | Simulated service contract |
@@ -52,3 +52,20 @@ Restart recovery resumes only safely queued work or polling an acknowledged gene
 The added runtime dependency is optional `pypdf` (7.1.1 used for this build), BSD-3-Clause; its complete notice ships in `packaging/licenses/pypdf.txt` and native bundles. The new adapters are Tazrivo implementation code; no external application code or model weights are vendored. Existing third-party notices remain in the package.
 
 FFmpeg, Tesseract, PDF rendering programs, model servers, model weights, voices and custom worker nodes are installed independently and have separate terms. Record their versions and applicable licenses when deploying them. Registry entries expose operator-supplied license and hardware metadata; they do not constitute license clearance. Use service documentation and account terms for hosted access.
+
+
+### Dictation and plan-backed voice chat
+
+The chat composer includes Dictate message and Voice chat controls. A bundled CPU speech runtime
+loads a checksum-verified Whisper tiny model after the user approves its one-time download. Speech
+is decoded on the local agent (or hub for direct hub access), without a transcription API. Raw audio
+is never written to the output store. Dictation inserts an editable draft and never sends it.
+
+Voice chat sends recognized messages through the existing Laith preparation, spending and tool
+approval flow. Device speech synthesis reads replies; microphone capture stops during transcription,
+model processing and playback. Mute, End, permission errors, network errors and the session deadline
+release capture resources. Model setup and transcription endpoints enforce hub authentication,
+same-origin access, recording size/format and a single decoder per process.
+
+Automated lifecycle tests use controlled audio tracks. Physical-host checks use generated speech
+recordings; these do not constitute a test of the user's microphone or speaker hardware.

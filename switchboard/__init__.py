@@ -1,3 +1,3 @@
 """Tazrivo: one control plane for your AI models, credits, MCP tools, devices and machines."""
 
-__version__ = "0.9.0"
+__version__ = "0.10.0"

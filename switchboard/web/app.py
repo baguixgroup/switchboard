@@ -425,4 +425,6 @@ def create_app(engine) -> FastAPI:
     register_pairing(app, engine, auth)
     from .capability_api import register as register_capabilities
     register_capabilities(app,engine,auth)
+    from .voice_api import register as register_voice
+    register_voice(app,cfg,auth)
     return app
