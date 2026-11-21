@@ -461,6 +461,16 @@ cap. Final run summaries and approved files use the existing output and mirrorin
 
 ### Laith and manager-led crews
 
+**Chat comes first.** Switchboard opens to a simple Laith conversation. Model, context and spending
+choices live in Chat settings. The navigation separates Chat, Create, Goals, Activity and Connections;
+credits and application preferences stay in the secondary navigation. Chat history opens only when you ask for it.
+
+Laith's Automatic choice uses models that can reply directly. Manual desktop app handoffs stay in
+explicit task workflows. Existing handoffs show **Waiting for another app**, with **Reply here instead**
+to prepare the same request on a direct model without expanding its saved permissions or allowance.
+A failed reply can be retried. Network refreshes update the reply without rebuilding the composer,
+and a lost send response is reconciled against the saved request before another send is attempted.
+
 **Laith can also live on your desktop.** In the installed Mac or Windows app, choose **Show Laith**
 on the Laith page or from the Switchboard tray/menu-bar icon. He appears as a transparent, animated,
 draggable lion above other apps. Click him to open a native task/chat panel; right-click for size,

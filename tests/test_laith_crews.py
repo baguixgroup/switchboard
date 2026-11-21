@@ -256,3 +256,56 @@ async def test_long_companion_request_includes_each_explicitly_named_document(tm
     assert {first['id'],second['id']}<={s['document_id'] for s in turn['sources']}
     assert [s['citation'] for s in turn['sources']]==['S'+str(i+1) for i in range(len(turn['sources']))]
     await e.close()
+
+
+def chat_engine(path):
+    from switchboard.config import Config
+    from .conftest import make_home,MOCK_MODELS
+    return Engine(Config(make_home(path,models=[dict(m,price=[0,0]) for m in MOCK_MODELS],providers={'mock':{'kind':'mock'},'chatgpt-app':{'disabled':False}},router={'prefer':{'chatgpt-app':100000}})))
+
+
+async def test_automatic_laith_never_routes_to_manual_app_even_when_preferred(tmp_path):
+    e=chat_engine(tmp_path);c=e.companion;key=c.create_chat()['id']
+    turn=await c.prepare(key,'Say hello.')
+    assert turn['plan']['provider']=='mock'
+    await c.send(key,turn['id']);assert (await wait_chat(c,key))['turns'][-1]['status']=='done'
+    await e.close()
+
+
+async def test_waiting_handoff_can_continue_directly_without_changing_permissions_or_context(tmp_path):
+    e=chat_engine(tmp_path);c=e.companion;key=c.create_chat()['id']
+    t=await c.prepare(key,'A useful answer please.',model='chatgpt-app:chat',tools='auto')
+    await c.send(key,t['id'],True);waiting=(await wait_chat(c,key))['turns'][-1];assert waiting['status']=='waiting'
+    original=next(t for t in c.turns(key) if t['id']==waiting['id'])
+    # Later memory changes cannot alter the request being recovered.
+    c.remember('New note after the original request.')
+    retry=await c.retry_direct(key,waiting['id'])
+    stored=next(t for t in c.turns(key) if t['id']==retry['id'])
+    assert stored['prompt']==original['prompt'] and stored['tools_enabled']==original['tools_enabled']
+    assert stored['max_cost_usd']==original['max_cost_usd'] and retry['plan']['provider']=='mock'
+    assert retry['status']=='prepared' and 'task_id' not in retry
+    assert e.store.get_task(waiting['task_id'])['status']=='cancelled'
+    with pytest.raises(ValueError):await c.send(key,retry['id'])
+    await c.send(key,retry['id'],True);done=await wait_chat(c,key)
+    assert done['turns'][-1]['status']=='done' and done['turns'][-1]['retry_of']==waiting['id']
+    await e.close()
+
+
+async def test_failed_recovery_planning_keeps_original_handoff_waiting(tmp_path,monkeypatch):
+    e=chat_engine(tmp_path);c=e.companion;key=c.create_chat()['id']
+    t=await c.prepare(key,'Hello',model='chatgpt-app:chat');await c.send(key,t['id'],True);await wait_chat(c,key)
+    async def unavailable(*a,**kw):raise ValueError('No direct model is connected.')
+    monkeypatch.setattr(e,'plan',unavailable)
+    with pytest.raises(ValueError):await c.retry_direct(key,t['id'])
+    assert c.chat(key)['turns'][-1]['status']=='waiting'
+    other=c.create_chat()['id']
+    with pytest.raises(ValueError):await c.retry_direct(other,t['id'])
+    await e.close()
+
+
+async def test_missing_child_request_does_not_leave_chat_busy_forever(tmp_path):
+    e=make_engine(tmp_path);c=e.companion;key=c.create_chat()['id'];t=await c.prepare(key,'Hello',model='mock:mock-small')
+    stored=next(v for v in c.turns(key) if v['id']==t['id']);stored.update(status='queued',task_id='missing');c.persist(stored)
+    assert c.chat(key)['turns'][0]['status']=='interrupted'
+    assert (await c.prepare(key,'New question',model='mock:mock-small'))['status']=='prepared'
+    await e.close()

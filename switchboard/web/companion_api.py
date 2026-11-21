@@ -99,6 +99,11 @@ def install_companion_routes(app,engine,auth):
     @app.post('/api/laith/chats/{key}/goal',dependencies=deps)
     async def goal(key:str,body:GoalIn):return call(c.goal_from_chat,key,body.turn_id,body.title,body.blueprint_id)
 
+    @app.post('/api/laith/chats/{key}/retry',dependencies=deps)
+    async def retry(key:str,body:SendIn):
+        try:return await c.retry_direct(key,body.turn_id)
+        except ValueError as exc:raise HTTPException(409,str(exc)) from None
+
     @app.post('/api/laith/memories',dependencies=deps)
     async def remember(body:MemoryIn):return call(c.remember,body.content)
 

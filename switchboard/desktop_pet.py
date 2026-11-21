@@ -149,6 +149,7 @@ class PetClient:
         return self.request('/api/laith/chats/'+key+'/prepare',{'message':message,'model':model,'ability':ability,'tools':'auto' if tools else 'none',
              'use_memory':True,'use_knowledge':knowledge,'billing':'plans_only','max_cost_usd':0})
     def send(self,key,turn):return self.request('/api/laith/chats/'+key+'/send',{'turn_id':turn,'confirm':True})
+    def retry(self,key,turn):return self.request('/api/laith/chats/'+key+'/retry',{'turn_id':turn})
     def goal(self,key,turn,title):return self.request('/api/laith/chats/'+key+'/goal',{'turn_id':turn,'title':title})
 
 

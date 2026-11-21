@@ -148,7 +148,8 @@ class Engine:
 
     async def plan(self, prompt: str, provider: str | None = None, model: str | None = None,
                    effort: str | None = None, mode: str | None = None, tools: str | list | None = "auto",
-                   images: int = 0, history_tokens: int = 0, billing: str | None = None) -> Plan:
+                   images: int = 0, history_tokens: int = 0, billing: str | None = None,
+                   direct_only: bool = False) -> Plan:
         profile = await self.classify(prompt, images=images, attachments=images, history_tokens=history_tokens)
         hinted = list(profile.tool_servers)
         locations = self.nodes.mcp_locations()
@@ -169,7 +170,7 @@ class Engine:
             provider, model = "codex-images", "codex-images:default"
         plan = self.router.plan(prompt, self.available_providers(), profile, provider=provider or None,
                                 model=model or None, effort=effort or None, mode=mode or None,
-                                billing=billing or None, limits=self.limits())
+                                billing=billing or None, limits=self.limits(), allow_handoff=not direct_only)
         plan.suggestions = advisor.suggest(profile.category, hinted, self.nodes.list())
         if image_redirect:
             plan.reasons.append("uses Codex's native image generation on your ChatGPT plan")

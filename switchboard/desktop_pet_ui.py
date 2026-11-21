@@ -3,19 +3,22 @@ from __future__ import annotations
 
 import contextlib
 import hmac
+import html
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 import json
 import os
 import queue
+import re
 import secrets
 import threading
 import zipfile
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Qt, Signal, QLockFile, QRect
-from PySide6.QtGui import QAction, QColor, QCursor, QPainter, QPixmap, QRegion, QDesktopServices
+from PySide6.QtGui import QAction, QColor, QCursor, QPainter, QPixmap, QRegion, QDesktopServices, QTextDocument
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QInputDialog,
-    QLabel, QMenu, QMessageBox, QPlainTextEdit, QPushButton, QTextBrowser, QVBoxLayout, QWidget)
+    QLabel, QMenu, QMessageBox, QPlainTextEdit, QPushButton, QTextBrowser, QVBoxLayout, QWidget, QDialog, QFrame, QToolButton)
 
 from .desktop_pet import PetClient, atomic_json, endpoint_path, fit_position, ipc, preferences, update_preferences
 
@@ -36,154 +39,243 @@ def screens():
     return [(g.x(),g.y(),g.width(),g.height()) for s in QApplication.screens() for g in [s.availableGeometry()]]
 
 
+def reply_html(answer):
+    document=QTextDocument()
+    # Model text may contain Markdown, but cannot inject HTML or fetch images.
+    answer=re.sub(r'!\[([^\]]*)\]\([^)]*\)',r'\1',answer)
+    document.setMarkdown(answer,QTextDocument.MarkdownFeature.MarkdownNoHTML)
+    body=document.toHtml().split('<body',1)[1].split('>',1)[1].rsplit('</body>',1)[0]
+    return re.sub(r'<img\b[^>]*>','',body)
+
+
+class Composer(QPlainTextEdit):
+    submitted=Signal()
+    def __init__(self):
+        super().__init__();self.composing=False;self.setFixedHeight(44)
+        self.textChanged.connect(lambda:QTimer.singleShot(0,self.adjust_height))
+    def adjust_height(self):
+        block=self.document().begin();lines=0
+        while block.isValid():
+            lines+=max(1,block.layout().lineCount());block=block.next()
+        height=max(44,min(116,int(lines*self.fontMetrics().lineSpacing()+10)))
+        if self.height()!=height:self.setFixedHeight(height)
+    def resizeEvent(self,event):
+        super().resizeEvent(event);QTimer.singleShot(0,self.adjust_height)
+    def inputMethodEvent(self,event):
+        self.composing=bool(event.preeditString());super().inputMethodEvent(event)
+    def keyPressEvent(self,event):
+        if event.key() in (Qt.Key.Key_Return,Qt.Key.Key_Enter) and not event.modifiers()&Qt.KeyboardModifier.ShiftModifier and not self.composing:
+            self.submitted.emit();event.accept();return
+        super().keyPressEvent(event)
+
+
 class TaskPanel(QWidget):
     def __init__(self,pet,client,config):
         super().__init__();self.pet=pet;self.client=client;self.config=config;self.jobs=set();self.chat_id=preferences(config)['chat_id']
         self.chat=None;self.busy=False;self.polling=False;self.prepared=None;self.latest_answer='';self.exiting=False;self.latest_task=None;self.connecting=False;self.metadata_loaded=False
-        self.setWindowTitle('Laith — tasks and chat');self.setObjectName('LaithTaskPanel');self.setAccessibleName('Laith tasks and chat')
-        self.resize(440,650);self.setMinimumSize(360,470)
-        self.setStyleSheet('QWidget {font-size:13px;} QPushButton {padding:7px 10px;} QPlainTextEdit,QTextBrowser,QComboBox {padding:6px;}')
-        layout=QVBoxLayout(self)
-        top=QHBoxLayout();title=QLabel('<b>Laith</b> · Your desktop companion');top.addWidget(title,1)
-        reconnect=QPushButton('Reconnect');reconnect.clicked.connect(self.connect_hub);top.addWidget(reconnect)
-        new=QPushButton('New chat');new.clicked.connect(self.new_chat);top.addWidget(new);layout.addLayout(top)
-        self.connection=QLabel('Connecting to your Switchboard hub…');self.connection.setWordWrap(True);layout.addWidget(self.connection)
-        self.transcript=QTextBrowser();self.transcript.setOpenExternalLinks(False);self.transcript.anchorClicked.connect(self.open_link)
-        self.transcript.setAccessibleName('Conversation with Laith');layout.addWidget(self.transcript,1)
-        form=QFormLayout();self.model=QComboBox();self.model.setAccessibleName('Model');self.ability=QComboBox();self.ability.setAccessibleName('Ability')
-        form.addRow('Model',self.model);form.addRow('Ability',self.ability);layout.addLayout(form)
-        context=QHBoxLayout();self.tools=QCheckBox('Connected tools');self.tools.setToolTip('Uses your configured Switchboard tools. Installations and credentials keep their separate approvals.')
-        self.knowledge=QCheckBox('Project knowledge');context.addWidget(self.tools);context.addWidget(self.knowledge);layout.addLayout(context)
-        self.message=QPlainTextEdit();self.message.setPlaceholderText('Ask Laith to help with what you are working on…');self.message.setAccessibleName('Message Laith');self.message.setMaximumHeight(125);layout.addWidget(self.message)
-        actions=QHBoxLayout();clipboard=QPushButton('Use copied text');clipboard.setToolTip('Adds a preview of clipboard text to your draft. Nothing is sent until you press Send.');clipboard.clicked.connect(self.use_clipboard)
-        self.send=QPushButton('Send');self.send.setDefault(True);self.send.setEnabled(False);self.send.clicked.connect(self.prepare)
-        actions.addWidget(clipboard);actions.addStretch();actions.addWidget(self.send);layout.addLayout(actions)
-        bottom=QHBoxLayout();self.copy=QPushButton('Copy answer');self.copy.setEnabled(False);self.copy.clicked.connect(self.copy_answer)
-        self.goal=QPushButton('Make a team goal');self.goal.setEnabled(False);self.goal.clicked.connect(self.make_goal)
-        bottom.addWidget(self.copy);bottom.addWidget(self.goal);layout.addLayout(bottom)
-        taskrow=QHBoxLayout();app=QPushButton('Open Switchboard');app.clicked.connect(lambda:self.open_switchboard('#laith'))
-        self.review=QPushButton('Review task / approvals');self.review.setEnabled(False);self.review.clicked.connect(lambda:self.open_switchboard('#history/'+self.latest_task) if self.latest_task else None)
-        taskrow.addWidget(app);taskrow.addWidget(self.review);layout.addLayout(taskrow)
-        note=QLabel('Plans and free models only · Saved memory is included.\nClipboard is read only when you choose Use copied text.');note.setWordWrap(True);layout.addWidget(note)
+        self.waiting_turn=None;self.retry_turn=None;self.goal_turn=None;self.rendered=None;self.send_error=''
+        self.setWindowTitle('Laith');self.setObjectName('LaithTaskPanel');self.setAccessibleName('Chat with Laith')
+        self.resize(420,540);self.setMinimumSize(350,390)
+        self.setStyleSheet('''
+            QWidget {font-family:'.AppleSystemUIFont','Segoe UI',sans-serif;font-size:14px;color:#302b27;background:#faf8f5;}
+            QLabel#Title {font-size:19px;font-weight:650;} QLabel#Subtitle {font-size:12px;color:#8c8278;}
+            QToolButton,QPushButton {border:0;border-radius:10px;padding:7px 10px;background:transparent;}
+            QToolButton:hover,QPushButton:hover {background:#eee8e0;}
+            QToolButton {font-size:20px;} QPushButton:disabled {color:#b7afa6;}
+            QTextBrowser {border:0;background:transparent;font-size:15px;selection-background-color:#e8d5bf;}
+            QFrame#Composer {border:1px solid #e0d8cf;border-radius:18px;background:#ffffff;}
+            QPlainTextEdit {border:0;background:transparent;font-size:15px;padding:3px;selection-background-color:#e8d5bf;}
+            QPushButton#Send {background:#90643f;color:#fff;border-radius:17px;font-size:22px;padding:0;}
+            QPushButton#Send:hover {background:#785132;} QPushButton#Send:disabled {background:#e8e1d9;color:#aaa097;}
+            QFrame#Notice {background:#f0eae2;border-radius:12px;} QFrame#Notice QLabel {background:transparent;font-size:12px;}
+            QDialog {background:#faf8f5;} QComboBox {border:1px solid #ddd5cc;border-radius:8px;padding:8px;background:#fff;min-height:20px;}
+            QCheckBox {spacing:8px;padding:6px 0;} QScrollBar:vertical {width:7px;background:transparent;} QScrollBar::handle:vertical {background:#d5cbc0;border-radius:3px;min-height:24px;}
+            QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical {height:0;}
+        ''')
+        layout=QVBoxLayout(self);layout.setContentsMargins(20,16,20,16);layout.setSpacing(12)
+        top=QHBoxLayout();top.setSpacing(10)
+        avatar=QLabel();avatar.setFixedSize(38,38);portrait=QPixmap(str(resources.files('switchboard').joinpath('web','static','laith.png')))
+        avatar.setPixmap(portrait.scaled(38,38,Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation));top.addWidget(avatar)
+        titles=QVBoxLayout();titles.setSpacing(1);title=QLabel('Laith');title.setObjectName('Title');titles.addWidget(title)
+        self.subtitle=QLabel('Your companion');self.subtitle.setObjectName('Subtitle');titles.addWidget(self.subtitle);top.addLayout(titles,1)
+        self.new=QToolButton();self.new.setText('＋');self.new.setAccessibleName('New chat');self.new.setToolTip('New chat');self.new.clicked.connect(self.new_chat);top.addWidget(self.new)
+        settings=QToolButton();settings.setText('⋯');settings.setAccessibleName('Chat settings');settings.setToolTip('Chat settings');settings.clicked.connect(self.open_settings);top.addWidget(settings);layout.addLayout(top)
+        self.transcript=QTextBrowser();self.transcript.setOpenExternalLinks(False);self.transcript.setOpenLinks(False);self.transcript.anchorClicked.connect(self.open_link);self.transcript.setAccessibleName('Conversation with Laith');layout.addWidget(self.transcript,1)
+        self.notice=QFrame();self.notice.setObjectName('Notice');notice=QVBoxLayout(self.notice);notice.setContentsMargins(12,10,12,10);notice.setSpacing(5)
+        self.connection=QLabel('Connecting…');self.connection.setWordWrap(True);notice.addWidget(self.connection)
+        notice_actions=QHBoxLayout();self.recover=QPushButton('Reconnect');self.recover.clicked.connect(self.recover_request);notice_actions.addWidget(self.recover)
+        self.review=QPushButton('View activity');self.review.clicked.connect(lambda:self.open_switchboard('#history/'+self.latest_task) if self.latest_task else None);notice_actions.addWidget(self.review);notice_actions.addStretch();notice.addLayout(notice_actions);layout.addWidget(self.notice)
+        self.reply_actions=QWidget();reply=QHBoxLayout(self.reply_actions);reply.setContentsMargins(0,0,0,0)
+        self.copy=QPushButton('Copy answer');self.copy.setAccessibleName('Copy answer');self.copy.clicked.connect(self.copy_answer);reply.addWidget(self.copy)
+        self.goal=QPushButton('Make a goal');self.goal.clicked.connect(self.make_goal);reply.addWidget(self.goal);reply.addStretch();self.reply_actions.hide();layout.addWidget(self.reply_actions)
+        composer=QFrame();composer.setObjectName('Composer');box=QVBoxLayout(composer);box.setContentsMargins(12,9,10,9);box.setSpacing(2)
+        self.message=Composer();self.message.setPlaceholderText('Message Laith…');self.message.setAccessibleName('Message Laith');self.message.setTabChangesFocus(True);self.message.submitted.connect(self.prepare);box.addWidget(self.message)
+        actions=QHBoxLayout();clipboard=QToolButton();clipboard.setText('＋');clipboard.setAccessibleName('Use copied text');clipboard.setToolTip('Add copied text to your draft');clipboard.clicked.connect(self.use_clipboard);actions.addWidget(clipboard)
+        hint=QLabel('Enter to send · Shift+Enter for a new line');hint.setStyleSheet('font-size:10px;color:#9b9186;background:transparent;');actions.addWidget(hint,1)
+        self.send=QPushButton('↑');self.send.setObjectName('Send');self.send.setAccessibleName('Send');self.send.setToolTip('Send message');self.send.setFixedSize(34,34);self.send.setEnabled(False);self.send.clicked.connect(self.prepare);actions.addWidget(self.send);box.addLayout(actions);layout.addWidget(composer)
+        self.settings=QDialog(self);self.settings.setWindowTitle('Chat settings');self.settings.resize(380,400);options=QVBoxLayout(self.settings);options.setContentsMargins(22,20,22,20);options.setSpacing(12)
+        form=QFormLayout();self.model=QComboBox();self.model.setAccessibleName('Model');self.ability=QComboBox();self.ability.setAccessibleName('Ability');form.addRow('Reply with',self.model);form.addRow('Writing style',self.ability);options.addLayout(form)
+        self.tools=QCheckBox('Use connected tools');self.tools.setToolTip('You confirm tool access before sending. Installations keep their separate approvals.');self.knowledge=QCheckBox('Use project knowledge');options.addWidget(self.tools);options.addWidget(self.knowledge)
+        note=QLabel('Uses your plans and free models. Saved memories are included. Copied text is read only when you choose +.');note.setWordWrap(True);note.setStyleSheet('font-size:12px;color:#8c8278;');options.addWidget(note)
+        reconnect=QPushButton('Reconnect');reconnect.clicked.connect(self.connect_hub);options.addWidget(reconnect)
+        app=QPushButton('Open Switchboard');app.clicked.connect(lambda:self.open_switchboard('#laith'));options.addWidget(app)
+        done=QPushButton('Done');done.clicked.connect(self.settings.accept);options.addWidget(done);options.addStretch()
         self.timer=QTimer(self);self.timer.setInterval(1800);self.timer.timeout.connect(self.poll)
         self.reconnect_timer=QTimer(self);self.reconnect_timer.setInterval(6000);self.reconnect_timer.timeout.connect(self.connect_hub)
         self.connect_hub()
 
+    def open_settings(self):
+        self.model.setEnabled(not self.busy);self.ability.setEnabled(not self.busy);self.tools.setEnabled(not self.busy);self.knowledge.setEnabled(not self.busy)
+        self.settings.show();self.settings.raise_();self.settings.activateWindow()
+
+    def status(self,message='',action=None):
+        self.connection.setText(message);self.notice.setVisible(bool(message))
+        self.recover.setVisible(bool(action));self.recover.setText(action or 'Reconnect');self.review.setVisible(bool(self.latest_task))
+
     def connect_hub(self):
         if self.connecting:return
-        self.connecting=True
-        self.call(self.client.overview,self.loaded,self.connect_failed)
+        self.connecting=True;self.call(self.client.overview,self.loaded,self.connect_failed)
 
     def connect_failed(self,message):
-        self.connecting=False;self.connection.setText('Hub connection unavailable. Retrying automatically… '+message)
-        self.reconnect_timer.start()
+        self.connecting=False;self.subtitle.setText('Connection unavailable');self.status('Hub connection unavailable. Retrying automatically…','Reconnect');self.reconnect_timer.start()
 
     def call(self,fn,success,error=None):
         job=Call(fn);self.jobs.add(job)
-        def done(value):
-            self.jobs.discard(job);success(value)
+        def done(value):self.jobs.discard(job);success(value)
         def failed(message):
             self.jobs.discard(job)
             if error:error(message)
             else:self.failed(message)
-        job.signals.done.connect(done,Qt.ConnectionType.QueuedConnection);job.signals.error.connect(failed,Qt.ConnectionType.QueuedConnection)
-        QThreadPool.globalInstance().start(job)
+        job.signals.done.connect(done,Qt.ConnectionType.QueuedConnection);job.signals.error.connect(failed,Qt.ConnectionType.QueuedConnection);QThreadPool.globalInstance().start(job)
 
     def failed(self,message):
-        self.busy=False;self.polling=False;self.send.setEnabled(True);self.send.setText('Send');self.connection.setText('Could not complete this request: '+message)
+        self.busy=False;self.polling=False;self.new.setEnabled(True);self.send.setEnabled(self.metadata_loaded);self.status(message,'Try again');self.subtitle.setText('Needs a hand')
 
     def loaded(self,data):
-        self.connecting=False;self.metadata_loaded=True;self.reconnect_timer.stop()
-        self.connection.setText('Connected to Switchboard · Requests and results stay in your shared history.')
+        self.connecting=False;self.metadata_loaded=True;self.reconnect_timer.stop();self.subtitle.setText('Here to help');self.status()
         selected_model=self.model.currentData() or preferences(self.config)['model'];selected_ability=self.ability.currentData()
-        self.model.clear();self.model.addItem('Automatic · plans and free only','')
+        self.model.clear();self.model.addItem('Automatic','')
         for m in data['models']:
-            if m.get('available') and 'image_gen' not in m.get('features',[]):self.model.addItem(m['label'],m['key'])
-        index=self.model.findData(selected_model);self.model.setCurrentIndex(max(0,index));self.ability.clear()
+            if m.get('available') and not {'image_gen','handoff'}&set(m.get('features',[])):self.model.addItem(m['label'],m['key'])
+        self.model.setCurrentIndex(max(0,self.model.findData(selected_model)));self.ability.clear()
         for a in data['library']['abilities']:self.ability.addItem(a['name'],a['id'])
-        self.ability.setCurrentIndex(max(0,self.ability.findData(selected_ability)))
-        self.send.setEnabled(not self.busy)
-        active={c['id'] for c in data['library']['chats']}
-        if self.chat_id in active:self.call(lambda:self.client.chat(self.chat_id),self.show_chat)
-        else:self.chat_id='';self.transcript.setPlainText('Hi, I’m Laith. I can help while you work in other apps. Copy the text you want help with, choose Use copied text, add your instructions, then send.')
+        self.ability.setCurrentIndex(max(0,self.ability.findData(selected_ability)));self.send.setEnabled(not self.busy)
+        if self.chat_id in {c['id'] for c in data['library']['chats']}:self.poll()
+        else:
+            self.chat_id='';self.transcript.setHtml('<h2 style="font-weight:500;color:#52473d;margin-top:65px;">What’s on your mind?</h2><p style="color:#8c8278;">A question, a rough idea, something to write.<br>I’m here to help.</p>')
 
     def new_chat(self):
-        if self.busy:return
-        self.chat_id='';self.chat=None;self.latest_answer='';self.copy.setEnabled(False);self.goal.setEnabled(False);self.transcript.clear();self.message.setFocus()
-        update_preferences(self.config,chat_id='')
+        if self.busy and not self.waiting_turn:return
+        self.timer.stop();self.chat_id='';self.chat=None;self.latest_answer='';self.goal_turn=None;self.latest_task=None;self.waiting_turn=None;self.retry_turn=None;self.prepared=None;self.busy=False;self.polling=False;self.rendered=None;self.send_error=''
+        self.reply_actions.hide();self.status();self.transcript.clear();self.message.clear();self.message.setFocus();self.send.setEnabled(self.metadata_loaded);self.subtitle.setText('A fresh start');update_preferences(self.config,chat_id='')
 
     def use_clipboard(self):
         value=QApplication.clipboard().text()
-        if not value.strip():self.connection.setText('Copy some text in another app, then choose Use copied text.');return
-        if len(value)>10000:self.connection.setText('Copied text is too long. Copy a shorter excerpt (up to 10,000 characters).');return
-        current=self.message.toPlainText()
-        combined=current+('\n\n' if current else '')+'Copied text (reference material):\n'+value
-        if len(combined)>12000:self.connection.setText('The draft would exceed 12,000 characters. Shorten it first.');return
-        self.message.setPlainText(combined);self.message.setFocus()
-        self.connection.setText('Copied text added to your draft. Review it before pressing Send.')
+        if not value.strip():self.status('Copy some text in another app, then choose +.');return
+        if len(value)>10000:self.status('Copy a shorter excerpt (up to 10,000 characters).');return
+        current=self.message.toPlainText();combined=current+('\n\n' if current else '')+'Copied text (reference material):\n'+value
+        if len(combined)>12000:self.status('The draft is too long. Shorten it first.');return
+        self.message.setPlainText(combined);self.message.setFocus();self.status('Copied text added. Review your draft before sending.')
 
     def copy_answer(self):
-        if self.latest_answer:QApplication.clipboard().setText(self.latest_answer);self.connection.setText('Answer copied. Paste it into the app where you need it.')
+        if self.latest_answer:QApplication.clipboard().setText(self.latest_answer);self.subtitle.setText('Answer copied')
 
     def prepare(self):
         message=self.message.toPlainText().strip()
         if self.busy or not message or not self.metadata_loaded:return
-        if len(message)>12000:self.connection.setText('Keep the message under 12,000 characters.');return
-        self.busy=True;self.send.setEnabled(False);self.send.setText('Preparing…')
-        model=self.model.currentData() or '';ability=self.ability.currentData() or 'conversation';tools=self.tools.isChecked();knowledge=self.knowledge.isChecked()
+        if len(message)>12000:self.status('Keep the message under 12,000 characters.');return
+        self.busy=True;self.send.setEnabled(False);self.status('Connecting to your model…');self.subtitle.setText('Getting ready')
+        model=self.model.currentData() or '';ability=self.ability.currentData() or 'conversation';tools=self.tools.isChecked();knowledge=self.knowledge.isChecked();key=self.chat_id
         update_preferences(self.config,model=model)
         def work():
-            key=self.chat_id
-            if not key:key=self.client.new_chat()['id']
-            return key,self.client.prepare(key,message,model,ability,tools,knowledge)
+            chat_key=key or self.client.new_chat()['id']
+            return chat_key,self.client.prepare(chat_key,message,model,ability,tools,knowledge)
         self.call(work,self.confirm)
 
     def confirm(self,value):
-        key,turn=value;self.chat_id=key;update_preferences(self.config,chat_id=key);self.prepared=turn
+        key,turn=value;self.chat_id=key;update_preferences(self.config,chat_id=key);self.prepared=turn;self.waiting_turn=None
         plan=turn['plan']
-        if plan.get('needs_confirmation') or turn.get('tools_enabled'):
-            box=QMessageBox(self);box.setWindowTitle('Confirm Laith request');box.setTextFormat(Qt.TextFormat.PlainText)
-            box.setText('Send to '+plan['model_label']+'?\n\nConnected tools: '+('enabled' if turn.get('tools_enabled') else 'off')+'\nSaved memories: '+str(turn.get('memory_count',0))+'\nKnowledge excerpts: '+str(len(turn.get('sources',[])))+'\n\n'+' '.join(plan.get('warnings',[])))
-            box.setStandardButtons(QMessageBox.StandardButton.Ok|QMessageBox.StandardButton.Cancel)
-            if box.exec()!=QMessageBox.StandardButton.Ok:self.busy=False;self.send.setEnabled(True);self.send.setText('Send');return
-        self.send.setText('Working…');self.connection.setText('Working through '+plan['model_label']+'…')
-        self.call(lambda:self.client.send(key,turn['id']),lambda _:self.sent())
+        if plan.get('needs_confirmation') or turn.get('tools_enabled') or plan.get('effective_cost_usd',0)>0:
+            box=QMessageBox(self);box.setWindowTitle('Confirm request');box.setTextFormat(Qt.TextFormat.PlainText)
+            box.setText('Send to '+plan['model_label']+'?\n\nEstimated API use: $'+str(plan.get('effective_cost_usd',0))+'\nConnected tools: '+('enabled' if turn.get('tools_enabled') else 'off')+'\nSaved memories: '+str(turn.get('memory_count',0))+'\nKnowledge excerpts: '+str(len(turn.get('sources',[])))+'\n\n'+' '.join(plan.get('warnings',[])));box.setStandardButtons(QMessageBox.StandardButton.Ok|QMessageBox.StandardButton.Cancel)
+            if box.exec()!=QMessageBox.StandardButton.Ok:
+                self.busy=False;self.send.setEnabled(True);self.prepared=None;self.status('Request kept as a draft.');self.poll();return
+        self.busy=True;self.send.setEnabled(False);self.subtitle.setText('Thinking');self.status('Sending your message…');self.send_error=''
+        self.call(lambda:self.client.send(key,turn['id']),lambda _:self.sent(),self.delivery_unknown)
+
+    def delivery_unknown(self,message):
+        self.send_error=message;self.status('Connection interrupted. Checking whether your message was received…','Reconnect');self.timer.start();self.poll()
 
     def sent(self):
         self.message.clear();self.timer.start();self.poll()
 
     def poll(self):
         if not self.chat_id or self.polling:return
-        self.polling=True
-        self.call(lambda:self.client.chat(self.chat_id),self.show_chat,self.poll_failed)
+        key=self.chat_id;self.polling=True
+        def received(chat):
+            if key!=self.chat_id:return
+            self.show_chat(chat)
+        def failed(message):
+            if key==self.chat_id:self.poll_failed(message)
+        self.call(lambda:self.client.chat(key),received,failed)
 
     def poll_failed(self,message):
-        self.polling=False;self.connection.setText('Waiting for the hub. Your request may still finish. '+message)
+        self.polling=False;self.subtitle.setText('Reconnecting');self.status('Connection interrupted. Your request is saved; checking again…','Reconnect')
+        self.timer.start()
 
     def show_chat(self,chat):
         self.polling=False;self.chat=chat;self.chat_id=chat['id']
-        turns=[t for t in chat['turns'] if t['status'] not in ('prepared','superseded')]
-        text=[];pending=False;self.latest_answer='';self.goal_turn=None
+        retired={t.get('retry_of') for t in chat['turns'] if t['status'] not in ('prepared','superseded')}
+        turns=[t for t in chat['turns'] if t['status'] not in ('prepared','superseded','cancelled') and t['id'] not in retired]
+        active=next((t for t in reversed(turns) if t['status'] in ('queued','running','waiting')),None)
+        self.waiting_turn=active if active and active['status']=='waiting' else None
+        self.retry_turn=turns[-1] if not active and turns and turns[-1]['status'] in ('failed','interrupted') else None
+        self.latest_answer='';self.goal_turn=None;pieces=[]
         for turn in turns:
-            text+=['YOU\n'+turn['message'],'LAITH · '+(turn.get('plan') or {}).get('model_label','')+'\n'+(turn.get('answer') or 'Working…')]
-            if turn.get('error'):text.append('Request status: '+turn['error'])
-            if turn['status']=='waiting':text.append('This provider needs an app handoff. Review the linked task in Switchboard and paste the result there.')
-            if turn.get('task_id'):text.append('Task: '+turn['task_id'])
+            message=html.escape(turn['message']).replace('\n','<br>')
+            pieces.append('<table width="100%" cellspacing="0" cellpadding="12"><tr><td width="12%"></td><td bgcolor="#eee6dc"><font color="#42382f">'+message+'</font></td></tr></table><p></p>')
+            if turn['status']=='done':
+                self.latest_answer=turn.get('answer','');self.goal_turn=turn['id']
+                answer=reply_html(turn.get('answer',''));pieces.append('<p><b>Laith</b></p>'+answer+'<br>')
+            elif turn['status'] in ('queued','running'):pieces.append('<p style="color:#938575;">Laith is thinking…</p>')
+            elif turn['status']=='waiting':pieces.append('<p style="color:#938575;">This request is waiting for an answer from another app.</p>')
+            elif turn.get('error'):pieces.append('<p style="color:#9b5b42;">'+html.escape(turn['error'])+'</p>')
             if turn.get('task_id'):self.latest_task=turn['task_id']
-            if turn['status'] in ('queued','running','waiting'):pending=True
-            if turn['status']=='done':self.latest_answer=turn.get('answer','');self.goal_turn=turn['id']
-        self.transcript.setPlainText('\n\n'.join(text));self.transcript.verticalScrollBar().setValue(self.transcript.verticalScrollBar().maximum())
-        self.copy.setEnabled(bool(self.latest_answer));self.goal.setEnabled(bool(self.goal_turn) and not pending)
-        self.review.setEnabled(bool(self.latest_task))
-        self.busy=pending;self.send.setEnabled(not pending);self.send.setText('Working…' if pending else 'Send')
-        if pending:self.timer.start()
-        else:self.timer.stop();self.connection.setText('Ready. Answers are saved in your Switchboard conversation.')
+            if self.prepared and self.prepared['id']==turn['id']:
+                self.prepared=None;self.message.clear();self.send_error=''
+        content=''.join(pieces)
+        if content!=self.rendered:
+            bar=self.transcript.verticalScrollBar();at_end=bar.maximum()-bar.value()<35;before=bar.value()
+            self.transcript.setHtml(content);self.rendered=content;bar.setValue(bar.maximum() if at_end else before)
+        self.copy.setEnabled(bool(self.latest_answer));self.goal.setEnabled(bool(self.goal_turn) and not active);self.reply_actions.setVisible(bool(self.latest_answer) and not active)
+        self.busy=bool(active);self.send.setEnabled(not self.busy and self.metadata_loaded);self.new.setEnabled(not self.busy or bool(self.waiting_turn))
+        if active:
+            self.timer.start()
+            if self.waiting_turn:self.subtitle.setText('Waiting for another app');self.status('Your model needs a manual app handoff. Let Laith answer here instead.','Reply here instead')
+            else:
+                elapsed=max(0,int(time.time()-active['created']));self.subtitle.setText('Thinking · '+str(elapsed)+'s')
+                self.status('This is taking longer than usual. You can inspect the request in activity.' if elapsed>90 else '')
+        else:
+            self.timer.stop();self.subtitle.setText('Here to help')
+            if self.retry_turn:self.status('That reply did not finish. Your message is saved.','Try again')
+            elif self.send_error:self.status('Your message was not sent. Your draft is still here.','Try again')
+            else:self.status()
+
+    def recover_request(self):
+        turn=self.waiting_turn or self.retry_turn
+        if turn:
+            key=self.chat_id;self.recover.setEnabled(False)
+            def recovered(value):self.recover.setEnabled(True);self.message.setPlainText(value['message']);self.confirm((key,value))
+            def failed(message):self.recover.setEnabled(True);self.status(message,'Try again')
+            self.call(lambda:self.client.retry(key,turn['id']),recovered,failed)
+        elif self.send_error:self.send_error='';self.prepare()
+        elif not self.metadata_loaded:self.connect_hub()
+        else:self.connect_hub();self.poll()
 
     def make_goal(self):
         if not self.chat or not self.goal_turn:return
-        title,ok=QInputDialog.getText(self,'New team goal','What should the team deliver?')
-        if ok and title.strip():
-            self.call(lambda:self.client.goal(self.chat_id,self.goal_turn,title.strip()),lambda _:self.connection.setText('Planned goal saved. Open Agent Studio when you are ready to start the team.'))
+        title,ok=QInputDialog.getText(self,'New goal','What should the team deliver?')
+        if ok and title.strip():self.call(lambda:self.client.goal(self.chat_id,self.goal_turn,title.strip()),lambda _:self.status('Goal saved. Open Switchboard to start the team.'))
 
     def open_link(self,url):
         if url.scheme() in ('https','http'):QDesktopServices.openUrl(url)
@@ -194,8 +286,7 @@ class TaskPanel(QWidget):
 
     def closeEvent(self,event):
         if self.exiting:event.accept();return
-        self.hide();event.ignore()
-
+        self.settings.hide();self.hide();event.ignore()
 
 class Lion(QWidget):
     def __init__(self,config):

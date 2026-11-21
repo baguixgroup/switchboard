@@ -33,6 +33,7 @@ class PlanIn(BaseModel):
     mode: str | None = None
     tools: Any = "auto"
     billing: str | None = None  # plans_only | plans_first | any
+    direct_only: bool = False
     images: list[str] = Field(default_factory=list)  # data URLs
 
 
@@ -217,7 +218,7 @@ def create_app(engine) -> FastAPI:
     async def plan(body: PlanIn) -> dict:
         try:
             p = await engine.plan(body.prompt, body.provider, body.model, body.effort, body.mode, body.tools,
-                                  images=len(body.images), billing=body.billing)
+                                  images=len(body.images), billing=body.billing, direct_only=body.direct_only)
         except ValueError as exc:
             raise HTTPException(400, str(exc))
         return p.to_dict()
@@ -227,7 +228,7 @@ def create_app(engine) -> FastAPI:
         try:
             p = Plan.from_dict(body.plan) if body.plan else await engine.plan(
                 body.prompt, body.provider, body.model, body.effort, body.mode, body.tools, images=len(body.images),
-                billing=body.billing)
+                billing=body.billing,direct_only=body.direct_only)
         except (ValueError, TypeError, KeyError) as exc:
             raise HTTPException(400, str(exc))
         if p.needs_confirmation and not body.confirm:

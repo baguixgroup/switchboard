@@ -242,7 +242,8 @@ class Router:
 
     def plan(self, prompt: str, available: set[str], profile: TaskProfile, provider: str | None = None,
              model: str | None = None, effort: str | None = None, mode: str | None = None,
-             billing: str | None = None, limits: dict[str, dict] | None = None) -> Plan:
+             billing: str | None = None, limits: dict[str, dict] | None = None,
+             allow_handoff: bool = True) -> Plan:
         mode = mode or self.cfg.get("mode", "balanced")
         billing = billing if billing in BILLING else self.cfg.get("billing", "plans_first")
         limits = limits or {}
@@ -250,11 +251,14 @@ class Router:
         rec_effort = recommended_effort(profile.complexity, mode)
         manual = bool(model or provider)  # an effort preference must not disable automatic provider failover
         warnings: list[str] = []
+        eligible = lambda m: self._eligible(m, profile, available) and (allow_handoff or 'handoff' not in m.features)
 
         if model:
             m = self.catalog.find(model, provider)
             if not m:
                 raise ValueError(f"Unknown model '{model}'. See `switchboard models list`.")
+            if not allow_handoff and 'handoff' in m.features:
+                raise ValueError('This app needs a manual handoff. Choose a connected chat model for a direct reply.')
             if m.provider in limits:
                 raise ValueError(f"{m.provider} has hit its plan limit; it resets {_when(limits[m.provider]['until'])}.")
             if m.provider not in available:
@@ -266,21 +270,23 @@ class Router:
                 raise ValueError(f"{m.label or m.id} is a text/code route. Choose an image-generation route or Automatic.")
             candidates = [m]
         else:
-            candidates = [m for m in self.catalog.all() if self._eligible(m, profile, available)
+            candidates = [m for m in self.catalog.all() if eligible(m)
                           and (provider is None or m.provider == provider)]
             if not candidates and "tools" in profile.needs:
                 warnings.append("No funded model supports tool calling; running without tools.")
                 profile.needs.remove("tools")
                 profile.tool_servers = []
-                candidates = [m for m in self.catalog.all() if self._eligible(m, profile, available)
+                candidates = [m for m in self.catalog.all() if eligible(m)
                               and (provider is None or m.provider == provider)]
             if not candidates and "image_gen" in profile.needs:
                 warnings.append("No image model is configured; a text model will write a detailed image prompt "
                                 "instead. Add an OpenAI or xAI key for real images.")
                 profile.needs.remove("image_gen")
                 profile.category = "writing"
-                candidates = [m for m in self.catalog.all() if self._eligible(m, profile, available)]
+                candidates = [m for m in self.catalog.all() if eligible(m)]
         if not candidates:
+            if not allow_handoff:
+                raise ValueError('No direct chat model is connected. Connect a plan CLI or an API model in Connections. Desktop apps that require pasting an answer cannot reply here automatically.')
             raise ValueError(self._nothing_left(limits) or
                              "No usable model: add an API key to secrets.env or install and log in to a plan CLI.")
 

@@ -96,3 +96,66 @@ def test_nonactivating_pet_opens_options_on_right_mouse_press(app,tmp_path,monke
     QTest.mouseClick(lion,Qt.MouseButton.LeftButton,pos=QPoint(90,90))
     assert lion.panel.isVisible()
     lion.panel.timer.stop();lion.animation.stop();lion.panel.deleteLater();lion.deleteLater();app.processEvents()
+
+
+def test_chat_settings_are_hidden_and_enter_sends_while_shift_enter_adds_line(app,tmp_path,monkeypatch):
+    from PySide6.QtTest import QTest
+    from PySide6.QtCore import Qt
+    monkeypatch.setattr(ui,'PetClient',FakeClient);lion=ui.Lion(Config(make_home(tmp_path)));panel=lion.panel
+    settle(app,lambda:panel.metadata_loaded);lion.show_panel()
+    assert not panel.settings.isVisible() and not panel.model.isVisible() and not panel.tools.isVisible()
+    app.processEvents();assert panel.message.height()<70
+    panel.message.setPlainText('Hello');QTest.keyClick(panel.message,Qt.Key.Key_Return,Qt.KeyboardModifier.ShiftModifier)
+    assert '\n' in panel.message.toPlainText() and not panel.client.calls
+    QTest.keyClick(panel.message,Qt.Key.Key_Return);settle(app,lambda:panel.latest_answer!='')
+    assert panel.client.calls==['prepare','send']
+    panel.open_settings();assert panel.settings.isVisible() and panel.model.isVisible()
+    panel.settings.close();panel.timer.stop();lion.animation.stop();panel.deleteLater();lion.deleteLater();app.processEvents()
+
+
+def test_waiting_app_is_not_labelled_thinking_and_can_be_recovered(app,tmp_path,monkeypatch):
+    class RecoveryClient(FakeClient):
+        def retry(self,key,turn):
+            self.calls.append('retry');return {'id':'recovered','message':'Hello','plan':{'model_label':'Connected plan','needs_confirmation':False}}
+        def chat(self,key):
+            return {'id':key,'turns':[{'id':'recovered','message':'Hello','answer':'Direct reply.','status':'done','plan':{'model_label':'Connected plan'}}]}
+    monkeypatch.setattr(ui,'PetClient',RecoveryClient);lion=ui.Lion(Config(make_home(tmp_path)));panel=lion.panel
+    settle(app,lambda:panel.metadata_loaded)
+    panel.show_chat({'id':'chat-test','turns':[{'id':'manual','message':'Hello','answer':'Open ChatGPT','status':'waiting','task_id':'manual-task','plan':{}}]})
+    assert 'Waiting for another app' in panel.subtitle.text() and panel.recover.text()=='Reply here instead'
+    assert 'thinking' not in panel.transcript.toPlainText().lower()
+    panel.recover_request();settle(app,lambda:panel.latest_answer=='Direct reply.')
+    assert panel.client.calls==['retry','send'] and not panel.busy
+    panel.timer.stop();lion.animation.stop();panel.deleteLater();lion.deleteLater();app.processEvents()
+
+
+def test_delivery_timeout_reconciles_accepted_request_without_duplicate_send(app,tmp_path,monkeypatch):
+    class LostResponseClient(FakeClient):
+        def send(self,*a):self.calls.append('send');raise ValueError('response lost after acceptance')
+    monkeypatch.setattr(ui,'PetClient',LostResponseClient);lion=ui.Lion(Config(make_home(tmp_path)));panel=lion.panel
+    settle(app,lambda:panel.metadata_loaded);panel.message.setPlainText('Hello');panel.prepare()
+    settle(app,lambda:bool(panel.latest_answer))
+    assert panel.client.calls==['prepare','send'] and not panel.message.toPlainText() and not panel.busy
+    panel.timer.stop();lion.animation.stop();panel.deleteLater();lion.deleteLater();app.processEvents()
+
+
+def test_native_markdown_displays_formatting_without_html_or_image_fetches(app):
+    result=ui.reply_html('**Clear answer**\n\n<script>bad()</script>\n\n![private](file:///private/secret.png)\n\n![reference][image]\n\n[image]: file:///private/secret2.png')
+    assert '<script>' not in result and '<img' not in result and 'Clear answer' in result
+
+
+def test_recovered_paid_preview_can_be_declined_before_dispatch(app,tmp_path,monkeypatch):
+    monkeypatch.setattr(ui,'PetClient',FakeClient);monkeypatch.setattr(QMessageBox,'exec',lambda self:QMessageBox.StandardButton.Cancel)
+    lion=ui.Lion(Config(make_home(tmp_path)));panel=lion.panel;settle(app,lambda:panel.metadata_loaded)
+    panel.message.setPlainText('Saved draft.');panel.confirm(('chat-test',{'id':'preview','plan':{'model_label':'API model','effective_cost_usd':.01}}))
+    assert 'send' not in panel.client.calls and panel.message.toPlainText()=='Saved draft.'
+    settle(app,lambda:not panel.polling)
+    panel.timer.stop();lion.animation.stop();panel.deleteLater();lion.deleteLater();app.processEvents()
+
+
+def test_finished_followup_does_not_show_an_old_failure_as_current(app,tmp_path,monkeypatch):
+    monkeypatch.setattr(ui,'PetClient',FakeClient);lion=ui.Lion(Config(make_home(tmp_path)));panel=lion.panel
+    settle(app,lambda:panel.metadata_loaded)
+    panel.show_chat({'id':'chat-test','turns':[{'id':'old','message':'Earlier','status':'failed','error':'Old failure'}, {'id':'new','message':'Next','status':'done','answer':'Finished.'}]})
+    assert not panel.retry_turn and not panel.busy and not panel.connection.text()
+    panel.timer.stop();lion.animation.stop();panel.deleteLater();lion.deleteLater();app.processEvents()

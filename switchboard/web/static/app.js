@@ -259,12 +259,12 @@ function updateBadges() {
 }
 
 // ---------------------------------------------------------------- navigation
-const NAV = [["ask", "Ask", "chat"], ["laith", "Laith", "spark"], ["history", "History", "history"], ["studio", "Agent Studio", "puzzle"], ["plans", "Plans & credits", "wallet"],
-  ["machines", "Machines & apps", "monitor"], ["settings", "Settings", "sliders"]];
-const SHORT = { studio: "Studio", plans: "Plans", machines: "Machines" };
+const NAV = [["laith","Chat","chat"],["ask","Create","spark"],["studio","Goals","puzzle"],["history","Activity","history"],["machines","Connections","monitor"],["plans","Plans & credits","wallet"],["settings","Settings","sliders"]];
 function buildNav() {
-  $("#nav").innerHTML = NAV.map(([id, label, icon]) => `<a href="#${id}" data-page="${id}">${I(icon)}<span>${label}</span>${id === "plans" ? '<span class="count hide" data-count="plans"></span>' : ""}</a>`).join("");
-  $("#tabbar").innerHTML = NAV.map(([id, label, icon]) => `<a href="#${id}" data-page="${id}">${I(icon)}<span>${SHORT[id] || label}</span>${id === "plans" ? '<span class="count hide" data-count="plans"></span>' : ""}</a>`).join("");
+  const item=([id,label,icon])=>`<a href="#${id}" data-page="${id}">${I(icon)}<span>${label}</span>${id==='plans'?'<span class="count hide" data-count="plans"></span>':''}</a>`;
+  $("#nav").innerHTML=NAV.slice(0,5).map(item).join('')+'<div class="nav-extra">'+NAV.slice(5).map(item).join('')+'</div>';
+  $("#tabbar").innerHTML=NAV.slice(0,4).map(item).join('')+`<button id="mobileMore" aria-label="More">${I('sliders')}<span>More</span></button>`;
+  $("#mobileMore").onclick=()=>{const m=modal({title:'Your workspace',body:NAV.slice(4).map(item).join(''),foot:'<button data-close>Done</button>'});$$("a",m.el).forEach(a=>a.addEventListener('click',m.close));};
 }
 const PAGES = {};
 if (window.installStudio) window.installStudio(PAGES);
@@ -273,8 +273,8 @@ let rid = 0;
 const stale = (id) => id !== rid;
 function route() {
   rid++;
-  const [page, ...rest] = (location.hash.slice(1) || "ask").split("/");
-  const name = PAGES[page] ? page : "ask";
+  const [page, ...rest] = (location.hash.slice(1) || "laith").split("/");
+  const name = PAGES[page] ? page : "laith";
   document.body.classList.toggle("laith-open", name === "laith");
   $$("[data-page]").forEach((a) => a.classList.toggle("active", a.dataset.page === name));
   document.title = (NAV.find((n) => n[0] === name) || [0, "Switchboard"])[1] + " · Switchboard";
@@ -300,10 +300,7 @@ PAGES.ask = function renderAsk() {
       <div class="composer-bar">
         <button class="ghost icon" id="attach" title="Attach images" aria-label="Attach images">${I("image")}</button>
         <input type="file" id="file" accept="image/*" multiple hidden>
-        <button class="pill" id="whoBtn" title="Who should answer?">${I("spark")}<span id="whoLabel"></span></button>
-        <button class="pill" id="spendBtn" title="What may this spend?">${I("wallet")}<span id="spendLabel"></span></button>
-        <button class="pill" id="optBtn" title="More options">${I("sliders")}<span id="optLabel">Options</span></button>
-        <button class="pill" id="writingBtn" title="Grammar, rewriting and writing services">Writing</button>
+        <button class="ghost icon" id="optBtn" title="Task settings" aria-label="Task settings">${I("sliders")}</button>
         <button class="primary send" id="sendBtn" title="Send" aria-label="Send">${I("send")}</button>
       </div></div>
       <div class="willuse" id="willuse"></div>
@@ -316,15 +313,12 @@ PAGES.ask = function renderAsk() {
   grow();
   ta.oninput = () => { ASK.draft = ta.value; grow(); previewPlan(); };
   ta.onkeydown = (e) => {
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey || (!e.shiftKey && !touch))) { e.preventDefault(); send(); }
+    if (!e.isComposing && e.key === "Enter" && (e.ctrlKey || e.metaKey || (!e.shiftKey && !touch))) { e.preventDefault(); send(); }
   };
   $("#sendBtn").onclick = () => send();
   $("#attach").onclick = () => $("#file").click();
   $("#file").onchange = addImages;
-  $("#whoBtn").onclick = pickWho;
-  $("#spendBtn").onclick = pickSpend;
-  $("#optBtn").onclick = pickOptions;
-  $("#writingBtn").onclick = writingAssistant;
+  $("#optBtn").onclick=()=>{const m=modal({title:'Task settings',body:'<div class="stack"><button id="taskModel">Choose AI model</button><button id="taskSpending">Spending</button><button id="taskTools">Tools and response options</button><button id="taskWriting">Writing assistant</button></div>',foot:'<button data-close>Done</button>'});for(const [id,fn] of [['taskModel',pickWho],['taskSpending',pickSpend],['taskTools',pickOptions],['taskWriting',writingAssistant]])$('#'+id,m.el).onclick=()=>{m.close();fn();};};
   updateComposerLabels();
   renderChips();
   if (!touch) ta.focus();
@@ -387,7 +381,7 @@ function renderAskTop() {
   let html = "";
   const urgent = ((S.credits && S.credits.alerts) || []).filter((a) => a.severity !== "info").slice(0, 2);
   if (urgent.length && !ASK.messages.length) html += urgent.map(alertHtml).join("") + '<div style="height:10px"></div>';
-  const steps = onboardingSteps();
+  const steps = onboardingSteps().slice(0,1);
   const done = steps.filter((s) => s.done).length;
   if (done < steps.length && !store.get("sb_onboarded") && !ASK.messages.length) {
     html += `<div class="card" style="margin-bottom:12px"><div class="card-head"><div class="grow"><h2>Getting started</h2><p>${done} of ${steps.length} done</p></div>
@@ -425,8 +419,8 @@ function renderThread() {
     if ($("#newChat")) $("#newChat").onclick = () => { if (ASK.busy) return; ASK.messages = []; ASK.history = []; PAGES.ask(); };
   }
   if (!ASK.messages.length) {
-    th.innerHTML = `<div class="hello"><img src="/static/icon-192.png" alt=""><h1>What can I help with?</h1>
-      <p class="muted">Switchboard picks the best AI for the task and uses your plans' daily limits before any credit.</p>
+    th.innerHTML = `<div class="hello"><img src="/static/icon-192.png" alt=""><h1>What would you like to make?</h1>
+      <p class="muted">Describe the result you want. Use your connected models, tools and computers to create it.</p>
       <div class="suggest">${SUGGESTIONS.map((s) => `<button data-suggest="${esc(s)}">${esc(s)}</button>`).join("")}</div></div>`;
     $$("[data-suggest]", th).forEach((b) => (b.onclick = () => { const ta = $("#prompt"); ta.value = b.dataset.suggest; ASK.draft = ta.value; ta.focus(); ta.dispatchEvent(new Event("input")); }));
     return;
@@ -597,7 +591,7 @@ setInterval(() => $$("[data-elapsed]").forEach((el) => { el.textContent = "Worki
 
 function buildBody(text) {
   const m = ASK.who && modelByKey(ASK.who);
-  return { prompt: text, model: m ? m.key : null, effort: ASK.effort, mode: ASK.mode, billing: ASK.billing,
+  return { prompt: text, model: m ? m.key : null, effort: ASK.effort, mode: ASK.mode, billing: ASK.billing, direct_only: !ASK.who,
     tools: ASK.tools, images: ASK.images.map((x) => x.data) };
 }
 async function send() {
