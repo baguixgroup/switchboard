@@ -10,3 +10,6 @@ secrets.env
 *.db
 
 install-auth-key.pem
+
+/.private/
+/local/
