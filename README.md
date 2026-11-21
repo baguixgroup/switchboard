@@ -464,8 +464,9 @@ cap. Final run summaries and approved files use the existing output and mirrorin
 **Personalization (Mac, Windows and Pi dashboard):** open **Laith → Chat settings →
 Personality & appearance** to configure reply style, profession and appearance,
 review learned suggestions, or enable quiet/private personalization modes.
-Learning defaults off. The desktop pet supports optional bounded movement;
-unavailable outfits and expressions use the default lion artwork. Mobile apps
+Learning defaults off. Ten profession outfits visibly change Laith’s form and clothes in chat
+and on the desktop. Preview a look and apply its profession style, or choose an explicit
+personality preset. The desktop pet supports optional bounded movement. Mobile apps
 are on hold. See [scope, privacy boundaries and platform limits](docs/laith-personalization.md).
 
 **Chat comes first.** Switchboard opens to a simple Laith conversation. Model, plan funding and effort controls stay below the prompt, with a live “Will use…” preview.

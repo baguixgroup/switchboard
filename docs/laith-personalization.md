@@ -1,9 +1,37 @@
-# Laith personalization: Windows, macOS and Raspberry Pi
+# Laith personality and visible outfits: Windows, macOS and Raspberry Pi
 
 Open **Laith → Chat settings → Personality & appearance**, or **Personalize**
 above the conversation. The native companion also links to this screen from
 its settings and context menu. All changes use the same authenticated hub API.
 Mobile applications are on hold.
+
+## Visible changes in 0.8.2
+
+The first release saved appearance metadata but always drew the original lion.
+This is corrected: all ten profession choices now include real transparent
+full-body outfit artwork. The same look appears in the browser, chat portrait,
+native desktop companion and native panel avatar.
+
+Choose a card under **Choose a look & profession**, review the picture and choose
+**Use this look**. The checked profession-style option applies the role’s
+communication style without enabling learning or granting tools. A manually
+chosen outfit remains visible when profession mirroring or automatic appearance
+adaptation is disabled; those switches govern adaptation, not the wardrobe.
+
+**Choose how Laith talks** applies explicit tone and reply-length presets and
+turns on personality reflection. Learning stays off. Prepared text requests pass
+concrete, snapshotted style instructions through the API system-message field or
+the plan CLI’s instruction prefix, including on remote agents. New live voice
+sessions also use the active communication settings.
+
+The native renderer loads the selected outfit, updates its alpha hit area and
+uses a gentle breathing transform. The original classic lion retains its paw-wave
+clip. Browser views refresh the active image without replacing an unsent draft.
+
+Default, masculine and neutral styling is available; neutral styling preserves Laith’s face and mane. Feminine/custom body variants,
+freely combinable accessory layers and expressive facial animation remain unavailable;
+the UI no longer offers those as if they were working forms. Outfits have fixed
+profession props (for example Developer glasses/headphones and Teacher glasses/book).
 
 ## What is implemented
 
@@ -73,11 +101,10 @@ profile as safe per-user isolation on a shared multi-person hub.
 
 ## Presentation and platform limits
 
-The bundled character is 2D artwork, not a rigged 3D model. Only the default lion
-and one paw-wave clip exist. Alternate gender presentations, outfits, accessories,
-facial expressions and natural walking/sleep cycles are **not implemented assets**.
-Selectors persist requests and show the default lion when artwork is unavailable.
-No profession outfit is silently generated. Appearance `off` uses default display;
+The bundled character is 2D artwork, not a rigged 3D model. The default lion has
+a paw-wave clip; ten standing profession outfits are available as transparent
+artwork. Alternate gender bodies, independent accessory layers, facial expressions
+and natural walking/sleep cycles remain unavailable. No outfit is generated at runtime. Appearance `off` disables automatic appearance adaptation but preserves a manual outfit;
 `suggest` and `approved` both retain explicit review for any new appearance when
 ask-before-change is on. Approved mode reuses saved approvals, not a blanket grant.
 
@@ -130,3 +157,11 @@ a successful Mac build does not establish those results.
 
 Logs, the test-profile screenshot, development DMG and Python packages are under
 `Output/Laith-personalization/` in the workspace parent.
+
+### Visible-outfit correction validation (0.8.2)
+
+The final release snapshot passed **223 tests**. Mac, Windows and Pi installers
+built successfully. The frozen Mac hub/helper smoke test loaded the neutral outfit
+and neutral style without enabling learning. Browser checks covered an actual
+outfit switch and explicit personality application. Deployment and visual evidence
+are recorded in `Output/Laith-visible-fix/` outside the repository.

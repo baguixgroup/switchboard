@@ -1,12 +1,84 @@
 {
-  "version": 1,
+  "version": 2,
   "identity": "atlas-lion",
   "defaultImage": "laith.png",
   "clips": {
-    "wave": {"archive": "laith-wave-frames.zip", "frames": 16, "intervalMs": 140, "idlePauseMs": 3500}
+    "wave": {
+      "archive": "laith-wave-frames.zip",
+      "frames": 16,
+      "intervalMs": 140,
+      "idlePauseMs": 3500
+    }
   },
-  "outfits": [],
-  "presentations": ["default"],
+  "outfits": {
+    "nurse": {
+      "image": "laith-role-nurse-v1.png",
+      "form": "standing companion",
+      "accessories": []
+    },
+    "doctor": {
+      "image": "laith-role-doctor-v1.png",
+      "form": "standing companion",
+      "accessories": []
+    },
+    "developer": {
+      "image": "laith-role-developer-v1.png",
+      "form": "standing companion",
+      "accessories": [
+        "glasses",
+        "headphones"
+      ]
+    },
+    "teacher": {
+      "image": "laith-role-teacher-v1.png",
+      "form": "standing companion",
+      "accessories": [
+        "glasses",
+        "book"
+      ]
+    },
+    "researcher": {
+      "image": "laith-role-researcher-v1.png",
+      "form": "standing companion",
+      "accessories": [
+        "glasses"
+      ]
+    },
+    "designer": {
+      "image": "laith-role-designer-v1.png",
+      "form": "standing companion",
+      "accessories": [
+        "book"
+      ]
+    },
+    "business": {
+      "image": "laith-role-business-v1.png",
+      "form": "standing companion",
+      "accessories": []
+    },
+    "student": {
+      "image": "laith-role-student-v1.png",
+      "form": "standing companion",
+      "accessories": [
+        "headphones"
+      ]
+    },
+    "coach": {
+      "image": "laith-role-coach-v1.png",
+      "form": "standing companion",
+      "accessories": []
+    },
+    "custom": {
+      "image": "laith-role-custom-v1.png",
+      "form": "standing companion",
+      "accessories": []
+    }
+  },
+  "presentations": [
+    "default",
+    "masculine",
+    "neutral"
+  ],
   "expressions": [],
-  "fallback": "Default Atlas lion artwork with activity and mood labels. Profession outfits, alternate presentations and facial expressions are not yet available."
+  "fallback": "Ten profession outfits and a casual standing form are available. Feminine/custom body variants, independent accessory combinations and facial animation are not yet available."
 }

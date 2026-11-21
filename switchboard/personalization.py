@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 TRAITS = {
     'responseLength': ['concise', 'balanced', 'detailed'],
-    'tone': ['warm', 'direct', 'playful', 'calm'],
+    'tone': ['neutral', 'warm', 'direct', 'playful', 'calm'],
 }
 ROLES = {
     'nurse': ('Nurse', 'Be organized, supportive and clear.'),
@@ -32,7 +32,7 @@ ROLES = {
     'business': ('Business professional', 'Organize decisions around goals and practical outcomes.'),
     'student': ('Student', 'Support learning with examples and manageable steps.'),
     'coach': ('Athlete / Coach', 'Be encouraging and use clear, manageable goals.'),
-    'custom': ('Custom', 'Follow the user’s explicitly selected communication preferences.'),
+    'custom': ('Neutral / everyday', 'Use a neutral, general-purpose assistant style without an occupational persona.'),
 }
 
 
@@ -84,6 +84,36 @@ class DecisionIn(RevisionIn):
     approve: StrictBool
 
 
+class RoleLookIn(RevisionIn):
+    role: str
+    confirm: StrictBool = False
+    useStyle: StrictBool = True
+
+
+class StyleIn(RevisionIn):
+    tone: Literal['neutral', 'warm', 'direct', 'playful', 'calm']
+    responseLength: Literal['concise', 'balanced', 'detailed']
+
+
+def style_instructions(snapshot):
+    """Concrete communication instructions, never credentials or permissions."""
+    traits = snapshot['preferences']
+    lines = []
+    lengths = {'concise': 'Keep replies brief: normally one short paragraph or up to three bullets. Expand when the user asks or accuracy requires it.',
+               'balanced': 'Use a clear direct answer followed by a moderate amount of useful explanation.',
+               'detailed': 'Give thorough explanations, practical examples and clearly organized steps when helpful.'}
+    tones = {'neutral': 'Use a neutral, even-handed, matter-of-fact voice. Avoid roleplay, hype, emotional mirroring and occupational assumptions.',
+             'warm': 'Speak warmly and supportively, using natural, encouraging language.',
+             'direct': 'Be direct, candid and practical. Skip greetings and unnecessary reassurance.',
+             'playful': 'Use a light, gently humorous voice when appropriate; remain clear and respectful.',
+             'calm': 'Use a calm, steady, patient voice. Avoid hype and excessive exclamation marks.'}
+    if traits.get('responseLength') in lengths: lines.append(lengths[traits['responseLength']])
+    if traits.get('tone') in tones: lines.append(tones[traits['tone']])
+    if snapshot['role']:
+        lines.append('Selected professional context: '+ROLES[snapshot['role']][0]+'. '+snapshot['roleStyle'])
+    return '\n'.join(lines)
+
+
 class ProfileConflict(ValueError):
     pass
 
@@ -99,19 +129,30 @@ def assets():
     return json.loads(resources.files('switchboard').joinpath('web', 'static', 'laith-assets.json').read_text())
 
 
-def presentation(profile):
+def presentation(profile, requested=None):
     """Requested metadata and available presentation are deliberately separate."""
     settings = profile['settings']
-    requested = profile['appearance']
-    enabled = not settings['privateMode'] and settings['appearanceAdaptation'] != 'off'
+    requested = requested if requested is not None else profile['appearance']
+    enabled = not settings['privateMode']
     active = requested if enabled else Appearance().model_dump()
-    role = profile['activeRole'] if settings['professionMirroring'] and not settings['privateMode'] else ''
+    # An explicitly selected outfit is not an inferred profession. Disabling
+    # automatic mirroring must not discard the user's manual wardrobe choice.
+    role = profile['activeRole'] if active['outfit'] == 'profession' else ''
+    manifest = assets()
+    outfit = manifest['outfits'].get(role) if isinstance(manifest['outfits'], dict) else None
+    image = manifest['defaultImage']
     missing = []
-    if active['presentation'] != 'default': missing.append('presentation:' + active['presentation'])
-    if active['outfit'] == 'profession' and role: missing.append('outfit:' + role)
-    if active['accessory'] != 'none': missing.append('accessory:' + active['accessory'])
+    if active['presentation'] not in manifest['presentations']: missing.append('presentation:' + active['presentation'])
+    if role:
+        if outfit and resources.files('switchboard').joinpath('web','static',outfit['image']).is_file(): image = outfit['image']
+        else: missing.append('outfit:' + role)
+    if active['accessory'] != 'none' and active['accessory'] not in (outfit or {}).get('accessories', []):
+        missing.append('accessory:' + active['accessory'])
     return {'identity': 'Laith · Atlas lion', 'requested': requested,
-            'activeRole': role, 'image': '/static/laith.png', 'missingAssets': missing,
+            'activeRole': role, 'roleName': ROLES[role][0] if role in ROLES else '',
+            'professionStyleEnabled': settings['professionMirroring'] and not settings['privateMode'],
+            'form': 'standing companion' if image != manifest['defaultImage'] else 'classic lion',
+            'image': '/static/'+image, 'missingAssets': missing,
             'fallback': bool(missing), 'mood': 'calm',
             'motionEnabled': not (settings['quietMode'] or settings['privateMode'])}
 
@@ -188,9 +229,13 @@ class Personalization:
 
     def overview(self, profile=None):
         profile = profile if profile is not None else self.read()
+        manifest=assets()
         return {k: copy.deepcopy(v) for k, v in profile.items() if k not in ('evidence', 'suppressed', 'epoch')} | {
-            'professions': [{'id': k, 'name': v[0], 'style': v[1], 'outfitAvailable': False} for k, v in ROLES.items()],
-            'traitChoices': TRAITS, 'presentation': presentation(profile), 'assets': assets(),
+            'suggestions': [dict(s,preview=presentation(profile,s['appearance'])) if s['kind']=='appearance' else copy.deepcopy(s) for s in profile['suggestions']],
+            'professions': [{'id': k, 'name': v[0], 'style': v[1],
+                'outfitAvailable': k in manifest['outfits'],
+                'image': '/static/'+manifest['outfits'][k]['image'] if k in manifest['outfits'] else '/static/laith.png'} for k, v in ROLES.items()],
+            'traitChoices': TRAITS, 'presentation': presentation(profile), 'assets': manifest,
             'behavior': {'states': CharacterBehavior.STATES, 'supported': CharacterBehavior.SUPPORTED,
                          'fallback': 'Default lion and activity labels; no voice or sensor states.'}}
 
@@ -254,6 +299,30 @@ class Personalization:
                 p['suggestions'].append({'id': uuid.uuid4().hex, 'kind': 'appearance', 'appearance': desired,
                                         'created': time.time(), 'baseRevision': p['revision'] + 1})
             else: p['appearance'] = desired
+        return self._mutate(request.revision, change)
+
+    def apply_role(self, request):
+        if request.role not in ROLES: raise ValueError('Choose a supported profession.')
+        if not request.confirm: raise ValueError('Confirm the displayed outfit and profession style first.')
+        def change(p):
+            if p['settings']['privateMode']: raise ValueError('Leave private mode before changing appearance.')
+            if request.role not in p['roles']: p['roles'].append(request.role)
+            p['activeRole'] = request.role
+            p['appearance']['outfit'] = 'profession'
+            p['settings']['professionMirroring'] = request.useStyle
+            p['suggestions'] = [s for s in p['suggestions'] if s['kind'] != 'appearance']
+        return self._mutate(request.revision, change)
+
+    def apply_style(self, request):
+        def change(p):
+            if p['settings']['privateMode']: raise ValueError('Leave private mode before applying a personality style.')
+            now=time.time()
+            for key in ('tone','responseLength'):
+                old=p['preferences'].get(key,{})
+                p['preferences'][key]={'key':key,'value':getattr(request,key),'source':'explicit','locked':True,
+                    'confidence':1.0,'evidenceRefs':[],'created':old.get('created',now),'updated':now}
+                self._forget_candidates(p,key)
+            p['settings']['reflectPersonality']=True
         return self._mutate(request.revision, change)
 
     def decide(self, suggestion_id, request):

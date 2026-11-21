@@ -187,3 +187,19 @@ def test_missing_or_corrupt_animation_uses_default_portrait(app,tmp_path,monkeyp
     lion=ui.Lion(Config(make_home(tmp_path)));settle(app,lambda:lion.panel.metadata_loaded)
     assert len(lion.frames)==1 and not lion.frames[0].isNull() and not lion.mask().isEmpty()
     lion.panel.timer.stop();lion.profile_timer.stop();lion.animation.stop();lion.panel.deleteLater();lion.deleteLater();app.processEvents()
+
+
+def test_actual_native_outfit_changes_from_classic_to_nurse_and_back(app,tmp_path,monkeypatch):
+    from switchboard.personalization import fresh,presentation
+    monkeypatch.setattr(ui,'PetClient',FakeClient)
+    lion=ui.Lion(Config(make_home(tmp_path)));settle(app,lambda:lion.panel.metadata_loaded)
+    before=lion.scaled[0].cacheKey();p=fresh();p['activeRole']='nurse';p['appearance'].update(outfit='profession',presentation='masculine')
+    lion.apply_personalization({'revision':1,'settings':p['settings'],'presentation':presentation(p)})
+    assert lion.current_image=='/static/laith-role-nurse-v1.png' and len(lion.frames)==1
+    assert lion.scaled[0].cacheKey()!=before and not lion.mask().isEmpty()
+    assert not lion.panel.avatar.pixmap().isNull()
+    lion.show_pet();before_phase=lion.breath_phase;lion.advance();assert lion.breath_phase!=before_phase
+    p['appearance']['outfit']='default'
+    lion.apply_personalization({'revision':2,'settings':p['settings'],'presentation':presentation(p)})
+    assert lion.current_image=='/static/laith.png' and len(lion.frames)==16
+    lion.action('hide');lion.profile_timer.stop();lion.panel.deleteLater();lion.deleteLater();app.processEvents()

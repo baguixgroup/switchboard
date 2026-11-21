@@ -112,8 +112,8 @@ def test_profession_and_presentation_are_independent_and_never_enable_permission
     assert p.read()['appearance']['presentation']=='default'
     s=p.overview()['suggestions'][0]
     p.decide(s['id'],DecisionIn(revision=p.read()['revision'],approve=True))
-    view=p.overview()['presentation'];assert view['fallback'] and 'outfit:nurse' in view['missingAssets']
-    assert view['image']=='/static/laith.png'
+    view=p.overview()['presentation'];assert not view['fallback'] and not view['missingAssets']
+    assert view['image']=='/static/laith-role-nurse-v1.png'
     settings(p,professionMirroring=False)
     assert p.read()['appearance']['presentation']=='masculine' and p.snapshot()['role']==''
     assert not {'tools','permissions'}&p.read().keys()
@@ -132,7 +132,7 @@ def test_appearance_off_private_and_explicit_opt_out_of_ask(profile):
     p.request_appearance(AppearanceIn(revision=p.read()['revision'],appearance=Appearance(accessory='glasses')))
     assert p.read()['appearance']['accessory']=='glasses' and not p.overview()['suggestions']
     settings(p,appearanceAdaptation='off')
-    assert not p.overview()['presentation']['missingAssets']
+    assert 'accessory:glasses' in p.overview()['presentation']['missingAssets']
     settings(p,privateMode=True)
     with pytest.raises(ValueError):p.request_appearance(AppearanceIn(revision=p.read()['revision'],appearance=Appearance()))
 
@@ -223,4 +223,90 @@ async def test_retry_rebinds_evidence_revision_without_learning_again(tmp_path,m
     assert len(p.read()['evidence']['responseLength:concise'])==1
     settings(p,reflectPersonality=True);choose(p,key='tone',value='direct')
     with pytest.raises(ValueError,match='personality changed'):await c.retry_direct(chat['id'],retry['id'])
+    await e.close()
+
+
+def test_manual_nurse_outfit_displays_with_profession_adaptation_off(profile):
+    from switchboard.personalization import RoleLookIn
+    p=profile
+    with pytest.raises(ValueError,match='Confirm'):p.apply_role(RoleLookIn(revision=0,role='nurse'))
+    result=p.apply_role(RoleLookIn(revision=0,role='nurse',confirm=True,useStyle=False))
+    assert result['presentation']['image']=='/static/laith-role-nurse-v1.png'
+    assert result['presentation']['form']=='standing companion'
+    assert not result['settings']['professionMirroring'] and not p.snapshot()['role']
+    settings(p,appearanceAdaptation='off')
+    assert p.overview()['presentation']['activeRole']=='nurse'
+    assert not p.overview()['presentation']['fallback']
+    assert not p.snapshot()['learningAuthorized']
+
+
+def test_role_and_personality_presets_apply_without_turning_on_learning(profile):
+    from switchboard.personalization import RoleLookIn,StyleIn,style_instructions
+    p=profile;p.apply_role(RoleLookIn(revision=0,role='nurse',confirm=True))
+    p.apply_style(StyleIn(revision=p.read()['revision'],tone='warm',responseLength='concise'))
+    snapshot=p.snapshot()
+    assert snapshot['role']=='nurse' and snapshot['preferences']=={'tone':'warm','responseLength':'concise'}
+    assert 'Speak warmly' in style_instructions(snapshot) and 'Keep replies brief' in style_instructions(snapshot)
+    assert not snapshot['learningAuthorized']
+    settings(p,privateMode=True)
+    assert not p.snapshot()['role'] and not p.snapshot()['preferences']
+    with pytest.raises(ValueError):p.apply_style(StyleIn(revision=p.read()['revision'],tone='direct',responseLength='detailed'))
+
+
+def test_neutral_everyday_choice_has_no_occupational_persona(profile):
+    from switchboard.personalization import RoleLookIn,StyleIn,style_instructions
+    p=profile
+    p.apply_role(RoleLookIn(revision=0,role='custom',confirm=True,useStyle=False))
+    p.apply_style(StyleIn(revision=p.read()['revision'],tone='neutral',responseLength='balanced'))
+    snapshot=p.snapshot()
+    assert not snapshot['role'] and not snapshot['learningAuthorized']
+    assert snapshot['preferences']['tone']=='neutral'
+    assert 'neutral, even-handed' in style_instructions(snapshot)
+    assert 'Selected professional context' not in style_instructions(snapshot)
+    assert p.overview()['presentation']['image']=='/static/laith-role-custom-v1.png'
+
+
+def test_every_profession_has_a_real_transparent_asset(profile):
+    from importlib import resources
+    from PIL import Image
+    manifest=profile.overview()['assets']
+    assert len(manifest['outfits'])==10
+    for role,asset in manifest['outfits'].items():
+        path=resources.files('switchboard').joinpath('web','static',asset['image'])
+        with Image.open(path) as image:
+            assert min(image.size)>=512
+            assert image.mode=='RGBA' and image.getchannel('A').getextrema()==(0,255)
+
+
+async def test_style_reaches_provider_system_channel_and_is_snapshotted(tmp_path,monkeypatch):
+    from switchboard.personalization import RoleLookIn,StyleIn
+    from switchboard.providers import RunResult
+    e=make_engine(tmp_path);c=e.companion;p=c.personalization;seen=[]
+    p.apply_role(RoleLookIn(revision=0,role='nurse',confirm=True))
+    p.apply_style(StyleIn(revision=p.read()['revision'],tone='calm',responseLength='concise'))
+    async def run(req,tools=None):
+        seen.append(req.system);return RunResult(text='A short, steady answer.',provider='mock',model='mock-small')
+    monkeypatch.setattr(e.providers['mock'],'run',run)
+    chat=c.create_chat();turn=await c.prepare(chat['id'],'Explain the next step.',model='mock:mock-small')
+    assert 'system_prompt' not in turn
+    await c.send(chat['id'],turn['id']);await wait_chat(c,chat['id'])
+    assert 'Keep replies brief' in seen[0] and 'calm, steady, patient' in seen[0]
+    assert 'Selected professional context: Nurse' in seen[0]
+    assert not turn['tools_enabled']
+    await e.close()
+
+
+async def test_remote_cli_receives_custom_system_instructions(tmp_path,monkeypatch):
+    from switchboard.providers import RunRequest
+    from switchboard.providers.cli_bridge import CLIProvider
+    from switchboard.catalog import ModelInfo
+    e=make_engine(tmp_path);received=[]
+    prov=CLIProvider('test-cli',{'command':'fake','kind':'cli'},e.config)
+    monkeypatch.setattr(e,'cli_location',lambda name:'remote-test')
+    async def submit(node,kind,payload,**kwargs):
+        received.append(payload);return {'text':'done'}
+    monkeypatch.setattr(e.nodes,'submit',submit)
+    req=RunRequest(prompt='Hello',model=ModelInfo(provider='test-cli',id='test'),system='Speak calmly and briefly.')
+    await e._run_cli(prov,req,tmp_path)
+    assert received[0]['system']==req.system and not received[0]['allow_edits']
     await e.close()

@@ -11,6 +11,7 @@ from ..capabilities.adapters import headers,request as service_request,MAX_BYTES
 from ..outputs import safe_join
 from ..config import write_env_value
 from ..companion import PERSONA
+from ..personalization import style_instructions
 
 class Preview(BaseModel):
     prompt:str=Field(min_length=1,max_length=12000)
@@ -195,7 +196,8 @@ def register(app,engine,auth):
         key='voice-'+uuid.uuid4().hex;value={'id':key,'service':service,'started':time.time(),'expires':time.time()+body.minutes*60,'status':'connecting','cost_usd':None}
         engine.store._exec('INSERT INTO capability_voice VALUES(?,?)',(key,json.dumps(value)))
         engine.store.save_task(key,'running','Live voice conversation',{'kind':'voice','provider':service['id'],'model_label':'Live voice','usage_cost_unknown':True})
-        session={'type':'realtime','model':service['model'],'instructions':PERSONA,'max_output_tokens':4096,'audio':{'input':{'transcription':{'model':'gpt-4o-transcribe'}},'output':{'voice':service.get('voice','marin')}}}
+        voice_style=style_instructions(engine.companion.personalization.snapshot())
+        session={'type':'realtime','model':service['model'],'instructions':PERSONA+'\n\nApproved communication settings:\n'+voice_style+'\nReply naturally for spoken conversation; do not read Markdown punctuation aloud.','max_output_tokens':4096,'audio':{'input':{'transcription':{'model':'gpt-4o-transcribe'}},'output':{'voice':service.get('voice','marin')}}}
         try:
             async with httpx.AsyncClient(timeout=30,trust_env=False,follow_redirects=False) as client:
                 r=await client.post(service['base_url']+'/realtime/calls',headers=headers(engine.config,service),files={'sdp':(None,body.sdp),'session':(None,json.dumps(session))})

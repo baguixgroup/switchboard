@@ -245,6 +245,15 @@ pre.out { white-space: pre-wrap; word-break: break-word; background: var(--code)
 @media(max-width:650px) { .studio-intro { align-items:stretch; flex-direction:column; } .studio-board { grid-template-columns:repeat(4,260px); } .tabbar a { font-size:10px; } }
 /* Laith's warm corner of the shared application. */
 .laith-personalization {max-width:900px;margin:0 auto;padding-bottom:28px;overflow:auto;height:100%;}
+.laith-live-look {display:flex;align-items:center;justify-content:center;gap:30px;padding:12px;}
+.laith-live-look>img {width:220px;height:250px;object-fit:contain;}
+.laith-role-gallery {display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;}
+.laith-role-card {display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 8px;border:1px solid var(--line);border-radius:14px;background:var(--panel);}
+.laith-role-card.selected {border:2px solid var(--accent);background:var(--accent-soft);}
+.laith-role-card img {width:100%;height:160px;object-fit:contain;}
+.laith-style-presets {display:flex;flex-wrap:wrap;gap:10px;}
+.laith-role-confirm {text-align:center;}.laith-role-confirm img,.laith-outfit-preview {display:block;width:180px;height:210px;object-fit:contain;margin:0 auto 12px;}
+@media(max-width:540px){.laith-live-look{flex-direction:column;gap:8px;}.laith-live-look>img{height:210px;}.laith-role-card img{height:140px;}}
 .laith-personalization .list-row {flex-wrap:wrap;gap:10px;}
 .laith-character {display:flex;align-items:center;gap:10px;flex:none;font-size:12px;color:var(--muted);}
 .laith-character img {width:45px;height:48px;object-fit:contain;transform-origin:bottom;}

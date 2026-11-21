@@ -383,16 +383,16 @@ class Engine:
             self.store.save_task(task_id, "failed", error=str(exc))
     def start_task(self, prompt: str, plan: Plan, images: list[Path] | None = None,
                    history: list[dict] | None = None, isolated: bool = False, read_only: bool = False,
-                   estimate_allowance: float | None = None) -> str:
+                   estimate_allowance: float | None = None, system_prompt: str | None = None) -> str:
         task_id = datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
         self.store.save_task(task_id, "queued", prompt, plan.to_dict())
-        t = asyncio.create_task(self.run_task(task_id, prompt, plan, images or [], history or [], isolated=isolated,read_only=read_only,estimate_allowance=estimate_allowance))
+        t = asyncio.create_task(self.run_task(task_id, prompt, plan, images or [], history or [], isolated=isolated,read_only=read_only,estimate_allowance=estimate_allowance,system_prompt=system_prompt))
         self.running[task_id] = t
         t.add_done_callback(lambda _t: self.running.pop(task_id, None))
         return task_id
 
     async def run_task(self, task_id: str, prompt: str, plan: Plan, images: list[Path], history: list[dict], isolated: bool = False, read_only: bool = False,
-                       estimate_allowance: float | None = None) -> dict:
+                       estimate_allowance: float | None = None, system_prompt: str | None = None) -> dict:
         self.store.save_task(task_id, "running", prompt, plan.to_dict())
         task_dir = outputs.task_folder(self.config.output_dir, prompt)
         attempts: list[Plan] = [plan]
@@ -436,6 +436,7 @@ class Engine:
                              tool_servers=list(attempt.tools) if (is_cli and "tools" in m.features) else [],
                              task_rel=task_rel,
                              read_dirs=[str(self.config.output_dir)] if (is_cli and note and not remote_cli) else [])
+            if system_prompt is not None:req.system=system_prompt
             try:
                 if is_cli:
                     result = await self._run_cli(prov, req, task_dir)
@@ -497,7 +498,7 @@ class Engine:
             return await prov.run(req, None)
         payload = {"provider": prov.name, "cfg": prov.cfg, "prompt": req.prompt, "model": req.model.id,
                    "effort": req.effort, "allow_edits": req.allow_edits, "tool_servers": req.tool_servers,
-                   "task_rel": req.task_rel, "history": req.history, "read_output_dir": "{OUTPUT}" in req.prompt}
+                   "task_rel": req.task_rel, "history": req.history, "read_output_dir": "{OUTPUT}" in req.prompt,"system":req.system}
         res = await self.nodes.submit(where, "cli_run", payload, timeout=float(prov.cfg.get("timeout_seconds", 1800)) + 60)
         if res.get("error"):
             raise ProviderError(f"{res['error']} (on {where})", res.get("error_kind", "error"), retry_at=res.get("retry_at"))

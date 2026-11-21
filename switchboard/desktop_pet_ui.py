@@ -8,6 +8,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 import json
+import math
 import os
 import queue
 import re
@@ -95,7 +96,7 @@ class TaskPanel(QWidget):
         ''')
         layout=QVBoxLayout(self);layout.setContentsMargins(20,16,20,16);layout.setSpacing(12)
         top=QHBoxLayout();top.setSpacing(10)
-        avatar=QLabel();avatar.setFixedSize(38,38);portrait=QPixmap(str(resources.files('switchboard').joinpath('web','static','laith.png')))
+        avatar=QLabel();self.avatar=avatar;avatar.setFixedSize(38,38);portrait=QPixmap(str(resources.files('switchboard').joinpath('web','static','laith.png')))
         avatar.setPixmap(portrait.scaled(38,38,Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation));top.addWidget(avatar)
         titles=QVBoxLayout();titles.setSpacing(1);title=QLabel('Laith');title.setObjectName('Title');titles.addWidget(title)
         self.subtitle=QLabel('Your companion');self.subtitle.setObjectName('Subtitle');titles.addWidget(self.subtitle);top.addLayout(titles,1)
@@ -318,6 +319,7 @@ class Lion(QWidget):
                             if not pix.isNull():self.frames.append(pix)
             except (OSError,zipfile.BadZipFile):self.frames=[]
         if not self.frames:self.frames=[QPixmap(str(static.joinpath('laith.png')))]
+        self.default_frames=self.frames[:];self.current_image='/static/laith.png';self.breath_phase=0
         self.panel=TaskPanel(self,PetClient(config),config)
         self.clip=assets()['clips']['wave']
         self.animation=QTimer(self);self.animation.setInterval(self.clip['intervalMs']);self.animation.timeout.connect(self.advance)
@@ -342,6 +344,16 @@ class Lion(QWidget):
         if revision<self.profile_revision:return
         self.profile_revision=revision
         self.personal_settings=profile['settings'];self.behavior.configure(self.personal_settings)
+        image=profile['presentation']['image']
+        manifest=assets();allowed={manifest['defaultImage']} | {v['image'] for v in manifest['outfits'].values()}
+        name=image.removeprefix('/static/')
+        if name not in allowed:name=manifest['defaultImage'];image='/static/'+name
+        if image!=self.current_image:
+            pix=QPixmap(str(resources.files('switchboard').joinpath('web','static',name)))
+            if not pix.isNull():
+                self.frames=self.default_frames[:] if name==manifest['defaultImage'] else [pix]
+                self.frame=0;self.current_image=image;self.resize_pet(self.width())
+                self.panel.avatar.setPixmap(pix.scaled(38,38,Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation))
         missing=profile['presentation']['missingAssets'];role=profile['presentation']['activeRole']
         detail=(' · '+role if role else '')+(' · Default artwork (requested assets unavailable)' if missing else '')
         self.setToolTip('Laith'+detail+' · '+self.behavior.state+' · Click to talk, drag to move, right-click for options.')
@@ -382,10 +394,16 @@ class Lion(QWidget):
         pix=self.scaled[self.frame];self.setMask(QRegion(pix.mask()).translated((self.width()-pix.width())//2,self.height()-pix.height()))
 
     def paintEvent(self,event):
-        painter=QPainter(self);pix=self.scaled[self.frame];painter.drawPixmap((self.width()-pix.width())//2,self.height()-pix.height(),pix)
+        painter=QPainter(self);pix=self.scaled[self.frame]
+        if len(self.frames)==1 and self.opts['animation'] and not self.behavior.quiet and self.personal_settings['moodExpressiveness']!='off':
+            scale=.99+.01*math.sin(self.breath_phase)
+            painter.translate(self.width()/2,self.height());painter.scale(scale,scale);painter.translate(-self.width()/2,-self.height())
+        painter.drawPixmap((self.width()-pix.width())//2,self.height()-pix.height(),pix)
 
     def advance(self):
         if not self.isVisible() or not self.opts['animation'] or self.behavior.quiet or self.personal_settings['moodExpressiveness']=='off':return
+        if len(self.frames)==1:
+            self.breath_phase+=.18;self.animation.setInterval(140);self.update();return
         self.frame=(self.frame+1)%len(self.scaled);self.refresh_mask();self.update()
         intensity=2 if self.personal_settings['moodExpressiveness']=='low' else 1
         self.animation.setInterval(self.clip['idlePauseMs']*intensity if self.frame==0 else self.clip['intervalMs'])
@@ -469,7 +487,7 @@ def run_pet(config,panel=False):
     threading.Thread(target=server.serve_forever,daemon=True).start()
     def pump():
         while not commands.empty():lion.action(commands.get())
-        state.update(visible=lion.isVisible(),panel_visible=lion.panel.isVisible())
+        state.update(visible=lion.isVisible(),panel_visible=lion.panel.isVisible(),image=lion.current_image,profile_revision=lion.profile_revision)
     timer=QTimer();timer.setInterval(100);timer.timeout.connect(pump);timer.start()
     lion.show_panel() if panel else lion.show_pet()
     try:return app.exec()

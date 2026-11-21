@@ -2,7 +2,7 @@
 from typing import Literal
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
-from ..personalization import (ProfilePatch, PreferenceIn, RevisionIn, AppearanceIn, DecisionIn, ProfileConflict)
+from ..personalization import (ProfilePatch, PreferenceIn, RevisionIn, AppearanceIn, DecisionIn, ProfileConflict, RoleLookIn, StyleIn)
 
 
 class ChatIn(BaseModel):
@@ -80,6 +80,17 @@ def install_companion_routes(app,engine,auth):
 
     @app.post('/api/laith/personalization/appearance',dependencies=deps)
     async def appearance(body:AppearanceIn):return call(c.personalization.request_appearance,body)
+
+    @app.post('/api/laith/personalization/role',dependencies=deps)
+    async def role_look(body:RoleLookIn):return call(c.personalization.apply_role,body)
+
+    @app.post('/api/laith/personalization/style',dependencies=deps)
+    async def personality_style(body:StyleIn):return call(c.personalization.apply_style,body)
+
+    @app.post('/api/laith/personalization/appearance/preview',dependencies=deps)
+    async def appearance_preview(body:AppearanceIn):
+        from ..personalization import presentation
+        return presentation(c.personalization.read(),body.appearance.model_dump())
 
     @app.post('/api/laith/personalization/suggestions/{key}/decision',dependencies=deps)
     async def decision(key:str,body:DecisionIn):return call(c.personalization.decide,key,body)

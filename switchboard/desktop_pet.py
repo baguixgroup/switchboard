@@ -94,7 +94,8 @@ def status(config):
     current=ipc(config,'status')
     return {'available':available(),'enabled':preferences(config)['enabled'],
             'running':bool(current),'visible':bool(current and current.get('visible')),
-            'panel_visible':bool(current and current.get('panel_visible'))}
+            'panel_visible':bool(current and current.get('panel_visible')),
+            'image':current.get('image') if current else None,'profile_revision':current.get('profile_revision') if current else None}
 
 
 def control(config,action,persist=True):

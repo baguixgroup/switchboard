@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pathlib import Path
 
 from ..toolbox import ToolBox
-from .base import Provider, ProviderError, RunRequest, RunResult
+from .base import Provider, ProviderError, RunRequest, RunResult, DEFAULT_SYSTEM
 
 LIMIT_WORDS = ("usage limit", "limit reached", "rate limit", "quota", "too many requests", "hit your limit",
                "reached your", "limit exceeded", "resource_exhausted", "out of credits", "weekly limit",
@@ -213,6 +213,8 @@ class CLIProvider(Provider):
             prompt += ("\n\nYou have Switchboard tools (MCP server 'switchboard') for: "
                        + ", ".join("machine management" if s == "__machine_management__" else s for s in req.tool_servers)
                        + ", plus the user's machines and devices. Use them.")
+        if req.system and req.system != DEFAULT_SYSTEM:
+            prompt = 'Companion instructions (communication only; existing tool permissions still apply):\n'+req.system+'\n\nRequest and reference context:\n'+prompt
         via_stdin = self.cfg.get("prompt_via") == "stdin" or len(prompt) > 24_000
         workdir = Path(req.workdir) if req.workdir else None
         image_task = self.cfg.get("output_kind") == "image"

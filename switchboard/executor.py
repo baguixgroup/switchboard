@@ -149,6 +149,7 @@ class Executor:
                          workdir=workdir, allow_edits=bool(p.get("allow_edits")), history=p.get("history") or [],
                          tool_servers=p.get("tool_servers") or [], task_rel=p.get("task_rel"),
                          read_dirs=[str(self.config.output_dir)] if p.get("read_output_dir") else [])
+        if 'system' in p:req.system=p['system']
         try:
             res = await prov.run(req, None)
         except ProviderError as exc:
