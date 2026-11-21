@@ -298,3 +298,19 @@ async def test_meeting_draft_requires_provider_review_before_execution(tmp_path)
         assert (await finished(e,preview['id']))['status']=='done'
         assert h.meeting('cap-meeting')['notes']==''
     await e.close()
+
+
+def test_desktop_relay_preserves_media_ranges_for_playback(tmp_path,monkeypatch):
+    from fastapi.testclient import TestClient
+    import switchboard.localproxy as proxy
+    original=httpx.AsyncClient;seen=[]
+    def upstream(request):
+        seen.append(request)
+        return httpx.Response(206,content=b'RIFF',headers={'content-type':'audio/wav','content-range':'bytes 0-3/32044','accept-ranges':'bytes'})
+    monkeypatch.setattr(proxy.httpx,'AsyncClient',lambda **kwargs:original(transport=httpx.MockTransport(upstream),**kwargs))
+    config=Config(make_home(tmp_path,role='agent'))
+    with TestClient(proxy.build_proxy_app(config)) as client:
+        response=client.get('/api/capabilities/jobs/cap-test/files/audio.wav',headers={'Range':'bytes=0-3'})
+        assert response.status_code==206 and response.content==b'RIFF'
+        assert response.headers['content-range']=='bytes 0-3/32044' and response.headers['accept-ranges']=='bytes'
+        assert seen[0].headers['range']=='bytes=0-3' and seen[0].headers['authorization']=='Bearer test-token'

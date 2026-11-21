@@ -20,7 +20,7 @@ from starlette.routing import Route
 log = logging.getLogger("switchboard.localproxy")
 LOCAL_NAMES = {"localhost", "127.0.0.1", "[::1]", "::1"}
 PASS_REQ = {"content-type", "accept", "range", "if-none-match"}
-PASS_RESP = {"content-type", "content-disposition", "cache-control", "service-worker-allowed", "etag"}
+PASS_RESP = {"content-type", "content-disposition", "cache-control", "service-worker-allowed", "etag", "content-range", "accept-ranges"}
 OFFLINE = """<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <title>Switchboard</title><body style="font:16px system-ui;padding:40px;max-width:560px;margin:auto">
 <h2>Can't reach your Switchboard hub</h2><p>This computer is set to use the hub at <b>{hub}</b>, but it isn't

@@ -19,7 +19,7 @@ Open **Audio & files** or attach a file to Laith. Describe your request, review 
 | Other inference | JSON HTTP endpoint | Endpoint accepting `inputs` and `parameters` | Simulated service contract |
 | Search and tool actions | Existing authenticated MCP gateway | Connected MCP server with appropriate tools | Existing gateway, permission and remote-agent tests |
 
-**Deployment checks (2026-11-21):** all three installed apps reported 0.8.0. PDF extraction, OCR, audio conversion and a real Codex-backed chat completed with retrieved, hash-checked files. Plan-backed image generation also delivered a real PNG through the existing image provider. The scoped change passed 189 automated tests; the complete working checkout, including personalization, passed 212. Paid speech/transcription/realtime services and GPU generation workers were tested with simulated endpoints, not live accounts.
+**Deployment checks (2026-11-21):** all three installed apps reported 0.8.0. PDF extraction, OCR, audio conversion and a real Codex-backed chat completed with retrieved, hash-checked files. Plan-backed image generation also delivered a real PNG through the existing image provider. The complete working checkout, including personalization and the media playback regression, passed 213 automated tests. Paid speech/transcription/realtime services and GPU generation workers were tested with simulated endpoints, not live accounts.
 
 **Configured** means settings and required credentials exist. A discovery check only confirms an endpoint responds. **Verified** requires successful execution and validated delivery during the current hub process. Unconfigured services remain **Setup required**. There are no preconfigured paid connections or bundled model weights.
 
