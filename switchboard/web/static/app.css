@@ -316,4 +316,4 @@ pre.out { white-space: pre-wrap; word-break: break-word; background: var(--code)
 /* File and live-service workspace. */
 .work-layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:22px;align-items:start}.work-layout textarea{width:100%;margin:14px 0;resize:vertical}.work-files{display:flex;gap:16px;flex-wrap:wrap;margin:18px 0}.work-files img,.work-files video{display:block;max-width:100%;max-height:420px;border-radius:12px}.work-files audio{max-width:100%}.voice-panel{border-color:var(--accent);margin-bottom:18px}.voice-panel pre{white-space:pre-wrap;max-height:260px;overflow:auto;font:inherit}.work-layout aside h2{margin-bottom:10px}@media(max-width:950px){.work-layout{grid-template-columns:minmax(0,1fr)}}
 
-.voice-panel{position:fixed;right:24px;bottom:24px;z-index:120;width:min(520px,calc(100vw - 48px));box-shadow:var(--shadow);background:var(--surface)}
+.voice-panel{position:fixed;right:24px;bottom:24px;z-index:120;width:min(520px,calc(100vw - 48px));box-shadow:var(--shadow);background:var(--panel)}
