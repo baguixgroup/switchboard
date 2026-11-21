@@ -61,6 +61,7 @@ elif MAC:
     pet_app=BUNDLE(pet_coll,name='Laith.app',icon=str(ICONS/'laith.icns'),bundle_identifier='com.baguixgroup.switchboard.laith',version=VERSION,
                   info_plist={'CFBundleName':'Laith','CFBundleDisplayName':'Laith','CFBundleShortVersionString':VERSION,'CFBundleVersion':VERSION,
                               'LSUIElement':True,'LSMinimumSystemVersion':'14.4',
+                              'NSMicrophoneUsageDescription':'Laith uses your microphone only when you start a voice conversation.',
                               'NSLocalNetworkUsageDescription':'Laith connects to your Switchboard hub to handle the tasks you send.'})
     coll = COLLECT(exe("Switchboard", False), a.binaries, a.datas, strip=False, upx=False, name="Switchboard")
     app = BUNDLE(coll, name="Switchboard.app", icon=str(ICONS / "switchboard.icns"),
@@ -74,6 +75,7 @@ elif MAC:
                      # macOS asks once before the app may talk to the hub on your network.
                      "NSLocalNetworkUsageDescription": "Switchboard connects to your Switchboard hub and other computers on your network.",
                      "NSAppleEventsUsageDescription": "Switchboard opens apps such as ChatGPT when a task needs them.",
+                     "NSMicrophoneUsageDescription": "Switchboard uses your microphone only when you start a voice conversation with Laith.",
                  })
 else:
     coll = COLLECT(exe("switchboard", True), a.binaries, a.datas, strip=False, upx=False, name="switchboard")
