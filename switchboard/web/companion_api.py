@@ -1,4 +1,5 @@
 """Authenticated Laith companion endpoints; request plans are stored server-side."""
+from typing import Literal
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
 from ..personalization import (ProfilePatch, PreferenceIn, RevisionIn, AppearanceIn, DecisionIn, ProfileConflict)
@@ -11,12 +12,18 @@ class ChatIn(BaseModel):
 class MessageIn(BaseModel):
     message: str = Field(min_length=1,max_length=12000)
     model: str = Field(default='',max_length=160)
+    effort: Literal['','low','medium','high','xhigh','max'] | None = ''
     ability: str = 'conversation'
     use_memory: bool = True
     use_knowledge: bool = False
     tools: str = 'none'
     billing: str = 'plans_only'
     max_cost_usd: float = 0
+
+
+class PreviewIn(MessageIn):
+    chat_id: str | None = None
+    asset_ids: list[str] = Field(default_factory=list,max_length=4)
 
 
 class SendIn(BaseModel):
@@ -108,6 +115,18 @@ def install_companion_routes(app,engine,auth):
 
     @app.post('/api/laith/chats/{key}/archive',dependencies=deps)
     async def archive(key:str,body:ArchiveIn):return call(c.archive_chat,key,body.archived)
+
+    @app.post('/api/laith/preview',dependencies=deps)
+    async def preview(body:PreviewIn):
+        if body.chat_id:call(c._chat,body.chat_id)
+        hub=engine.capabilities
+        assets=[call(hub.asset,key)[0] for key in body.asset_ids]
+        task=hub.select_task(body.message,assets)
+        if task!='text.generate':
+            row=next((r for r in hub.registry.rows() if r['task']==task and r['configured'] and r['status'] not in ('unavailable','setup_required')),None)
+            return {'task':task,'capability':row,'setup_required':row is None}
+        try:return await c.prepare(body.chat_id,**body.model_dump(exclude={'chat_id','asset_ids'}),preview=True)
+        except ValueError as exc:raise HTTPException(400,str(exc)) from None
 
     @app.post('/api/laith/chats/{key}/prepare',dependencies=deps)
     async def prepare(key:str,body:MessageIn):

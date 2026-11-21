@@ -302,6 +302,9 @@ PAGES.ask = function renderAsk() {
       <div class="composer-bar">
         <button class="ghost icon" id="attach" title="Attach images" aria-label="Attach images">${I("image")}</button>
         <input type="file" id="file" accept="image/*" multiple hidden>
+        <button class="pill" id="whoBtn" type="button" aria-label="Choose AI model">${I("spark")}<span id="whoLabel"></span></button>
+        <button class="pill" id="spendBtn" type="button" aria-label="Choose plans or API spending">${I("wallet")}<span id="spendLabel"></span></button>
+        <button class="pill" id="askEffort" type="button" aria-label="Choose thinking effort">${I("bolt")}<span id="effortLabel"></span></button>
         <button class="ghost icon" id="optBtn" title="Task settings" aria-label="Task settings">${I("sliders")}</button>
         <button class="primary send" id="sendBtn" title="Send" aria-label="Send">${I("send")}</button>
       </div></div>
@@ -321,6 +324,7 @@ PAGES.ask = function renderAsk() {
   $("#attach").onclick = () => $("#file").click();
   $("#file").onchange = addImages;
   $("#optBtn").onclick=()=>{const m=modal({title:'Task settings',body:'<div class="stack"><button id="taskModel">Choose AI model</button><button id="taskSpending">Spending</button><button id="taskTools">Tools and response options</button><button id="taskWriting">Writing assistant</button></div>',foot:'<button data-close>Done</button>'});for(const [id,fn] of [['taskModel',pickWho],['taskSpending',pickSpend],['taskTools',pickOptions],['taskWriting',writingAssistant]])$('#'+id,m.el).onclick=()=>{m.close();fn();};};
+  $("#whoBtn").onclick=pickWho;$("#spendBtn").onclick=pickSpend;$("#askEffort").onclick=pickEffort;
   updateComposerLabels();
   renderChips();
   if (!touch) ta.focus();
@@ -373,6 +377,7 @@ function updateComposerLabels() {
   const m = ASK.who && modelByKey(ASK.who);
   if ($("#whoLabel")) $("#whoLabel").textContent = m ? m.label : "Automatic";
   if ($("#spendLabel")) $("#spendLabel").textContent = SPEND[ASK.billing][0];
+  if($("#effortLabel"))$("#effortLabel").textContent="Effort: "+(ASK.effort||"Auto");
   const extras = [ASK.mode && ASK.mode !== "balanced" ? ASK.mode : "", ASK.effort ? "effort " + ASK.effort : "", Array.isArray(ASK.tools) ? ASK.tools.length + " app(s)" : ""].filter(Boolean);
   if ($("#optLabel")) $("#optLabel").textContent = extras.length ? extras.join(" · ") : "Options";
 }
@@ -691,6 +696,11 @@ function pickSpend() {
     body: `<div class="choice">${Object.entries(SPEND).map(([k, [t, d]]) => `<label><input type="radio" name="spend" value="${k}" ${ASK.billing === k ? "checked" : ""}><b>${t}</b><span>${d}</span></label>`).join("")}</div>
       <p class="tiny muted" style="margin-top:12px">Your default is set in Settings. This choice is remembered on this device.</p>` });
   $$("input[name=spend]", md.el).forEach((r) => (r.onchange = () => { ASK.billing = r.value; store.set("sb_billing", r.value); md.close(); updateComposerLabels(); previewPlan(); }));
+}
+function pickEffort(){
+  const choices=[["","Auto"],["low","Low"],["medium","Medium"],["high","High"],["xhigh","Extra high"],["max","Max"]];
+  const md=modal({title:"Thinking effort",body:`<div class="choice">${choices.map(([value,label])=>`<label><input type="radio" name="askEffort" value="${value}" ${(ASK.effort||"")===value?"checked":""}><b>${label}</b></label>`).join("")}</div><p class="tiny muted">Auto matches the task. Higher effort can take longer; available levels depend on the model.</p>`});
+  $$("input[name=askEffort]",md.el).forEach(input=>input.onchange=()=>{ASK.effort=input.value||null;md.close();updateComposerLabels();previewPlan();});
 }
 function pickOptions() {
   const apps = [...new Set(S.nodes.filter((n) => n.online).flatMap((n) => Object.entries(n.mcp || {}).filter(([, st]) => st.state !== "error").map(([s]) => s)))];

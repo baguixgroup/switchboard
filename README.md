@@ -468,8 +468,8 @@ Learning defaults off. The desktop pet supports optional bounded movement;
 unavailable outfits and expressions use the default lion artwork. Mobile apps
 are on hold. See [scope, privacy boundaries and platform limits](docs/laith-personalization.md).
 
-**Chat comes first.** Switchboard opens to a simple Laith conversation. Model, context and spending
-choices live in Chat settings. The navigation separates Chat, Create, Goals, Activity and Connections;
+**Chat comes first.** Switchboard opens to a simple Laith conversation. Model, plan funding and effort controls stay below the prompt, with a live “Will use…” preview.
+Other preferences live in Chat settings. The navigation separates Chat, Create, Goals, Activity and Connections;
 credits and application preferences stay in the secondary navigation. Chat history opens only when you ask for it.
 
 Laith's Automatic choice uses models that can reply directly. Manual desktop app handoffs stay in

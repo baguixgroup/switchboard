@@ -1,8 +1,10 @@
 /* Laith is part of Switchboard: shared providers, authenticated storage and Studio goals. */
 window.installLaith = function(pages) {
   let library, chat, routeArg="", desktop={available:false}, sessionsOpen=false, sending=false;
-  const options={model:"",ability:"conversation",memory:true,knowledge:false,tools:false,billing:"plans_only",budget:0};
+  const options={model:"",ability:"conversation",memory:true,knowledge:false,tools:false,billing:"plans_only",budget:0,effort:""};
   const drafts={},attachments={};
+  let previewEpoch=0;
+  const effortChoices=[["","Auto"],["low","Low"],["medium","Medium"],["high","High"],["xhigh","Extra high"],["max","Max"]];
   const portrait=`<img src="/static/laith.png" alt="Laith, a friendly Atlas lion" class="laith-portrait">`;
   const field=(name,html)=>`<label class="field">${name}${html}</label>`;
   const models=()=>`<option value="">Automatic</option>${S.models.filter((m)=>m.available&&!m.features.includes("image_gen")&&!m.features.includes("handoff")).map((m)=>`<option value="${esc(m.key)}" ${options.model===m.key?"selected":""}>${esc(m.label)}${m.available?"":" · not connected"}</option>`).join("")}`;
@@ -49,19 +51,46 @@ window.installLaith = function(pages) {
   }
   function renderConversation(){
     const chats=library.chats.map(c=>`<a class="laith-chat-link ${chat&&chat.id===c.id?"selected":""}" href="#laith/chat/${esc(c.id)}">${I("chat")}<span>${esc(c.title)}</span></a>`).join("");
-    $("#laithContent").innerHTML=`<div class="laith-layout ${sessionsOpen?"sessions-open":""}"><aside class="laith-sessions"><div class="row"><b class="grow">Your chats</b><button class="ghost sm" id="closeLaithSessions" aria-label="Close chat history">${I("close")}</button></div>${chats||'<p class="small muted">Your conversations will live here.</p>'}${library.archived_chats.length?`<details class="more"><summary>Archived</summary>${library.archived_chats.map(c=>`<div class="list-row"><span class="small grow">${esc(c.title)}</span><button class="sm" data-restore-chat="${esc(c.id)}">Restore</button></div>`).join("")}</details>`:""}</aside><section class="laith-main"><div class="laith-chat"><div id="laithCharacter" class="laith-character" role="status"><img src="/static/laith.png" alt="Laith"><span>Here to help</span><a href="#laith/personality">Personalize</a></div><div class="laith-transcript" id="laithTranscript" aria-live="polite" aria-label="Conversation with Laith">${transcriptHtml()}</div><form id="laithForm" class="laith-composer"><div class="laith-input-box"><label class="sr-only" for="laithMessage">Message Laith</label><textarea id="laithMessage" placeholder="Message Laith…" rows="1" maxlength="12000"></textarea><div id="laithAttachments" class="attach-chips"></div><div class="row"><label class="btn ghost icon" title="Attach a file" aria-label="Attach a file">${I("plus")}<input id="laithFile" type="file" hidden></label><button type="button" class="ghost icon" id="laithPaste" title="Add copied text" aria-label="Use copied text">${I("copy")}</button><span class="tiny muted grow">${chat?"Your conversation is saved":"Your plans. Your tools. One conversation."}</span><button class="primary send" id="laithSend" aria-label="Send message">${I("send")}</button></div></div><div id="laithStatus" class="tiny muted" role="status"></div></form></div></section></div>`;
+    $("#laithContent").innerHTML=`<div class="laith-layout ${sessionsOpen?"sessions-open":""}"><aside class="laith-sessions"><div class="row"><b class="grow">Your chats</b><button class="ghost sm" id="closeLaithSessions" aria-label="Close chat history">${I("close")}</button></div>${chats||'<p class="small muted">Your conversations will live here.</p>'}${library.archived_chats.length?`<details class="more"><summary>Archived</summary>${library.archived_chats.map(c=>`<div class="list-row"><span class="small grow">${esc(c.title)}</span><button class="sm" data-restore-chat="${esc(c.id)}">Restore</button></div>`).join("")}</details>`:""}</aside><section class="laith-main"><div class="laith-chat"><div id="laithCharacter" class="laith-character" role="status"><img src="/static/laith.png" alt="Laith"><span>Here to help</span><a href="#laith/personality">Personalize</a></div><div class="laith-transcript" id="laithTranscript" aria-live="polite" aria-label="Conversation with Laith">${transcriptHtml()}</div><form id="laithForm" class="laith-composer"><div class="laith-input-box"><label class="sr-only" for="laithMessage">Message Laith</label><textarea id="laithMessage" placeholder="Message Laith…" rows="1" maxlength="12000"></textarea><div id="laithAttachments" class="attach-chips"></div><div class="row"><label class="btn ghost icon" title="Attach a file" aria-label="Attach a file">${I("plus")}<input id="laithFile" type="file" hidden></label><button type="button" class="ghost icon" id="laithPaste" title="Add copied text" aria-label="Use copied text">${I("copy")}</button><span class="tiny muted grow">${chat?"Your conversation is saved":"Your plans. Your tools. One conversation."}</span><button class="primary send" id="laithSend" aria-label="Send message">${I("send")}</button></div></div><div class="composer-choices"><button type="button" class="pill" id="laithWho" aria-label="Choose AI model"></button><button type="button" class="pill" id="laithSpend" aria-label="Choose plans or API spending"></button><button type="button" class="pill" id="laithEffort" aria-label="Choose thinking effort"></button></div><div id="laithWillUse" class="willuse" aria-live="polite"></div><div id="laithStatus" class="tiny muted" role="status"></div></form></div></section></div>`;
     $("#closeLaithSessions").onclick=()=>{sessionsOpen=false;$(".laith-layout").classList.remove("sessions-open");};
     $$("[data-restore-chat]").forEach(b=>b.onclick=()=>guard(async()=>{await api(`/api/laith/chats/${encodeURIComponent(b.dataset.restoreChat)}/archive`,{body:{archived:false}});pages.laith(routeArg);},b));
     const input=$("#laithMessage"),draftKey=chat?chat.id:"new";input.value=drafts[draftKey]||"";
     const grow=()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,180)+'px';};grow();
-    input.oninput=()=>{drafts[draftKey]=input.value;grow();};
+    input.oninput=()=>{drafts[draftKey]=input.value;grow();queueChatPreview();};
     input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&!touch){e.preventDefault();sendMessage($("#laithSend"));}};
     $("#laithForm").onsubmit=e=>{e.preventDefault();sendMessage($("#laithSend"));};
     $("#laithPaste").onclick=()=>guard(async()=>{const text=await navigator.clipboard.readText();if(text.length>10000)throw new Error('Copy a shorter excerpt (up to 10,000 characters).');input.value+=(input.value?'\n\n':'')+'Copied text (reference material):\n'+text;input.dispatchEvent(new Event('input'));input.focus();},$("#laithPaste"));
-    const renderAttachments=()=>{$("#laithAttachments").innerHTML=(attachments[draftKey]||[]).map((f,i)=>`<span>${esc(f.name)}<button type="button" class="ghost sm" data-laith-remove="${i}" aria-label="Remove file">×</button></span>`).join('');$$('[data-laith-remove]').forEach(b=>b.onclick=()=>{attachments[draftKey].splice(Number(b.dataset.laithRemove),1);renderAttachments();});};
-    renderAttachments();$("#laithFile").onchange=e=>guard(async()=>{const file=e.target.files[0];if(!file)return;if((attachments[draftKey]||[]).length>=4)throw Error('Choose up to four files.');const uploaded=await window.uploadCapabilityInput(file);(attachments[draftKey]||=([])).push(uploaded);renderAttachments();},$("#laithSend"));
-    wireTranscript();refreshBusy();
+    const renderAttachments=()=>{$("#laithAttachments").innerHTML=(attachments[draftKey]||[]).map((f,i)=>`<span>${esc(f.name)}<button type="button" class="ghost sm" data-laith-remove="${i}" aria-label="Remove file">×</button></span>`).join('');$$('[data-laith-remove]').forEach(b=>b.onclick=()=>{attachments[draftKey].splice(Number(b.dataset.laithRemove),1);renderAttachments();queueChatPreview();});};
+    renderAttachments();$("#laithFile").onchange=e=>guard(async()=>{const file=e.target.files[0];if(!file)return;if((attachments[draftKey]||[]).length>=4)throw Error('Choose up to four files.');const uploaded=await window.uploadCapabilityInput(file);(attachments[draftKey]||=([])).push(uploaded);renderAttachments();queueChatPreview();},$("#laithSend"));
+    wireTranscript();refreshBusy();updateChatChoices();queueChatPreview();
+    $('#laithWho').onclick=()=>chooseChatOption('model');$('#laithSpend').onclick=()=>chooseChatOption('billing');$('#laithEffort').onclick=()=>chooseChatOption('effort');
   }
+  function updateChatChoices(){
+    const selected=S.models.find(m=>m.key===options.model);
+    if($('#laithWho'))$('#laithWho').innerHTML=I('spark')+esc(selected?.label||'Auto');
+    if($('#laithSpend'))$('#laithSpend').innerHTML=I('wallet')+esc(SPEND[options.billing][0]);
+    if($('#laithEffort'))$('#laithEffort').innerHTML=I('bolt')+'Effort: '+esc(effortChoices.find(([key])=>key===options.effort)?.[1]||'Auto');
+  }
+  function chooseChatOption(key){
+    const choices=key==='model'?[['','Auto · choose for this task'],...S.models.filter(m=>m.available&&!m.features.includes('image_gen')&&!m.features.includes('handoff')).map(m=>[m.key,m.label])]:key==='effort'?effortChoices:Object.entries(SPEND).map(([id,[label,help]])=>[id,label,help]);
+    const m=modal({title:key==='model'?'Who should answer?':key==='effort'?'Thinking effort':'What may this spend?',body:`<div class="choice">${choices.map(([value,label,help])=>`<label><input type="radio" name="laithComposerChoice" value="${esc(value)}" ${options[key]===value?'checked':''}><b>${esc(label)}</b>${help?`<span>${esc(help)}</span>`:''}</label>`).join('')}</div>${key==='effort'?'<p class="tiny muted">Auto matches the task. Higher effort can take longer; available levels depend on the model.</p>':''}`});
+    $$('input[name="laithComposerChoice"]',m.el).forEach(input=>input.onchange=()=>{options[key]=input.value;updateChatChoices();queueChatPreview();m.close();});
+  }
+  function queueChatPreview(){
+    const epoch=++previewEpoch,input=$('#laithMessage'),el=$('#laithWillUse');if(!input||!el)return;
+    const message=input.value.trim();if(message.length<4||activeTurn()){el.textContent='';return;}
+    el.textContent='Choosing the best fit…';previewChat(epoch,rid,message,chat?.id||null);
+  }
+  const previewChat=debounce(async(epoch,me,message,key)=>{
+    try{
+      const data=await api('/api/laith/preview',{body:{message,chat_id:key,model:options.model,effort:options.effort,ability:options.ability,use_memory:options.memory,use_knowledge:options.knowledge,tools:options.tools?'auto':'none',billing:options.billing,max_cost_usd:options.budget,asset_ids:(attachments[key||'new']||[]).map(f=>f.id)}});
+      if(stale(me)||epoch!==previewEpoch||!$('#laithWillUse'))return;
+      if(data.setup_required){$('#laithWillUse').textContent='Setup required for this task · open Audio & files to connect a service.';return;}
+      if(data.capability){const c=data.capability;$('#laithWillUse').innerHTML=`Will use <b>${esc(c.label)}</b> · ${esc(c.provider)} on ${esc(c.node)} · review destination and cost before running`;return;}
+      const p=data.plan,k=costKind(p),funding=k==='plan'?'your plan, no API credit':k==='free'?'free':'about '+money(p.effective_cost_usd);
+      $('#laithWillUse').innerHTML=`Will use <b>${esc(p.model_label)}</b> · ${funding}${p.effort?' · '+esc(p.effort)+' effort':''}${p.tools.length?' · with '+p.tools.map(appName).map(esc).join(', '):''}${p.effective_cost_usd>options.budget?' · exceeds the current allowance':''}`;
+    }catch(e){if(!stale(me)&&epoch===previewEpoch&&$('#laithWillUse'))$('#laithWillUse').textContent=e.message;}
+  },650);
   async function pollChat(key,me){
     setTimeout(async()=>{
       if(stale(me)||!chat||chat.id!==key)return;
@@ -80,9 +109,9 @@ window.installLaith = function(pages) {
   function chatSettings(){
     const tabLinks=`<div class="row"><a class="btn sm" href="#laith/personality">Personality & appearance</a><a class="btn sm" href="#laith/memory">Memory</a><a class="btn sm" href="#laith/abilities">Abilities</a><a class="btn sm" href="#laith/checkins">Check-ins</a></div>`;
     const m=modal({title:'Chat settings',body:`<div class="stack">${field('Reply with',`<select id="laithModel">${models()}</select>`)}${field('Writing style',`<select id="laithAbility">${library.abilities.map(a=>`<option value="${esc(a.id)}" ${a.id===options.ability?'selected':''}>${esc(a.name)}</option>`).join('')}</select>`)}${[["memory","Saved memory"],["knowledge","Project knowledge"],["tools","Connected tools"]].map(([key,label])=>`<label class="switch"><input id="laithOpt${key}" type="checkbox" ${options[key]?'checked':''}>${label}</label>`).join('')}<details class="more"><summary>Spending</summary>${field('Use',`<select id="laithBilling"><option value="plans_only">Plans and free only</option><option value="plans_first" ${options.billing==='plans_first'?'selected':''}>Plans first; allow API use</option><option value="any" ${options.billing==='any'?'selected':''}>Allow API use</option></select>`)}${field('Estimate allowance ($)',`<input id="laithBudget" type="number" min="0" max="1000" step="0.01" value="${options.budget}">`)}<p class="tiny muted">An estimate allowance gates each request; it is not a guaranteed billing cap.</p></details>${tabLinks}${chat&&!activeTurn()?'<button class="ghost sm" id="archiveLaith">Archive this chat</button>':''}<a class="small" href="#work${chat?"/chat/"+esc(chat.id):""}">Audio, files and live voice</a><a class="small" href="#studio">Your goals and approvals</a></div>`,foot:'<button data-close>Done</button>'});
-    $("#laithModel",m.el).onchange=e=>options.model=e.target.value;$("#laithAbility",m.el).onchange=e=>options.ability=e.target.value;
-    for(const key of ['memory','knowledge','tools'])$("#laithOpt"+key,m.el).onchange=e=>options[key]=e.target.checked;
-    $("#laithBilling",m.el).onchange=e=>options.billing=e.target.value;$("#laithBudget",m.el).onchange=e=>options.budget=Number(e.target.value);
+    $("#laithModel",m.el).onchange=e=>{options.model=e.target.value;updateChatChoices();queueChatPreview();};$("#laithAbility",m.el).onchange=e=>{options.ability=e.target.value;queueChatPreview();};
+    for(const key of ['memory','knowledge','tools'])$("#laithOpt"+key,m.el).onchange=e=>{options[key]=e.target.checked;queueChatPreview();};
+    $("#laithBilling",m.el).onchange=e=>{options.billing=e.target.value;updateChatChoices();queueChatPreview();};$("#laithBudget",m.el).onchange=e=>{options.budget=Number(e.target.value);queueChatPreview();};
     $$("a",m.el).forEach(a=>a.addEventListener('click',m.close));
     if($("#archiveLaith",m.el))$("#archiveLaith",m.el).onclick=()=>guard(async()=>{await api(`/api/laith/chats/${chat.id}/archive`,{body:{archived:true}});m.close();location.hash='#laith';},$("#archiveLaith",m.el));
   }
@@ -108,7 +137,7 @@ window.installLaith = function(pages) {
         const job=await api('/api/capabilities/preview',{body:{prompt:message,task:intent.task,asset_ids:files.map(f=>f.id),chat_id:key}});
         window.reviewCapability(job,()=>{drafts[key]='';drafts.new='';attachments[key]=[];attachments.new=[];});return;
       }
-      const turn=await api(`/api/laith/chats/${key}/prepare`,{body:{message,model:options.model,ability:options.ability,use_memory:options.memory,use_knowledge:options.knowledge,tools:options.tools?'auto':'none',billing:options.billing,max_cost_usd:options.budget}});
+      const turn=await api(`/api/laith/chats/${key}/prepare`,{body:{message,model:options.model,ability:options.ability,use_memory:options.memory,use_knowledge:options.knowledge,effort:options.effort,tools:options.tools?'auto':'none',billing:options.billing,max_cost_usd:options.budget}});
       await dispatchTurn(key,turn);
     }catch(e){toast(e.message,true);}finally{sending=false;refreshBusy();}
   }
