@@ -53,6 +53,8 @@ class Engine:
         self.studio = Studio(self)
         from .companion import Companion
         self.companion = Companion(self)
+        from .capabilities.hub import CapabilityHub
+        self.capabilities = CapabilityHub(self)
 
     # ---- discovery ----------------------------------------------------------------
     def available_providers(self, refresh: bool = False) -> set[str]:
@@ -683,6 +685,7 @@ class Engine:
             await asyncio.sleep(every)
 
     async def close(self) -> None:
+        await self.capabilities.close()
         await self.studio.close()
         for t in list(self.running.values()) + list(self._bg):
             t.cancel()

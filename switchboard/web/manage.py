@@ -140,6 +140,9 @@ def register(app: FastAPI, engine, auth) -> None:
             env = (p or {}).get("api_key_env")
             if env and not (p or {}).get("disabled"):
                 used.setdefault(env, []).append(name)
+        for service in cfg.raw.get('capability_services',[]):
+            env=service.get('secret_env')
+            if env:used.setdefault(env,[]).append(service.get('id','service'))
         names = list(dict.fromkeys(list(used) + list(KEY_INFO)))
         return [{"name": n, "label": KEY_INFO.get(n, (n, ""))[0], "url": KEY_INFO.get(n, ("", ""))[1],
                  "set": bool(cfg.secret(n)), "used_by": used.get(n, [])} for n in names]

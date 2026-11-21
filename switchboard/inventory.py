@@ -234,7 +234,9 @@ async def build_inventory(config, mcp_hub=None, start_mcp: bool = True) -> dict:
         for name, st in status.items():
             mcp[name] = dict(st, tool_list=all_tools.get(name, []))
     from .remote_install import routes
+    from .capabilities.registry import local_inventory
     return {
+        "capability_tools": local_inventory(),
         "install_routes": routes(config),
         "node": config.node_name, "role": config.role, "platform": platform_tag(), "os": platform.platform(),
         "arch": platform.machine(), "python": sys.version.split()[0], "version": __version__,

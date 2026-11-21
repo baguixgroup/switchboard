@@ -13,11 +13,11 @@ VENV="build/venv-macos-$ARCH"
 if command -v uv >/dev/null || [ -x "$HOME/.local/bin/uv" ]; then
   UV="$(command -v uv || echo "$HOME/.local/bin/uv")"
   [ -x "$VENV/bin/python" ] || "$UV" venv -q -p "$PYVER" "$VENV"
-  VIRTUAL_ENV="$VENV" "$UV" pip install -q --only-binary cryptography ".[tray]" "pyinstaller>=6.10"
+  VIRTUAL_ENV="$VENV" "$UV" pip install -q --only-binary cryptography ".[tray,documents]" "pyinstaller>=6.10"
 else
   [ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
   "$VENV/bin/pip" install -q --upgrade pip
-  "$VENV/bin/pip" install -q --only-binary cryptography ".[tray]" "pyinstaller>=6.10"
+  "$VENV/bin/pip" install -q --only-binary cryptography ".[tray,documents]" "pyinstaller>=6.10"
 fi
 
 "$VENV/bin/python" packaging/make_icons.py

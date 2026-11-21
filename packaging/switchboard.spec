@@ -12,11 +12,11 @@ VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "switchboard" / "__init_
 ICONS = ROOT / "build" / "icons"
 WIN, MAC = sys.platform.startswith("win"), sys.platform == "darwin"
 
-hidden = (collect_submodules("switchboard") + collect_submodules("uvicorn") + collect_submodules("mcp", filter=lambda n: not n.startswith("mcp.cli"))
+hidden = (collect_submodules("switchboard") + collect_submodules("pypdf") + collect_submodules("uvicorn") + collect_submodules("mcp", filter=lambda n: not n.startswith("mcp.cli"))
           + collect_submodules("pystray") + (collect_submodules("webview") if (WIN or MAC) else []))
 datas = collect_data_files("switchboard")
 datas += [(str(p),'licenses') for p in (ROOT/'packaging/licenses').glob('*.txt')]
-for dist in ("switchboard-ai", "mcp", "fastapi", "starlette", "pydantic", "anthropic", "openai", "httpx", "uvicorn"):
+for dist in ("switchboard-ai", "pypdf", "mcp", "fastapi", "starlette", "pydantic", "anthropic", "openai", "httpx", "uvicorn"):
     try:
         datas += copy_metadata(dist)  # packages that read their own version via importlib.metadata
     except Exception:

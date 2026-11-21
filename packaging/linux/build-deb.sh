@@ -14,11 +14,11 @@ VENV="build/venv-linux-$ARCH"
 UV="$(command -v uv || echo "$HOME/.local/bin/uv")"
 if [ -x "$UV" ]; then
   [ -x "$VENV/bin/python" ] || "$UV" venv -q -p "$PYVER" "$VENV"
-  VIRTUAL_ENV="$VENV" "$UV" pip install -q . "pyinstaller>=6.10"
+  VIRTUAL_ENV="$VENV" "$UV" pip install -q ".[documents]" "pyinstaller>=6.10"
 else
   [ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
   "$VENV/bin/pip" install -q --upgrade pip
-  "$VENV/bin/pip" install -q . "pyinstaller>=6.10"
+  "$VENV/bin/pip" install -q ".[documents]" "pyinstaller>=6.10"
 fi
 "$VENV/bin/pyinstaller" --noconfirm --clean --log-level WARN --distpath dist --workpath build/pyinstaller packaging/switchboard.spec
 

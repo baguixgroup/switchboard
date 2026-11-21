@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 import httpx
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 log = logging.getLogger("switchboard.localproxy")
@@ -73,6 +73,13 @@ def build_proxy_app(config) -> Starlette:
             headers["Authorization"] = f"Bearer {config.token}"
         url = path + (f"?{request.url.query}" if request.url.query else "")
         try:
+            if request.method=='GET' and path.startswith('/api/capabilities/jobs/') and path.endswith('/events'):
+                upstream=await client.send(client.build_request('GET',url,headers=headers),stream=True)
+                async def chunks():
+                    try:
+                        async for chunk in upstream.aiter_bytes():yield chunk
+                    finally:await upstream.aclose()
+                return StreamingResponse(chunks(),status_code=upstream.status_code,headers={k:v for k,v in upstream.headers.items() if k.lower() in PASS_RESP})
             r = await client.request(request.method, url, content=await request.body(), headers=headers)
         except httpx.HTTPError as exc:
             log.warning("hub unreachable: %s", exc)

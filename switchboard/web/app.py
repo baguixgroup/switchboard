@@ -106,6 +106,8 @@ def create_app(engine) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        engine.capabilities.recover()
+        await app.state.recover_capability_voice()
         engine.studio.recover()
         for task in engine.store.recent_tasks(limit=10000):
             if task["status"] in ("queued", "running") and (task.get("plan") or {}).get("kind") == "installation":
@@ -421,4 +423,6 @@ def create_app(engine) -> FastAPI:
 
     register_manage(app, engine, auth)
     register_pairing(app, engine, auth)
+    from .capability_api import register as register_capabilities
+    register_capabilities(app,engine,auth)
     return app

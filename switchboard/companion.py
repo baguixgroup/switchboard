@@ -59,6 +59,10 @@ class Companion:
         if not child:
             turn.update(status='interrupted',error='This request is no longer available. You can send it again.');self.persist(turn);return turn
         status=child['status']
+        if turn.get('capability_job'):
+            capability=self.engine.capabilities.get(turn['task_id']);status=capability['status']
+            turn['capability_files']=capability.get('files',[])
+            if capability.get('answer'):child=dict(child,result=capability['answer'])
         if status in ('queued','running') and turn['task_id'] not in self.engine.running:
             status='interrupted'
         turn.update(status=status,answer=child.get('result') or '',error=child.get('error'),cost_usd=child.get('cost_usd') or 0)
@@ -183,6 +187,7 @@ class Companion:
                 raise ValueError('Choose a request that is waiting for an app or did not finish.')
             if any(t['id']!=turn_id and t['status'] in ('queued','running','waiting') for t in turns):
                 raise ValueError('Another request is already active.')
+            if old.get('capability_job'):raise ValueError('Open this request in the media workspace to inspect and retry it.')
             plan=await self.engine.plan(old['prompt'],tools='auto' if old['tools_enabled'] else 'none',billing=old['plan']['billing'],direct_only=True)
             if plan.effective_cost_usd>old['max_cost_usd']+1e-9:raise ValueError('No direct reply fits the original allowance. Choose a plan model in chat settings.')
             if old['status']=='waiting':

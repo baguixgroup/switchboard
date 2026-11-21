@@ -520,3 +520,7 @@ not factual correctness; human review remains a separate step.
 Laith's **On your radar** shows observed team states and machine connectivity. **Check-ins** are
 persistent one-time or repeating in-app reminders, visible while Laith is open; they never call a
 model, start a goal or send an external message by themselves.
+
+### Audio, documents, voice and media
+
+**Audio & files** provides reviewed jobs for document reading, OCR, transcription, editable meeting notes, speech, live voice, image/video workers and inference services. Attach files directly to Laith to route a request into the same workflow. Results appear in your conversation, Activity and output folder. See [setup, compatibility and limits](docs/capabilities.md). Optional services show **Setup required** until connected; API spending always needs the applicable approval.

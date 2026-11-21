@@ -13,7 +13,7 @@ if (-not (Test-Path "$Venv\Scripts\python.exe")) {
 }
 $Py = "$Venv\Scripts\python.exe"
 & $Py -m pip install --quiet --upgrade pip
-& $Py -m pip install --quiet ".[tray]" "pyinstaller>=6.10"
+& $Py -m pip install --quiet ".[tray,documents]" "pyinstaller>=6.10"
 if ($LASTEXITCODE) { throw "pip install failed" }
 
 & $Py packaging\make_icons.py

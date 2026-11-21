@@ -20,6 +20,9 @@ class Executor:
         self.mcp = mcp_hub
 
     async def execute(self, kind: str, payload: dict) -> dict:
+        if kind == "capability_execute":
+            from .capabilities.machine import execute
+            return await execute(self.config,payload)
         if kind == "ping":
             return {"pong": True, "node": self.config.node_name}
         if kind == "inventory":

@@ -259,7 +259,7 @@ function updateBadges() {
 }
 
 // ---------------------------------------------------------------- navigation
-const NAV = [["laith","Chat","chat"],["ask","Create","spark"],["studio","Goals","puzzle"],["history","Activity","history"],["machines","Connections","monitor"],["plans","Plans & credits","wallet"],["settings","Settings","sliders"]];
+const NAV = [["laith","Chat","chat"],["ask","Create","spark"],["studio","Goals","puzzle"],["history","Activity","history"],["machines","Connections","monitor"],["work","Audio & files","folder"],["plans","Plans & credits","wallet"],["settings","Settings","sliders"]];
 function buildNav() {
   const item=([id,label,icon])=>`<a href="#${id}" data-page="${id}">${I(icon)}<span>${label}</span>${id==='plans'?'<span class="count hide" data-count="plans"></span>':''}</a>`;
   $("#nav").innerHTML=NAV.slice(0,5).map(item).join('')+'<div class="nav-extra">'+NAV.slice(5).map(item).join('')+'</div>';
@@ -267,6 +267,7 @@ function buildNav() {
   $("#mobileMore").onclick=()=>{const m=modal({title:'Your workspace',body:NAV.slice(4).map(item).join(''),foot:'<button data-close>Done</button>'});$$("a",m.el).forEach(a=>a.addEventListener('click',m.close));};
 }
 const PAGES = {};
+if (window.installCapabilities) window.installCapabilities(PAGES);
 if (window.installStudio) window.installStudio(PAGES);
 if (window.installLaith) window.installLaith(PAGES);
 let rid = 0;
@@ -292,6 +293,7 @@ PAGES.ask = function renderAsk() {
   ASK.billing = ASK.billing || store.get("sb_billing") || (S.status && S.status.router.billing) || "plans_first";
   view.innerHTML = `<div class="ask">
     <div class="row" id="askBar" style="margin-bottom:6px;min-height:30px"></div>
+    <p class="small"><a href="#work">Work with audio, documents, video or model services →</a></p>
     <div id="askTop"></div>
     <div class="thread" id="thread"></div>
     <div class="composer"><div class="composer-box">
@@ -462,7 +464,7 @@ function msgHtml(m, i) {
   const t = m.task || {};
   const exec = (t.plan && t.plan.executed) || "";
   const label = exec && exec !== p.provider + ":" + p.model ? (modelByKey(exec) || { label: exec }).label + " (fallback)" : p.model_label || "Switchboard";
-  const meta = m.state === "done" ? `<span>· ${money(t.cost_usd)}</span>` : "";
+  const meta = m.state === "done" ? `<span>· ${p.usage_cost_unknown?"Cost not reconciled":money(t.cost_usd)}</span>` : "";
   return `<div class="msg ai"><div class="body"><div class="msg-head"><span class="who">${esc(label)}</span>${p.provider ? kindBadge(p) : ""}${p.effort ? `<span class="badge">${I("bolt")} ${esc(p.effort)}</span>` : ""}${meta}${where}</div>${body}</div></div>`;
 }
 const addFileBtn = (id, label = "Add a file") => `<label class="btn sm ghost" style="cursor:pointer">${I("plus")} ${label}<input type="file" hidden data-addfile="${esc(id)}"></label>`;
@@ -734,7 +736,7 @@ PAGES.history = async function renderHistory(arg) {
       const exec = (t.plan && (t.plan.executed || (t.plan.provider + ":" + t.plan.model))) || "";
       const ml = (modelByKey(exec) || { label: (t.plan && t.plan.model_label) || exec }).label;
       return `<a class="list-row" href="#history/${encodeURIComponent(t.id)}" style="color:inherit;text-decoration:none">
-        <div class="grow"><div class="ellipsis"><b>${esc((t.prompt || "").slice(0, 160))}</b></div><div class="small muted">${esc(ml)} · ${money(t.cost_usd)} · ${ago(t.ts)}</div></div>${st}</a>`;
+        <div class="grow"><div class="ellipsis"><b>${esc((t.prompt || "").slice(0, 160))}</b></div><div class="small muted">${esc(ml)} · ${(t.plan||{}).usage_cost_unknown?"Cost not reconciled":money(t.cost_usd)} · ${ago(t.ts)}</div></div>${st}</a>`;
     }).join("") : `<div class="empty"><b>${q ? "Nothing matches" : "No tasks yet"}</b>${q ? "Try another word." : 'Ask something on the <a href="#ask">Ask</a> page.'}</div>`;
   };
   draw();
@@ -752,7 +754,7 @@ async function renderTask(id) {
   view.innerHTML = `<div class="row" style="margin-bottom:14px"><a class="btn sm" href="#history">${I("back")} History</a><div class="grow"></div>
       <button class="sm" id="again">${I("refresh")} Ask again</button><button class="sm primary" id="cont">${I("chat")} Continue this chat</button></div>
     <div class="msg user"><div class="bubble">${esc(t.prompt)}</div></div>
-    <div class="msg ai"><div class="body"><div class="msg-head"><span class="who">${esc(p.model_label || "")}</span>${p.provider ? kindBadge(p) : ""}<span>· ${money(t.cost_usd)} · ${ago(t.ts)}</span></div>
+    <div class="msg ai"><div class="body"><div class="msg-head"><span class="who">${esc(p.model_label || "")}</span>${p.provider ? kindBadge(p) : ""}<span>· ${p.usage_cost_unknown?"Cost not reconciled":money(t.cost_usd)} · ${ago(t.ts)}</span></div>
       ${t.status === "failed" ? `<div class="alert critical">${I("alert")}<div class="m" style="white-space:pre-wrap">${esc(t.error)}</div></div>` : `<div class="md">${md(t.result)}</div>`}
       ${t.status === "waiting" ? handoffHtml(t) : ""}
       ${filesHtml(t.id, files)}${detailsHtml(t, p)}</div></div>`;
