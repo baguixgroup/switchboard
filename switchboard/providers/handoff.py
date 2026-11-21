@@ -1,6 +1,6 @@
 """Hand a task to a plan's own app (ChatGPT, Grok) when no command-line route exists, e.g. image generation.
 
-The task waits: you open the app (Switchboard can open it on any of your computers with the prompt on the
+The task waits: you open the app (Tazrivo can open it on any of your computers with the prompt on the
 clipboard), make the image on your plan, and save it. The agent on that computer notices the new file in
 its Downloads folder (or a folder you choose) and attaches it to the task. You can also add it by hand.
 """
@@ -46,10 +46,10 @@ class HandoffProvider(Provider):
             return RunResult(text=text, provider=self.name, model=req.model.id, stop_reason="handoff",
                              handoff={"app": self.name, "label": label, "prompt": prompt, "task_type": "writing",
                                       "url": self.cfg.get("url", ""), "windows_app": label, "mac_app": label})
-        text = (f"**Waiting for you — manual {label} handoff.** Switchboard has not generated an image.\n\n"
+        text = (f"**Waiting for you — manual {label} handoff.** Tazrivo has not generated an image.\n\n"
                 f"Prompt (copied for you when you open {label}):\n\n> {prompt}\n\n"
                 f"Open {label} on one of your computers below, create the image, and save it to that computer's "
-                f"Downloads folder. Switchboard attaches it here automatically. You can also use **Add a file**.")
+                f"Downloads folder. Tazrivo attaches it here automatically. You can also use **Add a file**.")
         return RunResult(text=text, provider=self.name, model=req.model.id, stop_reason="handoff",
                          handoff={"app": self.name, "label": label, "prompt": prompt, "url": self.cfg.get("url", ""),
                                   "windows_app": self.cfg.get("windows_app", label), "mac_app": self.cfg.get("mac_app", label)})

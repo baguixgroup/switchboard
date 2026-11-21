@@ -66,19 +66,21 @@ def is_frozen() -> bool:
 
 
 def self_command(*args: str, gui: bool = False) -> list[str]:
-    """argv that runs this Switchboard with `args`, from source or from the packaged app.
+    """argv that runs this Tazrivo with `args`, from source or from the packaged app.
 
-    gui=True picks the window-less program on Windows (Switchboard.exe, no console flash) for
+    gui=True picks the window-less program on Windows (Tazrivo.exe, no console flash) for
     background services; terminal use and MCP stdio servers need the console one.
     """
     if not is_frozen():
         return [sys.executable, "-m", "switchboard", *args]
     exe = Path(sys.executable)
     if os_family() == 'macos' and exe.name == 'Laith' and len(exe.parents)>4 and exe.parents[3].name=='Helpers':
-        main=exe.parents[4]/'MacOS'/'Switchboard'
-        if main.exists():exe=main
+        for name in ('Tazrivo','Switchboard'):
+            main=exe.parents[4]/'MacOS'/name
+            if main.exists():exe=main;break
     if os_family() == "windows":
-        want = exe.with_name("Switchboard.exe" if gui else "switchboard-cli.exe")
-        if want.exists():
-            exe = want
+        names = ('Tazrivo.exe','Switchboard.exe') if gui else ('tazrivo-cli.exe','switchboard-cli.exe')
+        for name in names:
+            want=exe.with_name(name)
+            if want.exists():exe=want;break
     return [str(exe), *args]

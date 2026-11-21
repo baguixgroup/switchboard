@@ -14,7 +14,7 @@ import httpx
 from .config import Config, default_text, read_env_file, write_env_value
 from .paths import platform_tag
 
-SECRETS_TEMPLATE = """# Switchboard secrets for this machine. Never commit or share this file.
+SECRETS_TEMPLATE = """# Tazrivo secrets for this machine. Never commit or share this file.
 # The token must be identical on the hub and every agent.
 SWITCHBOARD_TOKEN={token}
 
@@ -82,7 +82,7 @@ def check_hub(url: str, timeout: float = 5) -> dict:
         r.raise_for_status()
         data = r.json()
     except (httpx.HTTPError, ValueError):
-        raise SetupError(f"No Switchboard hub answered at {url}. Check the address and that the hub is on.") from None
+        raise SetupError(f"No Tazrivo hub answered at {url}. Check the address and that the hub is on.") from None
     return {"url": url, "name": data.get("node", "")}
 
 

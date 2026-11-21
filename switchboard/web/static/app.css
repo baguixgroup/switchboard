@@ -329,3 +329,8 @@ pre.out { white-space: pre-wrap; word-break: break-word; background: var(--code)
 
 /* Primary per-request choices stay beside the composer. */
 .composer-choices{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:9px 3px 0}.composer-choices .pill,.composer-bar .pill{font-size:12px;padding:5px 10px;min-height:30px;background:transparent}.composer-choices svg{width:14px;height:14px}.laith-composer .willuse{min-height:20px;padding:5px 4px 0;font-size:11px}.laith-composer #laithStatus:empty{min-height:4px;padding:0}@media(max-width:650px){.composer-choices{gap:4px}.composer-choices .pill,.composer-bar .pill{font-size:11px;padding:5px 8px}}
+
+/* Tazrivo Converge palette. */
+:root{--accent:#173d35;--accent-soft:#e7efeb;--bg:#faf8f5}.brand{font-weight:650;letter-spacing:-.5px}.brand img{width:32px;height:32px}
+:root[data-theme="dark"]{--bg:#101b18;--panel:#15251f;--panel-2:#1b2f27;--ink:#f8f5ed;--ink-2:#e0e9e3;--muted:#aabcb1;--line:#284338;--line-2:#3b594b;--accent:#e1ab80;--accent-soft:#324639;--accent-ink:#101b18}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101b18;--panel:#15251f;--panel-2:#1b2f27;--ink:#f8f5ed;--ink-2:#e0e9e3;--muted:#aabcb1;--line:#284338;--line-2:#3b594b;--accent:#e1ab80;--accent-soft:#324639;--accent-ink:#101b18}}

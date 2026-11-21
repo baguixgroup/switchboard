@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build Switchboard.app and Switchboard-<version>-macos-<arch>.dmg (Python included).
+# Build Tazrivo.app and Tazrivo-<version>-macos-<arch>.dmg (Python included).
 #   bash packaging/macos/build.sh
 # Needs: uv (https://docs.astral.sh/uv) or Python 3.11+ on PATH. Builds for this Mac's CPU (x86_64 or arm64).
 set -euo pipefail
@@ -23,7 +23,7 @@ fi
 "$VENV/bin/python" packaging/make_icons.py
 "$VENV/bin/pyinstaller" --noconfirm --clean --log-level WARN --distpath dist --workpath build/pyinstaller packaging/switchboard.spec
 
-APP="dist/Switchboard.app"
+APP="dist/Tazrivo.app"
 mkdir -p "$APP/Contents/Helpers"
 ditto dist/Laith.app "$APP/Contents/Helpers/Laith.app"
 # Ad-hoc signature with a fixed identifier: no Apple account needed, and macOS keeps the app's
@@ -36,12 +36,12 @@ else
 fi
 codesign --verify --deep --strict "$APP"
 
-DMG="dist/Switchboard-$VERSION-macos-$ARCH.dmg"
+DMG="dist/Tazrivo-$VERSION-macos-$ARCH.dmg"
 STAGE="build/dmg"
 rm -rf "$STAGE" "$DMG"
 mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -quiet -volname "Switchboard $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+hdiutil create -quiet -volname "Tazrivo $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
 rm -rf "$STAGE"
 echo "Built $DMG"

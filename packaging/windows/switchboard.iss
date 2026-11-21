@@ -1,4 +1,4 @@
-; Inno Setup script for Switchboard (per-user install, no admin needed).
+; Inno Setup script for Tazrivo (per-user install, no admin needed).
 ; Built by packaging\windows\build.ps1, which passes /DAppVersion=... /DSourceDir=... /DOutputDir=...
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -6,18 +6,18 @@
 
 [Setup]
 AppId={{6F1C2B4E-6A57-4C0B-9A2B-5B1D0C9E7A11}
-AppName=Switchboard
+AppName=Tazrivo
 AppVersion={#AppVersion}
-AppPublisher=Switchboard
+AppPublisher=Tazrivo
 DefaultDirName={localappdata}\Programs\Switchboard
 DisableProgramGroupPage=yes
 DisableDirPage=yes
 PrivilegesRequired=lowest
 OutputDir={#OutputDir}
-OutputBaseFilename=Switchboard-{#AppVersion}-Setup
+OutputBaseFilename=Tazrivo-{#AppVersion}-Setup
 SetupIconFile={#IconFile}
-UninstallDisplayIcon={app}\Switchboard.exe
-UninstallDisplayName=Switchboard
+UninstallDisplayIcon={app}\Tazrivo.exe
+UninstallDisplayName=Tazrivo
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -31,8 +31,12 @@ ChangesEnvironment=yes
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{userprograms}\Switchboard"; Filename: "{app}\Switchboard.exe"
-Name: "{userdesktop}\Switchboard"; Filename: "{app}\Switchboard.exe"; Tasks: desktopicon
+Name: "{userprograms}\Tazrivo"; Filename: "{app}\Tazrivo.exe"
+Name: "{userdesktop}\Tazrivo"; Filename: "{app}\Tazrivo.exe"; Tasks: desktopicon
+
+[InstallDelete]
+Type: files; Name: "{userprograms}\Switchboard.lnk"
+Type: files; Name: "{userdesktop}\Switchboard.lnk"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop icon"; Flags: unchecked
@@ -43,7 +47,7 @@ Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; Value
 
 [Run]
 ; Stop an older running copy's tray before first launch of the new one is handled by CloseApplications.
-Filename: "{app}\Switchboard.exe"; Description: "Open Switchboard"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\Tazrivo.exe"; Description: "Open Tazrivo"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
 Filename: "{app}\switchboard-cli.exe"; Parameters: "service uninstall --role hub"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveStartAtLogin"

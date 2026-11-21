@@ -344,7 +344,7 @@ class Ledger:
                 month = now.astimezone(local_tz()).strftime("%Y-%m")
                 if pct >= 1:
                     out.append(Alert(f"{src.id}:budget:{month}:100", "critical", f"{src.label}: over monthly budget",
-                                     f"${st.used:.2f} spent of a ${src.monthly_budget:.2f} budget. Switchboard will "
+                                     f"${st.used:.2f} spent of a ${src.monthly_budget:.2f} budget. Tazrivo will "
                                      f"route around {src.provider} until next month.", src.provider, src.id))
                 elif pct >= 0.8:
                     out.append(Alert(f"{src.id}:budget:{month}:80", "warning", f"{src.label}: {pct:.0%} of budget",
@@ -368,13 +368,13 @@ class Ledger:
                     f"{src.id}:expiring:{src.expires.date()}:{'1d' if urgent else 'week'}",
                     "critical" if urgent else "warning",
                     f"Use ${rem:.2f} of {src.label} - expires {when}",
-                    f"${rem:.2f} of {src.provider} credit expires {fmt_when(src.expires)}. Switchboard now routes "
+                    f"${rem:.2f} of {src.provider} credit expires {fmt_when(src.expires)}. Tazrivo now routes "
                     f"suitable tasks to {src.provider} first; queue big jobs (refactors, batch docs, images) to use it up.",
                     src.provider, src.id, src.expires.isoformat()))
         if rem is not None and rem < self.low_balance and not (src.expires and src.expires <= now):
             day = now.astimezone(local_tz()).strftime("%Y-%m-%d")
             out.append(Alert(f"{src.id}:low:{day}", "warning", f"Low balance on {src.label}: ${max(rem, 0):.2f}",
-                             f"Top up {src.provider} or Switchboard will route around it.", src.provider, src.id))
+                             f"Top up {src.provider} or Tazrivo will route around it.", src.provider, src.id))
         return out
 
     def _quota_alerts(self, src: CreditSource, st: SourceStatus, now: datetime) -> list[Alert]:
@@ -397,7 +397,7 @@ class Ledger:
                     f"{src.id}:reset:{st.period_end.isoformat()}", "warning" if unused >= 0.8 else "info",
                     f"{src.label}: {unused:.0%} of {kind} unused - resets in {human_delta(left)}",
                     f"{max(st.remaining, 0):g} of {src.amount:g} {src.unit} left, resetting {fmt_when(st.period_end)}. "
-                    f"Use it before then: Switchboard prefers it for matching tasks until the reset.",
+                    f"Use it before then: Tazrivo prefers it for matching tasks until the reset.",
                     src.provider, src.id, st.period_end.isoformat()))
         if src.renews:
             left = src.renews - now

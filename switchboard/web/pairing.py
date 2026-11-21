@@ -65,7 +65,7 @@ def downloads_dir(cfg):
 
 
 def available_downloads(cfg) -> dict:
-    """Installers the hub can hand out itself: put Switchboard-*.dmg / -Setup.exe / .deb files in <config>/downloads."""
+    """Installers the hub can hand out itself: put Tazrivo-*.dmg / -Setup.exe / .deb files in <config>/downloads."""
     d = downloads_dir(cfg)
     out: dict = {}
     if not d.is_dir():

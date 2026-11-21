@@ -60,7 +60,7 @@ models:
      q: 5, efforts: [], features: [local], verified: false}
 
   # --- Plan CLIs: spend your plans' daily limits, not credit. They can edit files in the task folder and
-  #     use Switchboard's tools (MCP servers on every machine) through the gateway. ---
+  #     use Tazrivo's tools (MCP servers on every machine) through the gateway. ---
   - {provider: claude-code, id: opus, label: Claude Code - Opus (your Claude plan), tier: frontier, price: [0, 0],
      q: 9.5, skills: {code: 10, game_dev: 9.5}, efforts: [], features: [cli, agentic, tools, vision], verified: true}
   - {provider: claude-code, id: sonnet, label: Claude Code - Sonnet (your Claude plan), tier: strong, price: [0, 0],

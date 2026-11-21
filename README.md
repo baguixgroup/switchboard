@@ -1,9 +1,15 @@
-# Switchboard
+<img src="switchboard/web/static/tazrivo-app.svg" width="72" height="72" alt="Tazrivo">
+
+# Tazrivo
+
+Your AI. Working together.
+
+Tazrivo is the new name for this project. Laith is its Atlas lion companion.
 
 One control plane for all your AI models, credits, tools, devices and machines.
 Runs on **Windows, macOS and Raspberry Pi**.
 
-You write a prompt. Switchboard either uses the model and settings you pick (for example
+You write a prompt. Tazrivo either uses the model and settings you pick (for example
 `gpt-6` at `max` effort) or works out the best ones itself, spends the right credit, uses tools on
 whichever machine has them (Unity, Photoshop, Blender, phones, servers) and saves the result to
 your output folder on every machine.
@@ -26,7 +32,7 @@ your output folder on every machine.
 
 ## What it does
 
-| You asked for | How Switchboard does it |
+| You asked for | How Tazrivo does it |
 |---|---|
 | One place for DeepSeek, GPT, Copilot, Grok, Gemini, Claude and others | Adapters for the Anthropic API, every OpenAI-compatible API (OpenAI, DeepSeek, xAI, Gemini, GitHub Models, OpenRouter, Mistral, Ollama), and the official **plan CLIs** (Claude Code, Codex, Gemini CLI, Copilot CLI, Grok Build) |
 | Use the chat apps' daily limits instead of credits | `plans_only` / `plans_first` billing runs tasks through those plan CLIs (signed in with your subscriptions) on whichever machine they're installed on, with your tools attached. When a plan hits its limit it is parked until it resets and the next plan takes over (see below) |
@@ -39,16 +45,16 @@ your output folder on every machine.
 | Suggest a better tool, installable on Mac/Windows/Pi | Tool advisor: per-task suggestions plus a catalog with the right `winget` / `brew` / `apt` command per machine. One click (with confirmation) installs it on that machine |
 | Dedicated output folder on Windows and Mac | `~/Switchboard/Output/<date>/<time>-<task>/` with `prompt.md`, `response.md`, extracted code files, images and `meta.json`. The hub copies every task folder to each agent |
 | Test on phones, PS4, servers like Hostinger | Android (adb: screenshot, logs, install, launch, open URL), iOS devices and simulators (Xcode tools on the Mac), SSH servers (check, deploy with rsync/scp, run), and reachability checks for network devices. See limits below |
-| Use it from other AI apps | `switchboard mcp serve` makes Switchboard an MCP server. `switchboard mcp export` registers it with Claude Desktop, Claude Code, VS Code, Cursor, Codex or Gemini CLI |
+| Use it from other AI apps | `switchboard mcp serve` makes Tazrivo an MCP server. `switchboard mcp export` registers it with Claude Desktop, Claude Code, VS Code, Cursor, Codex or Gemini CLI |
 
 ## Using it: the app
 
-After installing, everything happens in the **Switchboard app**, a dashboard you open in any browser that
-you can also install like a normal app. No terminal needed.
+Install Tazrivo and open its standalone window on Windows or macOS. The same workspace is also
+available in a browser for the Pi and other connected devices. No terminal is needed for normal use.
 
 | Where | How |
 |---|---|
-| **Your Windows PC or Mac** (with the agent) | Click the **Switchboard icon** in the system tray / menu bar, then **Open Switchboard**. It opens `http://localhost:8766`, which needs no token. Use the browser's **Install** button (Chrome/Edge address bar) to get it as its own app window with an icon |
+| **Your Windows PC or Mac** (with the agent) | Click the **Tazrivo icon** in the system tray / menu bar, then **Open Tazrivo**. It opens the native Tazrivo window, connected through the local agent. The browser dashboard at `http://localhost:8766` is also available and needs no token |
 | **The hub itself** | `http://localhost:8765` |
 | **Phone, tablet, any other device at home** | `http://<pi-ip>:8765` (the Pi installer prints it). Enter the token once (*Settings → About* shows it). On iPhone: Share → *Add to Home Screen*; on Android: menu → *Install app / Add to Home screen* |
 | **Away from home** | Install [Tailscale](https://tailscale.com) on the Pi and your phone/laptop, then open the Pi's Tailscale address. Never port-forward 8765 on your router |
@@ -56,7 +62,7 @@ you can also install like a normal app. No terminal needed.
 
 What's in the app:
 
-- **Ask**: a chat. Type a task and Switchboard picks the AI (or tap **Automatic** to choose one yourself),
+- **Ask**: a chat. Type a task and Tazrivo picks the AI (or tap **Automatic** to choose one yourself),
   shows "will use Claude, your plan, no credit" before you send, and asks before anything expensive or
   when you picked more effort than the task needs. Follow-up questions continue the conversation.
   Answers show code with copy buttons, images, and downloadable files.
@@ -79,7 +85,7 @@ also runs the agent, so it is the only thing that needs to run there.
 
 ## Running on your plans' daily limits (no API credit)
 
-Switchboard can do all its work through your **subscriptions**, the same daily/weekly limits you use in
+Tazrivo can do all its work through your **subscriptions**, the same daily/weekly limits you use in
 the chat apps, instead of paid API credit. It does this through each company's official command-line app,
 which signs in with your plan account:
 
@@ -96,11 +102,11 @@ computer you pick), then **Sign in** (Claude, ChatGPT, Copilot and Grok open the
 computer; Gemini asks you to run `gemini` once there). The commands above do the same from a terminal.
 Install them on whichever machine you like (the PC and Mac where you are already logged in are fine).
 The hub runs each one **on the machine where it is installed**. Your MCP tools (Unity, Photoshop,
-phones...) are passed to them through Switchboard's tool gateway, and files they create come back to
+phones...) are passed to them through Tazrivo's tool gateway, and files they create come back to
 the hub and every output folder.
 
 **Automatic images:** choose **Automatic** or **Codex images**. A connected Codex installation must
-advertise its native `image_generation` feature. Switchboard generates the image in that machine's
+advertise its native `image_generation` feature. Tazrivo generates the image in that machine's
 task folder, checks that an actual PNG/JPEG/WebP was produced, returns it to the hub and mirrors it.
 Choosing the normal Codex route for an image request redirects to this image route when available.
 If generation returns only text, the task fails with a clear message rather than claiming an image exists.
@@ -120,14 +126,14 @@ Billing modes (`router.billing` in `config.yaml`, the dashboard's billing menu, 
   (for example image generation) or all plans are at their limit.
 - `any`: picks purely on quality vs. cost.
 
-When a CLI reports that its limit is reached, Switchboard reads the reset time from the message, parks
+When a CLI reports that its limit is reached, Tazrivo reads the reset time from the message, parks
 that plan until then (the dashboard's Plans panel shows "limit reached · resets 15:00"), and moves on
 to the next plan. Set `permissions.cli_agents_can_edit: true` to let these CLIs write files in the
 task folder.
 
 **Images on your ChatGPT or SuperGrok plan.** The plan CLIs can't make images, so image requests are
 handed to the ChatGPT or Grok app instead (both enabled by default; set `enabled: false` under
-`providers:` for a plan you don't have). The task shows **Open ChatGPT on win-pc** (or Grok): Switchboard
+`providers:` for a plan you don't have). The task shows **Open ChatGPT on win-pc** (or Grok): Tazrivo
 opens the desktop app on that computer, or the website if the app isn't installed, with the prompt on
 the clipboard. Paste it, make the image, and save it to that computer's Downloads folder. The agent
 notices the new image and attaches it to the task, with a link in the dashboard and a copy in your output
@@ -152,21 +158,21 @@ Download the app for each computer from the [releases page](https://github.com/b
 
 | Computer | File | Install |
 |---|---|---|
-| **Mac** (Apple Silicon or Intel) | `Switchboard-<version>-macos-arm64.dmg` / `-x86_64.dmg` | Open the DMG, drag Switchboard to Applications. First time: right-click it, **Open** (it isn't from the App Store) |
-| **Windows** 10/11 | `Switchboard-<version>-Setup.exe` | Run it (no admin needed). If SmartScreen appears: **More info**, **Run anyway** |
-| **Raspberry Pi** (64-bit) / Debian / Ubuntu | `switchboard_<version>_arm64.deb` (`_amd64` for PCs) | `sudo apt install ./switchboard_<version>_arm64.deb` |
+| **Mac** (Apple Silicon or Intel) | `Tazrivo-<version>-macos-arm64.dmg` / `-x86_64.dmg` | Open the DMG, drag Tazrivo to Applications. First time: right-click it, **Open** (it isn't from the App Store) |
+| **Windows** 10/11 | `Tazrivo-<version>-Setup.exe` | Run it (no admin needed). If SmartScreen appears: **More info**, **Run anyway** |
+| **Raspberry Pi** (64-bit) / Debian / Ubuntu | `tazrivo_<version>_arm64.deb` (`_amd64` for PCs) | `sudo apt install ./tazrivo_<version>_arm64.deb` |
 
-**Then open Switchboard.** The setup wizard asks one question: is this computer the **hub** or does it
+**Then open Tazrivo.** The setup wizard asks one question: is this computer the **hub** or does it
 **connect to your hub**?
 
 1. **Set up the hub first**, on the computer that stays on (a Raspberry Pi is ideal). On a Pi without a screen,
    run `switchboard setup` over SSH (it asks the same questions in the terminal), or `switchboard setup --web`
    to finish it from your phone's browser.
-2. **On every other computer**, open Switchboard and choose **Connect to my hub**. It finds the hub on your
+2. **On every other computer**, open Tazrivo and choose **Connect to my hub**. It finds the hub on your
    network by itself and asks for a **pairing code**: the hub's dashboard shows one under
    **Machines > Connect a computer** (6 digits, works once, 10 minutes). No long token to copy.
 
-That's it: Switchboard starts at login (tray / menu-bar icon on Windows and Mac, a background service on the
+That's it: Tazrivo starts at login (tray / menu-bar icon on Windows and Mac, a background service on the
 Pi). To change a computer's role later, use **Change setup...** in the tray menu, or run `switchboard setup`.
 The hub can also hand out the installers itself: put them in its config folder under `downloads/` and the
 **Connect a computer** dialog links to them.
@@ -178,15 +184,15 @@ desktop app does not automatically install its command-line client or sign in to
 The background app finds commands in standard user installation locations, including nvm, Homebrew,
 `~/.local/bin`, Windows user/system PATH entries and npm's user bin folder. It detects Windows Store
 Claude/ChatGPT registrations and Mac apps in `/Applications` or `~/Applications`. You do not need to
-launch Switchboard from a terminal for it to find these tools.
+launch Tazrivo from a terminal for it to find these tools.
 
-When installing an npm-based client, Switchboard checks for **node, npm and npx** first. If any is
+When installing an npm-based client, Tazrivo checks for **node, npm and npx** first. If any is
 missing, the confirmation includes installing official Node.js LTS binaries, verified against Node's
 SHA-256 checksums, into a per-user runtime folder. It does not require Homebrew or admin access.
 Use **Machines → Rescan** to refresh detection after installing an app yourself.
 
 Command line on each computer: `switchboard` (Pi/Linux), `switchboard-cli` (Windows),
-`/Applications/Switchboard.app/Contents/MacOS/Switchboard` (Mac). Non-interactive setup:
+`/Applications/Tazrivo.app/Contents/MacOS/Tazrivo` (Mac). Non-interactive setup:
 `switchboard setup --role agent --hub 192.168.1.50 --code 123456`.
 
 ### Building the installers
@@ -225,7 +231,7 @@ powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1 -Role agent
 ./scripts/install-macos.sh agent http://<pi-ip>:8765 <token>
 ```
 
-Each installer creates a virtualenv, writes the config files, and sets Switchboard to start at login:
+Each installer creates a virtualenv, writes the config files, and sets Tazrivo to start at login:
 the tray app on Windows (Task Scheduler) and macOS (launchd), and a background service on Linux/Pi
 (systemd). After that, use the app. Adding API keys, plans, credits, apps and computers can all be done
 there. `switchboard doctor` checks a machine from the terminal if something seems wrong.
@@ -249,15 +255,15 @@ uses your connected AI models and the chat's spending settings; it requires a co
 The same dialog offers **Grammarly, QuillBot, ProWritingAid and LanguageTool** through your own accounts.
 These are explicitly labelled **manual handoffs**, not API connections: send the prepared request,
 open the service on an online Mac/Windows agent with the source text copied, paste and edit there,
-then click **Paste edited text** in Switchboard to finish the task. You can also copy the text and open
+then click **Paste edited text** in Tazrivo to finish the task. You can also copy the text and open
 the service's website yourself. Apply tone/translation choices in the service where supported.
-Features, subscriptions and quotas are managed by each service; Switchboard does not read passwords,
+Features, subscriptions and quotas are managed by each service; Tazrivo does not read passwords,
 check account balances or automate their websites. These services are never chosen by automatic routing.
 The reviewed result is saved in the task's `response.md` and mirrored like other task output.
 
 Grammarly's former editor SDK was [retired in January 2024](https://www.grammarly.com/blog/company/general-availability-grammarly-text-editor-sdk/).
 LanguageTool's [public HTTP API rules](https://dev.languagetool.org/public-http-api.html) prohibit automated
-requests, so Switchboard uses its editor instead of sending background proofreading requests there.
+requests, so Tazrivo uses its editor instead of sending background proofreading requests there.
 
 ## Command line (optional)
 
@@ -309,7 +315,7 @@ switchboard tools install adb --node windows-pc
 ```
 
 Remote app installation can also be requested in chat, for example “Install ChatGPT on Windows.”
-Switchboard checks the connected machine and shows an installation confirmation button with the
+Tazrivo checks the connected machine and shows an installation confirmation button with the
 answer. Microsoft Store terms need separate explicit acceptance. Installations run as tracked jobs
 in **History**, survive closing the dashboard, and refresh the machine's detected apps when finished.
 A successful installer exit alone is not enough: the target agent must detect the installed app.
@@ -334,7 +340,7 @@ switchboard device check server:hostinger
 switchboard device deploy server:hostinger --arg path=~/Switchboard/Output/2026-11-16/site
 ```
 
-Use Switchboard from other apps:
+Use Tazrivo from other apps:
 
 ```bash
 switchboard mcp export --target claude-desktop --write
@@ -363,10 +369,10 @@ switchboard mcp export --target claude-code         # prints the `claude mcp add
 
 - **Balances.** DeepSeek and OpenRouter expose live balances. OpenAI, Anthropic, xAI and Google do
   **not** expose prepaid balances or promo-credit expiry through their APIs. Enter those grants once
-  (`credits add`); Switchboard then tracks spend from token counts × catalog prices. Keep prices
+  (`credits add`); Tazrivo then tracks spend from token counts × catalog prices. Keep prices
   current with `models sync`.
 - **Plan limits** (ChatGPT, Claude, Copilot, Google, SuperGrok) can't be read in advance: no plan
-  exposes "what's left". Switchboard learns a limit when a CLI reports it, then waits for the reset time
+  exposes "what's left". Tazrivo learns a limit when a CLI reports it, then waits for the reset time
   it gives. Optionally enter quotas in `credits.yaml` to get "use it before it resets" reminders.
 - **Plan CLIs** change their flags from time to time. The defaults were checked against Claude Code 2.1,
   Codex 0.169, Gemini CLI 0.68 and Copilot CLI 1.0. Grok Build's flags are a best guess (check
@@ -381,7 +387,7 @@ switchboard mcp export --target claude-code         # prints the `claude mcp add
 - **Unity and Photoshop** are reached through community MCP bridges that need a one-time plugin
   setup inside the app (`switchboard mcp add unity` / `photoshop` prints the steps). Neither app runs
   on a Raspberry Pi.
-- **PS4.** A retail PS4 cannot sideload or run your builds without a Sony dev kit, so Switchboard only
+- **PS4.** A retail PS4 cannot sideload or run your builds without a Sony dev kit, so Tazrivo only
   checks whether it is reachable. For web builds, open the URL in the PS4 browser yourself.
 - **iOS devices** need the Mac with Xcode, a paired device and signing set up.
 - **Hostinger.** Deploys use SSH (`servers:` in config; shared hosting uses port 65002). The
@@ -404,7 +410,7 @@ The tests are offline: they use the `mock` provider and a tiny MCP server
 ### Chat from Plans and remote installation approval
 
 **Plans → Chat with your plans** sends normal questions, writing, research and machine requests
-using plans-only billing. CLI routes reply in Switchboard. ChatGPT, Claude and Grok app routes
+using plans-only billing. CLI routes reply in Tazrivo. ChatGPT, Claude and Grok app routes
 are explicitly marked: send the copied prompt there, then use **Paste answer** to continue here.
 These app handoffs preserve chat history and never start an image download watcher.
 
@@ -421,7 +427,7 @@ remote_installs:
 
 In the installation confirmation, choose this administrator connection and authenticate with a
 saved SSH key or the encrypted username/password form. The password form is available in the
-controller's local Switchboard window; it obtains its encryption key directly over loopback.
+controller's local Tazrivo window; it obtains its encryption key directly over loopback.
 The hub relays ciphertext, and the controller holds credentials in memory for one installation
 for that specific app and target, for up to five minutes. Credentials are not put in AI prompts,
 History, command arguments or password files. SSH host-key checking remains enabled. Password
@@ -437,7 +443,7 @@ separate explicit acceptance. Pi/Linux routes execute catalog commands through s
 
 Open **Agent Studio → New goal**, describe the deliverable and success criteria, and select a team.
 The default team gives the work to a Researcher, Coordinator, Builder and Reviewer, then pauses for
-your approval before saving the handover. Every model request links to its existing Switchboard task
+your approval before saving the handover. Every model request links to its existing Tazrivo task
 and files. Set the model and instructions for each specialist under **Agents**. Plans-only billing
 and a zero API allowance are the defaults.
 
@@ -447,9 +453,9 @@ instructions. Model steps may receive selected excerpts. Local models can use a 
 provider; model runtimes and weights are installed separately.
 
 **Team blueprints** support explicit dependencies, AI agents, input text, knowledge retrieval,
-conditions, human approval and output files. Edit steps in the UI or import/export Switchboard JSON.
+conditions, human approval and output files. Edit steps in the UI or import/export Tazrivo JSON.
 Imports are validated and do not execute automatically.
-Connected tools are off by default; enabling them preserves Switchboard's existing permissions and
+Connected tools are off by default; enabling them preserves Tazrivo's existing permissions and
 separate install/legal authorization. Automatic retries are bounded and restricted to steps without
 connected tools.
 
@@ -469,7 +475,7 @@ and on the desktop. Preview a look and apply its profession style, or choose an 
 personality preset. The desktop pet supports optional bounded movement. Mobile apps
 are on hold. See [scope, privacy boundaries and platform limits](docs/laith-personalization.md).
 
-**Chat comes first.** Switchboard opens to a simple Laith conversation. Model, plan funding and effort controls stay below the prompt, with a live “Will use…” preview.
+**Chat comes first.** Tazrivo opens to a simple Laith conversation. Model, plan funding and effort controls stay below the prompt, with a live “Will use…” preview.
 Other preferences live in Chat settings. The navigation separates Chat, Create, Goals, Activity and Connections;
 credits and application preferences stay in the secondary navigation. Chat history opens only when you ask for it.
 
@@ -480,17 +486,17 @@ A failed reply can be retried. Network refreshes update the reply without rebuil
 and a lost send response is reconciled against the saved request before another send is attempted.
 
 **Laith can also live on your desktop.** In the installed Mac or Windows app, choose **Show Laith**
-on the Laith page or from the Switchboard tray/menu-bar icon. He appears as a transparent, animated,
+on the Laith page or from the Tazrivo tray/menu-bar icon. He appears as a transparent, animated,
 draggable lion above other apps. Click him to open a native task/chat panel; right-click for size,
-pause-animation and hide controls. Closing the main Switchboard window leaves him available. Your
+pause-animation and hide controls. Closing the main Tazrivo window leaves him available. Your
 show/hide preference and position survive relaunches; unplugging a monitor brings him back on-screen.
 
 Copy text in another app, choose **Use copied text** in Laith's panel, review the draft and press
 **Send**. **Copy answer** puts the reply on the clipboard for pasting back. There is no clipboard
 watcher or automatic capture of other apps. The panel uses the same conversations, models, memories
-and goals as Switchboard, defaults to plans/free models with a zero API estimate allowance, and can
+and goals as Tazrivo, defaults to plans/free models with a zero API estimate allowance, and can
 use configured connected tools after confirmation. **Review task / approvals** opens the actual task
-and existing secure approval forms in Switchboard. A planned team goal still needs Start team.
+and existing secure approval forms in Tazrivo. A planned team goal still needs Start team.
 
 The companion has a separate native process and private, authenticated loopback controls. Mac and
 Windows installers bundle its runtime; no separate Python or npm installation is needed. The current
@@ -532,3 +538,7 @@ model, start a goal or send an external message by themselves.
 ### Audio, documents, voice and media
 
 **Audio & files** provides reviewed jobs for document reading, OCR, transcription, editable meeting notes, speech, live voice, image/video workers and inference services. Attach files directly to Laith to route a request into the same workflow. Results appear in your conversation, Activity and output folder. See [setup, compatibility and limits](docs/capabilities.md). Optional services show **Setup required** until connected; API spending always needs the applicable approval.
+
+## Updating existing installations
+
+The new app and installers are named Tazrivo. Existing Switchboard configuration folders, output locations, service identifiers and MCP registration names remain compatible. The `switchboard` command is retained; new installations also provide `tazrivo`. Your pairing, account settings, chats and Laith preferences continue to use the same saved data.

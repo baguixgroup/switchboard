@@ -1,6 +1,6 @@
 # Your credits, free tiers and subscriptions.
 #
-# Switchboard combines this file with live balances (DeepSeek and OpenRouter expose them)
+# Tazrivo combines this file with live balances (DeepSeek and OpenRouter expose them)
 # and its own usage log to decide what to spend first, and to warn you before money or a
 # free quota is lost. Most providers (OpenAI, Anthropic, xAI, Google) do NOT expose prepaid
 # balances or promo expiry through their APIs, so enter those grants here once:

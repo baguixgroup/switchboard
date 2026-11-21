@@ -1,4 +1,4 @@
-# Build Switchboard-<version>-Setup.exe (Python included, per-user install).
+# Build Tazrivo-<version>-Setup.exe (Python included, per-user install).
 #   powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1
 # Needs: Python 3.11+ (py launcher or python on PATH) and Inno Setup 6 (winget install JRSoftware.InnoSetup).
 $ErrorActionPreference = "Stop"
@@ -23,7 +23,7 @@ if ($LASTEXITCODE) { throw "PyInstaller failed" }
 $Iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
           "$env:ProgramFiles\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $Iscc) { throw "Inno Setup 6 not found. Install it: winget install JRSoftware.InnoSetup" }
-& $Iscc /Q "/DAppVersion=$Version" "/DSourceDir=$Root\dist\Switchboard" "/DOutputDir=$Root\dist" `
-        "/DIconFile=$Root\build\icons\switchboard.ico" packaging\windows\switchboard.iss
+& $Iscc /Q "/DAppVersion=$Version" "/DSourceDir=$Root\dist\Tazrivo" "/DOutputDir=$Root\dist" `
+        "/DIconFile=$Root\build\icons\tazrivo.ico" packaging\windows\switchboard.iss
 if ($LASTEXITCODE) { throw "Inno Setup failed" }
-Write-Host "Built dist\Switchboard-$Version-Setup.exe"
+Write-Host "Built dist\Tazrivo-$Version-Setup.exe"

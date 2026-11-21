@@ -1,4 +1,4 @@
-"""Switchboard's own app window (like the Claude or ChatGPT desktop apps), on Windows and macOS.
+"""Tazrivo's own app window (like the Claude or ChatGPT desktop apps), on Windows and macOS.
 
 It shows the same screens as the browser (setup wizard, then the dashboard) in a native window with the
 system's web engine (WebKit on macOS, Edge WebView2 on Windows). One window at a time: opening the app
@@ -29,7 +29,7 @@ def window_available() -> bool:
 def valid_page(page):
     if page is None:return None
     if not isinstance(page,str) or not re.fullmatch(r'#(?:laith|studio|history|machines|plans)(?:/[A-Za-z0-9_-]+)*',page):
-        raise ValueError('Choose a Switchboard page.')
+        raise ValueError('Choose a Tazrivo page.')
     return page
 
 
@@ -72,7 +72,7 @@ def _listen_for_focus(window,base_url) -> None:
     threading.Thread(target=loop, daemon=True).start()
 
 
-def open_window(url: str, title: str = "Switchboard", page: str | None = None) -> None:
+def open_window(url: str, title: str = "Tazrivo", page: str | None = None) -> None:
     """Show `url` in the app window and block until it is closed (or bring an open one to the front)."""
     page=valid_page(page)
     if _focus_existing(page):

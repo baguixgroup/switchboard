@@ -83,13 +83,13 @@ def build_app(key: str, home: Path | None = None, remote: bool = False, on_done=
     def guard(fn):
         async def wrapped(request: Request):
             if not allowed(request):
-                return JSONResponse({"detail": "This setup link has expired. Open Switchboard again."}, status_code=403)
+                return JSONResponse({"detail": "This setup link has expired. Open Tazrivo again."}, status_code=403)
             return await fn(request)
         return wrapped
 
     async def index(request: Request):
         if not allowed(request):
-            return HTMLResponse("<h3 style='font-family:system-ui'>This setup link has expired. Open Switchboard again.</h3>", 403)
+            return HTMLResponse("<h3 style='font-family:system-ui'>This setup link has expired. Open Tazrivo again.</h3>", 403)
         return HTMLResponse(page, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
 
     async def info(request: Request):
@@ -164,13 +164,13 @@ def run_browser_wizard(home: Path | None = None, remote: bool = False, open_brow
     url = f"http://{shown}:{port}/?k={key}"
     server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_config=None, access_log=False))
     server_box["server"] = server
-    print(f"Switchboard setup: {url}", flush=True)
+    print(f"Tazrivo setup: {url}", flush=True)
     if in_window:
         t = threading.Thread(target=server.run, daemon=True)
         t.start()
         while not server.started and t.is_alive():
             time.sleep(0.05)
-        open_window(url, "Switchboard")  # blocks until the window is closed (main thread: needed on macOS)
+        open_window(url, "Tazrivo")  # blocks until the window is closed (main thread: needed on macOS)
         server.should_exit = True
         os._exit(0)
     threading.Timer(idle_minutes * 60, lambda: setattr(server, "should_exit", True)).start()
@@ -197,7 +197,7 @@ def run_text_wizard(home: Path | None = None, role: str | None = None, name: str
     interactive = sys.stdin.isatty() and not (role and (role == "hub" or hub_url and (code or token)))
     cur = setup.current(home)
     tag = platform_tag()
-    print(f"Switchboard {__version__} setup on this {PLATFORM_LABEL.get(tag, 'computer')}\n")
+    print(f"Tazrivo {__version__} setup on this {PLATFORM_LABEL.get(tag, 'computer')}\n")
     if cur.get("configured"):
         print(f"Currently set up as {cur['role']} '{cur['name']}'.")
         if interactive and _ask("Change it? (y/N)", "n").lower() not in ("y", "yes"):
@@ -244,9 +244,9 @@ def run_text_wizard(home: Path | None = None, role: str | None = None, name: str
         print(m)
     if role == "hub":
         port = 8765
-        print(f"\nThis computer is now your Switchboard hub '{name}'.")
+        print(f"\nThis computer is now your Tazrivo hub '{name}'.")
         print(f"Dashboard: http://{_lan_ip()}:{port}  (on this computer: http://localhost:{port})")
-        print("To add your PC and Mac: install the Switchboard app on them; it finds this hub by itself and asks for a\n"
+        print("To add your PC and Mac: install the Tazrivo app on them; it finds this hub by itself and asks for a\n"
               "pairing code, which the dashboard shows under Machines > Connect a computer.")
     else:
         print(f"\nThis computer is now connected to your hub as '{name}'. Dashboard: {res['dashboard_url']}")

@@ -1,4 +1,4 @@
-# Switchboard installer for Windows 10/11.
+# Tazrivo installer for Windows 10/11.
 # Run from the project folder in PowerShell:
 #   powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1 -Role agent -HubUrl http://192.168.1.50:8765 -Token <hub token>
 #   powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1 -Role hub

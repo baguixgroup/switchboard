@@ -1,7 +1,7 @@
 """Live balance readers for providers that expose one (DeepSeek, OpenRouter).
 
 OpenAI, Anthropic, xAI and Google do not expose prepaid balances or promo-credit expiry via
-their APIs; for those, add the grant to credits.yaml and Switchboard tracks spend locally.
+their APIs; for those, add the grant to credits.yaml and Tazrivo tracks spend locally.
 """
 from __future__ import annotations
 

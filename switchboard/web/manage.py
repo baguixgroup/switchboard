@@ -198,7 +198,7 @@ def register(app: FastAPI, engine, auth) -> None:
     async def notify_test() -> dict:
         if not cfg.notify.get("ntfy_topic"):
             raise HTTPException(400, "Set a notification topic first.")
-        ok = await notify.send(cfg, "Switchboard test", "Notifications are working.", "info")
+        ok = await notify.send(cfg, "Tazrivo test", "Notifications are working.", "info")
         return {"ok": ok}
 
     # ---- connecting machines ----------------------------------------------------------------

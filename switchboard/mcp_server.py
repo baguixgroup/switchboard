@@ -1,4 +1,4 @@
-"""Switchboard as an MCP server, so Claude Desktop, Claude Code, VS Code, Cursor, Codex... can use it.
+"""Tazrivo as an MCP server, so Claude Desktop, Claude Code, VS Code, Cursor, Codex... can use it.
 
 It is a thin client of the hub's HTTP API, so every app shares the same router, credits and history.
 """
@@ -17,7 +17,7 @@ def build_server(config):
     server = MCPServer(
         name="switchboard",
         instructions=(
-            "Switchboard routes tasks to the best AI model for the job across the user's providers and "
+            "Tazrivo routes tasks to the best AI model for the job across the user's providers and "
             "subscriptions, spends expiring credits first, can use tools on all the user's machines (Unity, "
             "Photoshop, Blender, phones, servers) and saves results to their output folder. Use plan_task to "
             "preview cost and model; use ask to run."
@@ -35,7 +35,7 @@ def build_server(config):
     @server.tool()
     async def ask(prompt: str, model: str = "", effort: str = "", mode: str = "", tools: str = "auto",
                   confirm_expensive: bool = False, wait_seconds: int = 900) -> str:
-        """Run a task through Switchboard. Leave model/effort empty for automatic selection.
+        """Run a task through Tazrivo. Leave model/effort empty for automatic selection.
         model: 'provider:id' or id (e.g. 'claude-opus-5-5'); effort: low|medium|high|xhigh|max;
         mode: balanced|best|cheapest; tools: 'auto', 'none', or comma-separated MCP server names."""
         body = {"prompt": prompt, "model": model or None, "effort": effort or None, "mode": mode or None,
@@ -54,11 +54,11 @@ def build_server(config):
                 head = f"[{(t.get('plan') or {}).get('executed', '')} · ${t.get('cost_usd') or 0:.4f} · saved to {t.get('output_path')}]"
                 return f"{head}\n\n{t.get('result') if t['status'] == 'done' else 'FAILED: ' + str(t.get('error'))}"
             await asyncio.sleep(2)
-        return f"Still running (task {task_id}). Check the Switchboard dashboard."
+        return f"Still running (task {task_id}). Check the Tazrivo dashboard."
 
     @server.tool()
     async def plan_task(prompt: str, model: str = "", effort: str = "", mode: str = "") -> str:
-        """Preview which model, effort, credit source and tools Switchboard would use, with estimated cost."""
+        """Preview which model, effort, credit source and tools Tazrivo would use, with estimated cost."""
         p = await api("POST", "/api/plan", {"prompt": prompt, "model": model or None, "effort": effort or None,
                                              "mode": mode or None})
         return json.dumps({k: p[k] for k in ("provider", "model_label", "effort", "est_cost_usd", "effective_cost_usd",
@@ -111,7 +111,7 @@ async def serve_gateway(config, servers: list[str], task_rel: str | None) -> Non
         d = res.json()
         return types.CallToolResult(content=[types.TextContent(type="text", text=d["text"])], is_error=d["is_error"])
 
-    server = Server("switchboard", instructions="Tools on the user's machines and devices, via Switchboard.",
+    server = Server("switchboard", instructions="Tools on the user's machines and devices, via Tazrivo.",
                     on_list_tools=list_tools, on_call_tool=call_tool)
     try:
         async with stdio_server() as (read, write):

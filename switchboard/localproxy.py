@@ -22,8 +22,8 @@ LOCAL_NAMES = {"localhost", "127.0.0.1", "[::1]", "::1"}
 PASS_REQ = {"content-type", "accept", "range", "if-none-match"}
 PASS_RESP = {"content-type", "content-disposition", "cache-control", "service-worker-allowed", "etag", "content-range", "accept-ranges"}
 OFFLINE = """<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
-<title>Switchboard</title><body style="font:16px system-ui;padding:40px;max-width:560px;margin:auto">
-<h2>Can't reach your Switchboard hub</h2><p>This computer is set to use the hub at <b>{hub}</b>, but it isn't
+<title>Tazrivo</title><body style="font:16px system-ui;padding:40px;max-width:560px;margin:auto">
+<h2>Can't reach your Tazrivo hub</h2><p>This computer is set to use the hub at <b>{hub}</b>, but it isn't
 answering. Check that the hub machine is on and connected to your network, then reload this page.</p></body>"""
 
 
@@ -53,7 +53,7 @@ def build_proxy_app(config) -> Starlette:
             try:
                 if request.method=='GET':return JSONResponse(await asyncio.to_thread(status,config),headers={'Cache-Control':'no-store'})
                 if request.method!='POST':return JSONResponse({'detail':'Method not allowed'},405)
-                if request.headers.get('origin')=='null':return JSONResponse({'detail':'Use your local Switchboard app.'},403)
+                if request.headers.get('origin')=='null':return JSONResponse({'detail':'Use your local Tazrivo app.'},403)
                 raw=await request.body()
                 if len(raw)>256:raise ValueError('Request is too large.')
                 import json

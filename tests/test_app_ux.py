@@ -99,7 +99,7 @@ def test_local_relay_refuses_other_sites(tmp_path):
         assert c.get("/api/agent/jobs?node=pc").status_code == 404
         r = c.get("/api/status")  # hub not running in this test
         assert r.status_code == 502 and "not reachable" in r.json()["detail"]
-        assert "Can't reach your Switchboard hub" in c.get("/").text
+        assert "Can't reach your Tazrivo hub" in c.get("/").text
 
 
 async def test_add_restart_remove_app_on_another_machine(tmp_path, echo_server_cfg):
@@ -144,7 +144,7 @@ def test_tray_state_and_icon():
     s.summary = {"hub": "pi", "nodes_online": 2, "nodes_total": 3, "running_tasks": 1,
                  "counts": {"critical": 1, "warning": 0}, "alerts": [{"key": "a", "severity": "critical", "title": "Use $5"}],
                  "plans": [{"label": "Claude", "status": "limit reached", "resets": 1900000000}, {"label": "Codex", "status": "ready"}]}
-    assert s.status == "crit" and s.tooltip == "Switchboard: 1 alert" and "2/3 machines" in s.status_line
+    assert s.status == "crit" and s.tooltip == "Tazrivo: 1 alert" and "2/3 machines" in s.status_line
     assert s.new_alerts() == []  # nothing announced right after start-up
     s.summary["alerts"].append({"key": "b", "severity": "warning", "title": "Free limit resets soon"})
     assert [a["key"] for a in s.new_alerts()] == ["b"] and s.new_alerts() == []

@@ -535,7 +535,7 @@ class Engine:
                 break
         if not lines:
             return ""
-        return ("Earlier work in the user's Switchboard output folder (each folder has prompt.md and response.md). "
+        return ("Earlier work in the user's Tazrivo output folder (each folder has prompt.md and response.md). "
                 "If this task continues earlier work, read those files first:\n" + "\n".join(lines))
 
     def _task_dir(self, task_id: str) -> Path:

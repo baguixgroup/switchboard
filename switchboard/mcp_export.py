@@ -1,4 +1,4 @@
-"""Register Switchboard (and optionally this machine's MCP servers) with other AI apps."""
+"""Register Tazrivo (and optionally this machine's MCP servers) with other AI apps."""
 from __future__ import annotations
 
 import json

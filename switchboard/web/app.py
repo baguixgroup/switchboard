@@ -128,7 +128,7 @@ def create_app(engine) -> FastAPI:
         sched.cancel()
         await engine.close()
 
-    app = FastAPI(title="Switchboard", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="Tazrivo", version=__version__, lifespan=lifespan)
 
     @app.middleware("http")
     async def local_guard(request: Request, call_next):
@@ -150,7 +150,7 @@ def create_app(engine) -> FastAPI:
         supplied = request.headers.get("authorization", "").removeprefix("Bearer ").strip() \
             or request.cookies.get("sb_token", "") or request.query_params.get("token", "")
         if not token or not supplied or not hmac.compare_digest(supplied, token):
-            raise HTTPException(401, "Missing or wrong Switchboard token")
+            raise HTTPException(401, "Missing or wrong Tazrivo token")
 
     # ---- dashboard ------------------------------------------------------------------
     static = resources.files("switchboard").joinpath("web", "static")

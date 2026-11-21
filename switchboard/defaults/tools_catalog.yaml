@@ -1,7 +1,7 @@
-# Desktop and CLI tools Switchboard can detect, recommend and install per platform.
+# Desktop and CLI tools Tazrivo can detect, recommend and install per platform.
 # Install commands only ever come from this file and only run when you approve them.
 # On a Raspberry Pi, `sudo` commands need passwordless sudo for remote installs; otherwise
-# Switchboard shows you the command to run yourself.
+# Tazrivo shows you the command to run yourself.
 
 vscode:
   name: Visual Studio Code
@@ -141,7 +141,7 @@ rsync:
   helps: [devops]
   detect: {bin: [rsync]}
   install: {macos: "brew install rsync", pi: "sudo apt-get install -y rsync", linux: "sudo apt-get install -y rsync"}
-  unsupported: {windows: "Switchboard falls back to scp on Windows."}
+  unsupported: {windows: "Tazrivo falls back to scp on Windows."}
 
 ollama:
   name: Ollama (free local models)

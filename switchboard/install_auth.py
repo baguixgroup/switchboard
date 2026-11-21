@@ -65,7 +65,7 @@ def decrypt(config, envelope: dict, profile: str, target: str, tool: str) -> dic
             raise ValueError()
         return {'username': data['username'], 'password': data['password']}
     except Exception:
-        raise ValueError('Credential request is invalid, expired or already used. Re-enter credentials in the local Switchboard app.') from None
+        raise ValueError('Credential request is invalid, expired or already used. Re-enter credentials in the local Tazrivo app.') from None
 
 
 def grant(config, profile: str, target: str, tool: str, credentials: dict) -> str:

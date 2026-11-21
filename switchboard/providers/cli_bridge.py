@@ -2,7 +2,7 @@
 
 These sign in with your Claude / ChatGPT / Google / Copilot / SuperGrok account, so they spend your
 plan's daily or weekly limits instead of API credit. Each run happens in the task's output folder
-(with `permissions.cli_agents_can_edit: true` they can write files there), and gets Switchboard's tools
+(with `permissions.cli_agents_can_edit: true` they can write files there), and gets Tazrivo's tools
 (MCP servers on every machine, devices) through `switchboard mcp gateway`.
 """
 from __future__ import annotations
@@ -210,7 +210,7 @@ class CLIProvider(Provider):
         if req.images and not self.cfg.get("image_args"):
             prompt += "\n\nImages for this task (read these files): " + ", ".join(str(p) for p in req.images)
         if req.tool_servers:
-            prompt += ("\n\nYou have Switchboard tools (MCP server 'switchboard') for: "
+            prompt += ("\n\nYou have Tazrivo tools (MCP server 'switchboard') for: "
                        + ", ".join("machine management" if s == "__machine_management__" else s for s in req.tool_servers)
                        + ", plus the user's machines and devices. Use them.")
         if req.system and req.system != DEFAULT_SYSTEM:
@@ -297,7 +297,7 @@ class CLIProvider(Provider):
 
 
 def new_files(workdir: Path, since: float, max_bytes: int = 5_000_000) -> list[Path]:
-    """Files a CLI agent created or changed in its task folder (excluding Switchboard's own config files)."""
+    """Files a CLI agent created or changed in its task folder (excluding Tazrivo's own config files)."""
     out = []
     for f in workdir.rglob("*"):
         rel = f.relative_to(workdir)

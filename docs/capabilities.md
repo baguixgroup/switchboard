@@ -29,7 +29,7 @@ Use **Connect service**, choose its type and enter the base URL and model availa
 
 Enter API keys only in the password field. Keys are saved in the hub's existing restricted `secrets.env`, never in prompts, workflows or results. A configured `OPENAI_API_KEY` can be reused for the official API. A consumer ChatGPT or Claude subscription does not imply API access. Saving a service does not create accounts, purchase access, accept terms or download models.
 
-For a local Ollama server, use `http://localhost:11434`, enter an installed model and mark the service local. For a ComfyUI worker, enter its base URL, select image or video output and paste a reviewed **API workflow**. Switchboard replaces only `{{prompt}}` strings. Install and license every required node and model on the worker first. Do not embed keys in workflow JSON. Cloud services require HTTPS; local network services can use HTTP on your trusted network.
+For a local Ollama server, use `http://localhost:11434`, enter an installed model and mark the service local. For a ComfyUI worker, enter its base URL, select image or video output and paste a reviewed **API workflow**. Tazrivo replaces only `{{prompt}}` strings. Install and license every required node and model on the worker first. Do not embed keys in workflow JSON. Cloud services require HTTPS; local network services can use HTTP on your trusted network.
 
 For document/OCR/FFmpeg work, agents advertise tools they actually find. Install Tesseract, PDF rendering tools or FFmpeg separately, then allow the agent's inventory to refresh. Choose a machine under **Options → Connection**. On source installs, PDF text support is `python -m pip install '.[documents]'`; the standalone installers include it. Heavy model engines stay in independently installed services.
 
@@ -49,6 +49,6 @@ Restart recovery resumes only safely queued work or polling an acknowledged gene
 
 ## Dependencies and terms
 
-The added runtime dependency is optional `pypdf` (7.1.1 used for this build), BSD-3-Clause; its complete notice ships in `packaging/licenses/pypdf.txt` and native bundles. The new adapters are Switchboard implementation code; no external application code or model weights are vendored. Existing third-party notices remain in the package.
+The added runtime dependency is optional `pypdf` (7.1.1 used for this build), BSD-3-Clause; its complete notice ships in `packaging/licenses/pypdf.txt` and native bundles. The new adapters are Tazrivo implementation code; no external application code or model weights are vendored. Existing third-party notices remain in the package.
 
 FFmpeg, Tesseract, PDF rendering programs, model servers, model weights, voices and custom worker nodes are installed independently and have separate terms. Record their versions and applicable licenses when deploying them. Registry entries expose operator-supplied license and hardware metadata; they do not constitute license clearance. Use service documentation and account terms for hosted access.

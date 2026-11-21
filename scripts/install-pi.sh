@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Switchboard installer for Raspberry Pi OS (64-bit recommended) and other Debian/Ubuntu Linux.
+# Tazrivo installer for Raspberry Pi OS (64-bit recommended) and other Debian/Ubuntu Linux.
 #   ./scripts/install-pi.sh hub
 #   ./scripts/install-pi.sh agent http://192.168.1.50:8765 <hub token>
 set -euo pipefail

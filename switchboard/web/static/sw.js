@@ -1,7 +1,7 @@
-// Switchboard service worker: makes the dashboard installable and lets it open instantly.
+// Tazrivo service worker: makes the dashboard installable and lets it open instantly.
 // Pages and assets are network-first (always fresh when the hub is reachable, cached copy otherwise);
 // API calls are never cached.
-const CACHE = "switchboard-v2";
+const CACHE = "tazrivo-v1";
 const SHELL = ["/", "/static/app.css", "/static/app.js", "/static/icon-192.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {

@@ -186,7 +186,7 @@ def cmd_launch(cfg: Config, a) -> None:
 
         open_window(url,page=getattr(a,'page',None))  # app window (Windows/macOS), else the browser
     else:
-        print(f"Switchboard is set up as {cfg.role} '{cfg.node_name}'. Dashboard: {url}")
+        print(f"Tazrivo is set up as {cfg.role} '{cfg.node_name}'. Dashboard: {url}")
 
 
 def cmd_pet(cfg: Config, a) -> None:
@@ -210,7 +210,7 @@ def cmd_serve(cfg: Config, a) -> None:
     port = int(a.port or cfg.server.get("port", 8765))
     if host not in ("127.0.0.1", "localhost") and not cfg.token:
         logging.warning("No SWITCHBOARD_TOKEN: remote machines will be refused until you set one in secrets.env")
-    logging.info("Switchboard hub '%s' on http://%s:%s  output: %s", cfg.node_name, host, port, cfg.output_dir)
+    logging.info("Tazrivo hub '%s' on http://%s:%s  output: %s", cfg.node_name, host, port, cfg.output_dir)
     uvicorn.run(create_app(Engine(cfg)), host=host, port=port, log_config=None, access_log=False)
 
 
@@ -543,7 +543,7 @@ def cmd_service(cfg: Config, a) -> None:
 
 def cmd_doctor(cfg: Config, a) -> None:
     ok = lambda b: "ok " if b else "-- "  # noqa: E731
-    print(f"Switchboard {__version__}  python {sys.version.split()[0]}  platform {paths.platform_tag()}")
+    print(f"Tazrivo {__version__}  python {sys.version.split()[0]}  platform {paths.platform_tag()}")
     print(f"{ok(cfg.exists)} config     {cfg.path}")
     if not cfg.exists:
         print("    run: switchboard init")
@@ -574,7 +574,7 @@ def cmd_doctor(cfg: Config, a) -> None:
 
 # ---------------------------------------------------------------------------------------------
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="switchboard", description="One control plane for your AI models, credits, tools and machines.")
+    p = argparse.ArgumentParser(prog="tazrivo", description="One control plane for your AI models, credits, tools and machines.")
     p.add_argument("--home", help="config folder (default: per-OS location, or $SWITCHBOARD_HOME)")
     p.add_argument("--version", action="version", version=__version__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -597,8 +597,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--token", help="agents: the hub's token, instead of a pairing code")
     s.add_argument("--no-start", action="store_true", help="only write the config; don't register start-at-login")
 
-    s=sub.add_parser("launch", help="open Switchboard: the setup wizard the first time, then the dashboard")
-    s.add_argument('--page',help='open a Switchboard page, e.g. #laith')
+    s=sub.add_parser("launch", help="open Tazrivo: the setup wizard the first time, then the dashboard")
+    s.add_argument('--page',help='open a Tazrivo page, e.g. #laith')
     s=sub.add_parser('pet',help='show or hide Laith, your animated desktop companion')
     s.add_argument('action',choices=['show','hide','panel','pause','resume','stop','status','run'],default='show',nargs='?')
     s.add_argument('--panel',action='store_true',help=argparse.SUPPRESS)
@@ -675,7 +675,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--node")
     s.add_argument("-y", "--yes", action="store_true")
 
-    s = sub.add_parser("mcp", help="MCP servers: serve Switchboard, catalog, add/remove/list, export to other apps")
+    s = sub.add_parser("mcp", help="MCP servers: serve Tazrivo, catalog, add/remove/list, export to other apps")
     s.add_argument("action", choices=["serve", "gateway", "catalog", "add", "remove", "list", "export"])
     s.add_argument("--servers", help=argparse.SUPPRESS)
     s.add_argument("--task", help=argparse.SUPPRESS)

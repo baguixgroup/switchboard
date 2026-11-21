@@ -98,7 +98,7 @@ def test_write_config_keeps_keys_and_switches_role(tmp_path):
     cfg = Config(home)
     assert (cfg.role, cfg.node_name, cfg.hub_url, cfg.token) == ("agent", "mac", "http://10.0.0.17:8765", "hubtoken")
     assert read_env_file(sec)["OPENAI_API_KEY"] == "sk-test"
-    assert "# Switchboard node configuration" in cfg.path.read_text()  # comments survive
+    assert "# Tazrivo node configuration" in cfg.path.read_text()  # comments survive
 
 
 @pytest.mark.parametrize("raw,url", [("10.0.0.17", "http://10.0.0.17:8765"), ("pi.local:9000/", "http://pi.local:9000"),
@@ -141,7 +141,7 @@ def test_wizard_needs_its_key_and_rejects_other_hosts(tmp_path):
     app = build_app("secret-key", home=tmp_path / "h", start_services=False)
     with TestClient(app, base_url="http://localhost") as c:
         assert c.get("/").status_code == 403
-        assert "Set up Switchboard" in c.get("/?k=secret-key").text
+        assert "Set up Tazrivo" in c.get("/?k=secret-key").text
         assert c.get("/api/info").status_code == 403
         info = c.get("/api/info", headers={"X-Setup-Key": "secret-key"}).json()
         assert info["current"] == {"configured": False}

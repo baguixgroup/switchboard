@@ -91,7 +91,7 @@ signal strength, not a clinical or statistical assessment of the person.
 **Private personalization mode is not incognito chat.** It stops new learning,
 clears pending suggestions/evidence, and disables inferred/saved personality and
 profession application and adaptive appearance. Existing explicit settings and
-preferences remain for later use. Switchboard still saves chats, prepared task
+preferences remain for later use. Tazrivo still saves chats, prepared task
 prompts and output files under its existing behavior; output mirroring is unchanged.
 Reset deletes the current personalization profile contents, not prior chats,
 task snapshots, SQLite backups or the separate explicit memory shelf.

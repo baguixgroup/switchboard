@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>Set up Switchboard</title>
+<title>Set up Tazrivo</title>
 <style>
 :root {
-  --bg: #f4f6f9; --panel: #fff; --panel-2: #f8f9fb; --ink: #151821; --ink-2: #3c4250; --muted: #6a7282;
-  --line: #e4e7ec; --line-2: #d5dae2; --accent: #3a5bd9; --accent-ink: #fff; --accent-soft: #eaefff;
+  --bg: #faf8f5; --panel: #fff; --panel-2: #f8f9fb; --ink: #151821; --ink-2: #3c4250; --muted: #6a7282;
+  --line: #e4e7ec; --line-2: #d5dae2; --accent: #173d35; --accent-ink: #fff; --accent-soft: #e7efeb;
   --ok: #18804a; --ok-soft: #e5f5ec; --crit: #c42f2f; --crit-soft: #fdeaea;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; --mono: ui-monospace, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #0e1015; --panel: #161920; --panel-2: #1b1f27; --ink: #e8eaf0; --ink-2: #c3c8d3; --muted: #959cab;
-    --line: #262b35; --line-2: #323845; --accent: #7d97ff; --accent-ink: #0e1015; --accent-soft: #1d2540;
+    --line: #262b35; --line-2: #323845; --accent: #e1ab80; --accent-ink: #0e1015; --accent-soft: #324639;
     --ok: #4cc38a; --ok-soft: #14271d; --crit: #ff7070; --crit-soft: #301818; }
 }
 * { box-sizing: border-box; }
@@ -65,10 +65,8 @@ ol { padding-left: 20px; color: var(--ink-2); } li { margin: 4px 0; }
 <body>
 <main class="card">
   <div class="brand">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="4" width="56" height="56" rx="14" fill="#3a5bd9"/>
-      <g stroke="rgba(255,255,255,.6)" stroke-width="3.5" stroke-linecap="round"><line x1="14" y1="16" x2="50" y2="16"/><line x1="14" y1="32" x2="50" y2="32"/><line x1="14" y1="48" x2="50" y2="48"/></g>
-      <g fill="#fff"><circle cx="38" cy="16" r="5.5"/><circle cx="25" cy="32" r="5.5"/><circle cx="34" cy="48" r="5.5"/></g></svg>
-    Switchboard
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Tazrivo Converge mark"><rect width="256" height="256" rx="55" fill="#173D35"/><g transform="translate(28.16 28.16) scale(.78)"><path d="M16 56 L16 40 Q16 24 32 24 L80 24 C104 24 120 45 128 72 C136 45 152 24 176 24 L224 24 Q240 24 240 40 L240 56 L184 56 C156 56 140 76 128 108 C116 76 100 56 72 56 Z" fill="#F8F5ED"/><path d="M16 68 L70 68 C104 68 124 96 124 128 L124 232 L108 232 Q92 232 92 216 L92 134 C92 108 80 100 60 100 L48 100 C28 100 16 87 16 68 Z" fill="#C87845"/><path d="M240 68 L186 68 C152 68 132 96 132 128 L132 232 L148 232 Q164 232 164 216 L164 134 C164 108 176 100 196 100 L208 100 C228 100 240 87 240 68 Z" fill="#C87845"/></g></svg>
+    Tazrivo
     <div class="steps" id="dots"></div>
   </div>
   <div id="view"><p class="muted"><span class="spin"></span>Loading…</p></div>
@@ -101,7 +99,7 @@ async function start() {
   const c = S.info.current;
   if (c.configured) {
     S.view = "welcome";
-    show(`<h1>Switchboard is already set up</h1>
+    show(`<h1>Tazrivo is already set up</h1>
       <p>This ${esc(S.info.platform_label)} is the <b>${esc(c.role)}</b> “${esc(c.name)}”${c.role === "agent" ? ` connected to <span class="mono">${esc(c.hub_url)}</span>` : ""}.</p>
       <p class="muted small">Changing it keeps your API keys, credits and connected apps.</p>
       <div class="actions"><button class="btn" id="close">Keep it</button><button class="btn primary" id="go">Change setup</button></div>`, 0);
@@ -119,7 +117,7 @@ function roleStep() {
       <span class="ic">${ICON[id]}</span><span><b>${title}${rec === id ? '<span class="badge">Recommended</span>' : ""}</b>
       <span class="muted small">${text}</span></span></button>`;
   show(`<h1>Set up this ${esc(S.info.platform_label)}</h1>
-    <p>Switchboard has one <b>hub</b> (the always-on brain) and any number of <b>agents</b> (your other computers).</p>
+    <p>Tazrivo has one <b>hub</b> (the always-on brain) and any number of <b>agents</b> (your other computers).</p>
     ${S.hubs === null ? '<p class="muted small"><span class="spin"></span>Looking for a hub on your network…</p>'
       : found ? `<div class="okbox">Found your hub “${esc(S.hubs[0].name)}” on this network.</div>` : ""}
     <div class="choices">
@@ -184,21 +182,21 @@ async function finish(body) {
   let res;
   try { res = await api("/api/finish", body); } catch (e) { btn.disabled = false; btn.textContent = body.role === "hub" ? "Set up hub" : "Connect"; return err(e); }
   S.view = "done";
-  show(`<h1><span class="spin"></span>Starting Switchboard…</h1><p class="muted">This takes a few seconds.</p>`, 3);
+  show(`<h1><span class="spin"></span>Starting Tazrivo…</h1><p class="muted">This takes a few seconds.</p>`, 3);
   let ready = false;
   for (let i = 0; i < 12 && !ready; i++) { try { ready = (await api("/api/ready")).ready; } catch { break; } }
   const where = S.info.platform === "windows" ? "system tray" : S.info.platform === "macos" ? "menu bar" : "";
   show(`<h1>${ready ? "You're all set" : "Almost there"}</h1>
     ${ready ? `<div class="okbox">“${esc(res.name)}” is running as your ${res.role === "hub" ? "hub" : "agent"}.</div>`
-      : `<div class="err">Setup finished, but Switchboard hasn't answered yet. Give it a minute${where ? `, or look for its icon in the ${where}` : ""}.</div>`}
+      : `<div class="err">Setup finished, but Tazrivo hasn't answered yet. Give it a minute${where ? `, or look for its icon in the ${where}` : ""}.</div>`}
     <ol>
-      ${where ? `<li>Switchboard starts by itself when you log in. Its icon is in the ${where}.</li>` : "<li>Switchboard starts by itself when this computer boots.</li>"}
+      ${where ? `<li>Tazrivo starts by itself when you log in. Its icon is in the ${where}.</li>` : "<li>Tazrivo starts by itself when this computer boots.</li>"}
       ${res.role === "hub"
-        ? `<li>Add your PC and Mac: install Switchboard on them. They find this hub on their own; enter the code from <b>Machines → Connect a computer</b>.</li>
+        ? `<li>Add your PC and Mac: install Tazrivo on them. They find this hub on their own; enter the code from <b>Machines → Connect a computer</b>.</li>
            <li>Add your AI keys or sign in to your plans under <b>Settings</b> and <b>Plans &amp; credits</b>.</li>`
         : `<li>This computer now shows up under <b>Machines</b> on your hub.</li>`}
     </ol>
-    <div class="actions"><button class="btn primary" id="open">Open Switchboard</button></div>`, 3);
+    <div class="actions"><button class="btn primary" id="open">Open Tazrivo</button></div>`, 3);
   // Set up from another device (headless Pi): the dashboard lives on the machine that served this page.
   const dash = res.dashboard_url.replace("//localhost", "//" + location.hostname);
   $("#open").onclick = () => { api("/api/bye", {}).catch(() => {}); location.href = dash; };

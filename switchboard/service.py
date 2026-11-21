@@ -1,4 +1,4 @@
-"""Start Switchboard automatically at login.
+"""Start Tazrivo automatically at login.
 
 Windows: Task Scheduler.  macOS: launchd.  Linux/Pi: systemd --user.
 On Windows and macOS (when the tray extras are installed) an agent runs inside the tray icon app,
@@ -103,7 +103,7 @@ def _linux_install(kind: str) -> str:
     unit = unit_dir / f"switchboard-{kind}.service"
     env = f"Environment=SWITCHBOARD_HOME={os.environ['SWITCHBOARD_HOME']}\n" if os.environ.get("SWITCHBOARD_HOME") else ""
     unit.write_text(f"""[Unit]
-Description=Switchboard {kind}
+Description=Tazrivo {kind}
 After=network-online.target
 Wants=network-online.target
 
@@ -134,7 +134,7 @@ def install(role: str) -> str:
     do = {"windows": _win_install, "macos": _mac_install}.get(fam, _linux_install)
     msgs = [do(kind) for kind in _plan(role)]
     if role == "agent" and "tray" in _plan(role):
-        msgs.append("The agent runs inside the tray icon: look for the Switchboard icon in your "
+        msgs.append("The agent runs inside the tray icon: look for the Tazrivo icon in your "
                     + ("system tray." if fam == "windows" else "menu bar."))
     return "\n".join(msgs)
 
@@ -144,4 +144,4 @@ def uninstall(role: str) -> str:
     undo = {"windows": _win_remove, "macos": _mac_remove}.get(fam, _linux_remove)
     for kind in {"hub", "agent", "tray"} if role == "hub" else {"agent", "tray"}:
         undo(kind)
-    return "Removed Switchboard's start-at-login entries."
+    return "Removed Tazrivo's start-at-login entries."

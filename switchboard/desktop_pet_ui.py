@@ -120,7 +120,7 @@ class TaskPanel(QWidget):
         self.tools=QCheckBox('Use connected tools');self.tools.setToolTip('You confirm tool access before sending. Installations keep their separate approvals.');self.knowledge=QCheckBox('Use project knowledge');options.addWidget(self.tools);options.addWidget(self.knowledge)
         note=QLabel('Uses your plans and free models. Saved memories are included. Copied text is read only when you choose +.');note.setWordWrap(True);note.setStyleSheet('font-size:12px;color:#8c8278;');options.addWidget(note)
         reconnect=QPushButton('Reconnect');reconnect.clicked.connect(self.connect_hub);options.addWidget(reconnect)
-        app=QPushButton('Open Switchboard');app.clicked.connect(lambda:self.open_switchboard('#laith'));options.addWidget(app)
+        app=QPushButton('Open Tazrivo');app.clicked.connect(lambda:self.open_switchboard('#laith'));options.addWidget(app)
         personalize=QPushButton('Personality & appearance');personalize.clicked.connect(lambda:self.open_switchboard('#laith/personality'));options.addWidget(personalize)
         done=QPushButton('Done');done.clicked.connect(self.settings.accept);options.addWidget(done);options.addStretch()
         self.timer=QTimer(self);self.timer.setInterval(1800);self.timer.timeout.connect(self.poll)
@@ -284,7 +284,7 @@ class TaskPanel(QWidget):
     def make_goal(self):
         if not self.chat or not self.goal_turn:return
         title,ok=QInputDialog.getText(self,'New goal','What should the team deliver?')
-        if ok and title.strip():self.call(lambda:self.client.goal(self.chat_id,self.goal_turn,title.strip()),lambda _:self.status('Goal saved. Open Switchboard to start the team.'))
+        if ok and title.strip():self.call(lambda:self.client.goal(self.chat_id,self.goal_turn,title.strip()),lambda _:self.status('Goal saved. Open Tazrivo to start the team.'))
 
     def open_link(self,url):
         if url.scheme() in ('https','http'):QDesktopServices.openUrl(url)
@@ -460,7 +460,7 @@ class Lion(QWidget):
         animate=menu.addAction('Animate Laith');animate.setCheckable(True);animate.setChecked(self.opts['animation']);animate.triggered.connect(lambda checked:self.action('resume' if checked else 'pause'))
         sizes=menu.addMenu('Size')
         for name,size in [('Small',120),('Medium',180),('Large',240)]:sizes.addAction(name,lambda checked=False,size=size:self.resize_pet(size))
-        menu.addSeparator();menu.addAction('Open Switchboard',lambda:self.panel.open_switchboard('#laith'));menu.addAction('Hide Laith',lambda:self.action('hide'))
+        menu.addSeparator();menu.addAction('Open Tazrivo',lambda:self.panel.open_switchboard('#laith'));menu.addAction('Hide Laith',lambda:self.action('hide'))
         menu.exec(position)
 
 

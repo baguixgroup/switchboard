@@ -1,3 +1,3 @@
-"""Switchboard: one control plane for your AI models, credits, MCP tools, devices and machines."""
+"""Tazrivo: one control plane for your AI models, credits, MCP tools, devices and machines."""
 
-__version__ = "0.8.2"
+__version__ = "0.9.0"

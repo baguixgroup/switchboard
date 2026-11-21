@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Switchboard installer for macOS.
+# Tazrivo installer for macOS.
 #   ./scripts/install-macos.sh agent http://192.168.1.50:8765 <hub token>
 #   ./scripts/install-macos.sh hub
 set -euo pipefail

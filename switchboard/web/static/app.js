@@ -1,5 +1,5 @@
 "use strict";
-/* Switchboard dashboard: plain JavaScript, no build step. Pages: Ask, Agent Studio, History, Plans & credits, Machines & apps, Settings. */
+/* Tazrivo dashboard: plain JavaScript, no build step. Pages: Ask, Agent Studio, History, Plans & credits, Machines & apps, Settings. */
 
 // ---------------------------------------------------------------- helpers
 const $ = (s, el = document) => el.querySelector(s);
@@ -123,7 +123,7 @@ function askToken() {
   if (tokenPrompt) return tokenPrompt;
   tokenPrompt = new Promise((resolve) => {
     const m = modal({ title: "Connect to your hub", closable: false,
-      body: `<p>This device needs your Switchboard token once. You'll find it in <span class="mono">secrets.env</span> on the hub
+      body: `<p>This device needs your Tazrivo token once. You'll find it in <span class="mono">secrets.env</span> on the hub
         (the line <span class="mono">SWITCHBOARD_TOKEN=…</span>), or in the hub's dashboard under <b>Settings → About</b>.</p>
         <label class="field">Token<input id="tokIn" type="password" autocomplete="off" placeholder="Paste the token"></label>
         <p class="tiny muted" style="margin-top:10px">Tip: on your own PC or Mac, open <span class="mono">http://localhost:8766</span> instead. It needs no token.</p>`,
@@ -278,7 +278,7 @@ function route() {
   const name = PAGES[page] ? page : "laith";
   document.body.classList.toggle("laith-open", name === "laith");
   $$("[data-page]").forEach((a) => a.classList.toggle("active", a.dataset.page === name));
-  document.title = (NAV.find((n) => n[0] === name) || [0, "Switchboard"])[1] + " · Switchboard";
+  document.title = (NAV.find((n) => n[0] === name) || [0, "Tazrivo"])[1] + " · Tazrivo";
   Promise.resolve(PAGES[name](rest.join("/"))).catch((e) => { view.innerHTML = `<div class="alert critical">${I("alert")}<div><div class="t">Something went wrong</div><div class="m">${esc(e.message)}</div></div></div>`; });
   window.scrollTo(0, 0);
 }
@@ -351,7 +351,7 @@ function writingAssistant() {
   $("#writingText", m.el).value = $("#prompt").value;
   $("#writingService", m.el).onchange = (e) => {
     $("#writingNote", m.el).textContent = e.target.value
-      ? "Manual handoff: Switchboard copies the source text. Apply the selected edits in the service, then paste the result back here. The service's own features and limits apply."
+      ? "Manual handoff: Tazrivo copies the source text. Apply the selected edits in the service, then paste the result back here. The service's own features and limits apply."
       : "Prepare a request to review before sending. Uses the model and spending settings in your chat.";
   };
   $("#prepareWriting", m.el).onclick = () => {
@@ -405,7 +405,7 @@ function onboardingSteps() {
   const prov = ((S.status && S.status.providers) || []).filter((p) => p.available && p.kind !== "mock");
   return [
     { title: "Connect an AI", help: "Sign in to a plan (Claude, ChatGPT, Gemini, Copilot, Grok) or add an API key.", done: prov.length > 0, href: "#plans", action: "Set up" },
-    { title: "Add your other computers", help: "Install the agent on your PC and Mac so Switchboard can use their apps and devices.", done: S.nodes.length > 1, href: "#machines", action: "Connect" },
+    { title: "Add your other computers", help: "Install the agent on your PC and Mac so Tazrivo can use their apps and devices.", done: S.nodes.length > 1, href: "#machines", action: "Connect" },
     { title: "Tell it about your credits and free limits", help: "So it can use expiring credit first and remind you before free limits reset.", done: !!(S.credits && S.credits.sources.length), href: "#plans", action: "Add" },
     { title: "Get alerts on your phone", help: "Free ntfy app: expiring credit, unused free limits, plans hitting their limit.", done: !!(S.settings && S.settings.notify.ntfy_topic), href: "#settings", action: "Turn on" },
   ];
@@ -442,7 +442,7 @@ function msgHtml(m, i) {
   if (m.role === "confirm") {
     const p = m.plan;
     const handoff = (modelByKey(p.provider + ":" + p.model) || { features: [] }).features.includes("handoff");
-    const why = handoff ? `This opens <b>${esc(p.model_label)}</b>. Send the prompt in that app, then bring its answer back here. Switchboard will wait for your result.`
+    const why = handoff ? `This opens <b>${esc(p.model_label)}</b>. Send the prompt in that app, then bring its answer back here. Tazrivo will wait for your result.`
       : m.over ? esc(m.over) : `This will cost about <b>${money(p.effective_cost_usd)}</b> with ${esc(p.model_label)}, paid by ${esc(p.source_label)}.`;
     const alt = (p.alternatives || [])[0];
     return `<div class="msg"><div class="confirm" data-i="${i}"><b>${m.over ? "That effort may be more than this needs" : "Check before running"}</b><div class="small" style="margin-top:4px">${why}</div>
@@ -468,7 +468,7 @@ function msgHtml(m, i) {
   }
   const t = m.task || {};
   const exec = (t.plan && t.plan.executed) || "";
-  const label = exec && exec !== p.provider + ":" + p.model ? (modelByKey(exec) || { label: exec }).label + " (fallback)" : p.model_label || "Switchboard";
+  const label = exec && exec !== p.provider + ":" + p.model ? (modelByKey(exec) || { label: exec }).label + " (fallback)" : p.model_label || "Tazrivo";
   const meta = m.state === "done" ? `<span>· ${p.usage_cost_unknown?"Cost not reconciled":money(t.cost_usd)}</span>` : "";
   return `<div class="msg ai"><div class="body"><div class="msg-head"><span class="who">${esc(label)}</span>${p.provider ? kindBadge(p) : ""}${p.effort ? `<span class="badge">${I("bolt")} ${esc(p.effort)}</span>` : ""}${meta}${where}</div>${body}</div></div>`;
 }
@@ -683,7 +683,7 @@ function pickWho() {
   const section = (title, list, off = false) => (list.length ? `<div class="group-label">${title}</div>` + list.map((m) => opt(m, off)).join("") : "");
   const md = modal({ title: "Who should answer?", wide: true,
     body: `<div class="opt${!ASK.who ? " on" : ""}" data-key="auto"><div class="avatar">${I("spark")}</div><div class="grow"><b>Automatic (recommended)</b>
-      <div class="sub">Switchboard picks the best fit for each task and your spending setting.</div></div></div>
+      <div class="sub">Tazrivo picks the best fit for each task and your spending setting.</div></div></div>
       ${section("Your plans · automatic", groups.plan)}${section("Manual app handoffs · you finish the task", groups.manual)}${section("Free", groups.free)}${section("Pay per use", groups.paid)}${section("Not set up yet", groups.off, true)}` });
   $$(".opt[data-key]", md.el).forEach((o) => (o.onclick = () => {
     if (!o.dataset.key) return;
@@ -799,7 +799,7 @@ PAGES.plans = async function renderPlans() {
     <p class="small muted">Automatic subscription tasks use command-line clients such as Claude Code and Codex. Your installed Claude and ChatGPT desktop apps are listed separately under <a href="#machines">Machines</a>.</p>
     <div class="grid">${(c.plans || []).map(planCard).join("")}</div>
     <div class="section-title"><h2>Credits, free limits and budgets</h2><div class="grow"></div><button class="sm primary" id="addCredit">${I("plus")} Add</button></div>
-    ${c.sources.length ? `<div class="grid">${c.sources.map(sourceCard).join("")}</div>` : `<div class="empty"><b>Nothing added yet</b>Add promo credit with an expiry date, a free daily limit, a plan's quota or a monthly budget.<br>Switchboard then spends expiring credit first and reminds you before free limits reset.</div>`}
+    ${c.sources.length ? `<div class="grid">${c.sources.map(sourceCard).join("")}</div>` : `<div class="empty"><b>Nothing added yet</b>Add promo credit with an expiry date, a free daily limit, a plan's quota or a monthly budget.<br>Tazrivo then spends expiring credit first and reminds you before free limits reset.</div>`}
     ${c.untracked_providers.length ? `<p class="small muted" style="margin-top:10px">Also connected, billed per use with no limit set: ${c.untracked_providers.map(pname).map(esc).join(", ")}.</p>` : ""}
     ${(c.spend_this_month || []).length ? `<div class="section-title"><h2>Spending this month</h2></div><div class="card scroll-x"><table class="plain"><tr><th>Model</th><th>Calls</th><th>Cost</th></tr>
       ${c.spend_this_month.map((r) => `<tr><td>${esc((modelByKey(r.provider + ":" + r.model) || { label: r.model }).label)} <span class="muted small">${esc(pname(r.provider))}</span></td><td>${r.calls}</td><td>${money(r.usd)}</td></tr>`).join("")}</table></div>` : ""}`;
@@ -835,7 +835,7 @@ function startPlanChat(model, prompt) {
 function planCard(p) {
   const [name, sub] = PLANINFO[p.provider] || [p.label, ""];
   const badge = p.kind === "app" ? '<span class="badge">Open app</span>' : p.status === "ready" ? `<span class="badge ok"><span class="dot on"></span>Ready</span>` : p.status === "limit reached" ? '<span class="badge warn">At its limit</span>' : '<span class="badge">Not set up</span>';
-  const line = p.kind === "app" ? "Send the prompt in the service's app or website, then paste its answer into Switchboard. Sign-in is managed by that service." : p.status === "ready" ? `Runs on <b>${esc(p.where)}</b>` : p.status === "limit reached" ? `Resets <b>${esc(fmtWhen(p.resets))}</b>. Other plans take over until then.` : "Install it on one of your machines, then sign in once.";
+  const line = p.kind === "app" ? "Send the prompt in the service's app or website, then paste its answer into Tazrivo. Sign-in is managed by that service." : p.status === "ready" ? `Runs on <b>${esc(p.where)}</b>` : p.status === "limit reached" ? `Resets <b>${esc(fmtWhen(p.resets))}</b>. Other plans take over until then.` : "Install it on one of your machines, then sign in once.";
   const btns = p.status === "not installed" ? `<button class="sm primary" data-setup="${esc(p.provider)}">Set up</button>`
     : `${p.can_sign_in ? `<button class="sm" data-signin="${esc(p.provider)}">Sign in</button>` : ""}${p.status === "limit reached" ? `<button class="sm ghost" data-clear="${esc(p.provider)}">It has reset</button>` : ""}${p.kind !== "app" ? `<button class="sm ghost" data-setup="${esc(p.provider)}">Manage</button>` : ""}`;
   return `<div class="card"><div class="row" style="flex-wrap:nowrap"><div class="avatar">${esc(name[0])}</div><div class="grow"><h3>${esc(name)}</h3><div class="small muted">${esc(sub)}</div></div>${badge}</div>
@@ -863,7 +863,7 @@ function addCreditWizard() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const m = modal({ title: "Add credit or a limit", wide: true, body: "" });
   const step1 = () => {
-    m.setBody(`<p class="muted">What do you want Switchboard to track?</p><div class="choice">
+    m.setBody(`<p class="muted">What do you want Tazrivo to track?</p><div class="choice">
       ${[["prepaid", "Promo or prepaid credit", "Money already on an account, maybe with an expiry date."],
          ["free_tier", "Free daily or monthly limit", "A free allowance that resets, like Gemini's or GitHub Models' free tier."],
          ["subscription", "Subscription plan", "A plan like Claude Max, ChatGPT Plus or Copilot, used through its app."],
@@ -878,7 +878,7 @@ function addCreditWizard() {
       <label class="field">Name <span class="help">Optional, e.g. "OpenAI promo"</span><input id="cLabel"></label>
       ${type === "payg" ? `<label class="field">Monthly budget ($)<input id="cBudget" type="number" min="0" step="any" placeholder="30"></label>`
         : `<label class="field">${type === "prepaid" ? "Amount left ($)" : "Limit per period"}<input id="cAmount" type="number" min="0" step="any" placeholder="${type === "prepaid" ? "18" : "250"}">
-          ${type !== "prepaid" ? `<span class="help">Leave empty if you don't know it; Switchboard will still track usage and limits.</span>` : ""}</label>`}
+          ${type !== "prepaid" ? `<span class="help">Leave empty if you don't know it; Tazrivo will still track usage and limits.</span>` : ""}</label>`}
       ${type === "free_tier" || type === "subscription" ? `<label class="field">Counted in<select id="cUnit"><option value="requests">Requests</option><option value="premium_requests">Premium requests</option><option value="tokens">Tokens</option></select></label>
         <label class="field">Resets<select id="cReset"><option value="day">Every day</option><option value="week">Every week</option><option value="month">Every month</option><option value="5h">Every 5 hours</option><option value="">Never</option></select></label>` : ""}
       ${type === "prepaid" ? `<label class="field">Expires <span class="help">Optional</span><input id="cExp" type="date"></label>` : ""}
@@ -986,17 +986,17 @@ async function connectWizard() {
     m.setBody(`<div class="tabs">${Object.entries(os).map(([id, l]) => `<button data-os="${id}" class="${id === k ? "on" : ""}">${l}</button>`).join("")}</div>
       <ol class="steps">
         <li>${file ? `Download and install <a href="${esc(file.url)}" download>${esc(file.name)}</a> on that computer.`
-          : `Install the Switchboard app on that computer${c.releases_url ? ` (<a href="${esc(c.releases_url)}" target="_blank" rel="noopener">download it here</a>)` : ""}.`}
-          ${k === "macos" ? '<div class="tiny muted">First open: right-click Switchboard in Applications, then Open (it isn\'t from the App Store).</div>'
+          : `Install the Tazrivo app on that computer${c.releases_url ? ` (<a href="${esc(c.releases_url)}" target="_blank" rel="noopener">download it here</a>)` : ""}.`}
+          ${k === "macos" ? '<div class="tiny muted">First open: right-click Tazrivo in Applications, then Open (it isn\'t from the App Store).</div>'
             : k === "windows" ? '<div class="tiny muted">If Windows SmartScreen appears: More info, then Run anyway.</div>'
             : `<div class="tiny muted">Then run <span class="mono">switchboard setup</span> in its terminal.</div>`}</li>
-        <li>Open Switchboard, choose <b>Connect to my hub</b>. It finds this hub on its own.</li>
+        <li>Open Tazrivo, choose <b>Connect to my hub</b>. It finds this hub on its own.</li>
         <li>Enter this pairing code:
           <div class="row" style="margin-top:8px">${code && code.code
             ? `<span class="mono" style="font-size:28px;font-weight:700;letter-spacing:8px">${esc(code.code)}</span><span class="small muted" id="pairLeft">valid ${fmt(code.expires_in)}</span>`
             : `<button class="primary" id="newCode">Show a pairing code</button>`}</div>
           <div class="tiny muted" style="margin-top:6px">Works once, for 10 minutes. If it doesn't find the hub, type the address ${c.hub_urls.map(esc).join(" or ")}.</div></li>
-        <li>That's it. The computer appears here within a minute${k === "pi" ? "" : ", with a Switchboard icon in its " + (k === "windows" ? "system tray" : "menu bar")}.</li></ol>
+        <li>That's it. The computer appears here within a minute${k === "pi" ? "" : ", with a Tazrivo icon in its " + (k === "windows" ? "system tray" : "menu bar")}.</li></ol>
       <details ${adv ? "open" : ""} id="advanced"><summary class="small muted">Install from the command line instead</summary>
         <p class="small" style="margin-top:8px">${esc(c.steps[k][0])}</p>${copyBox(c.steps[k][1])}
         <p class="tiny muted">The token in the command lets that computer join; keep it private.</p></details>`);
@@ -1100,7 +1100,7 @@ async function installTool(node, tool, btn, after) {
     const agreements = pre.agreements || [];
     const routes = pre.auth_routes || [];
     let authHandle = null;
-    const m = modal({ title: `Install on ${node}?`, body: `<p>Switchboard will run this on <b>${esc(node)}</b>:</p>${copyBox(pre.command)}
+    const m = modal({ title: `Install on ${node}?`, body: `<p>Tazrivo will run this on <b>${esc(node)}</b>:</p>${copyBox(pre.command)}
       ${agreements.length ? `<p>${agreements.map((a) => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.label)}</a>`).join(" · ")}</p><label><input type="checkbox" id="accept-install"> I accept these installation terms.</label>` : ""}
       ${routes.length ? `<label class="field">Installation permissions<select id="install-auth"><option value="">Normal permissions on ${esc(node)}</option>${routes.map((r) => `<option value="${esc(r.id)}">Administrator · ${esc(r.label)} via ${esc(r.controller)}</option>`).join("")}</select></label><p class="small muted">The administrator route authenticates over your saved SSH connection. Approve it here; no password is sent to the AI.</p><label class="field">Authenticate with<select id="install-auth-mode"><option value="key">Saved SSH key</option><option value="password">Username and password · encrypted local form</option></select></label><div id="install-credentials" hidden><label class="field">SSH account username<input id="install-user" autocomplete="off" maxlength="128"></label><label class="field">Account password<input type="password" id="install-password" autocomplete="new-password" maxlength="1024"></label><p class="small muted">Use your account password, not a Windows Hello PIN. Credentials stay in memory on this controller for one approved installation, up to five minutes.</p></div><button id="check-install-auth" class="sm">Authenticate administrator connection</button><p id="auth-check-result" class="small"></p>` : ""}
       <p class="small muted" id="install-status">Progress is saved in History. Installation may take several minutes.</p>`,
@@ -1116,7 +1116,7 @@ async function installTool(node, tool, btn, after) {
       const selected = routes.find((r) => r.id === route);
       let envelope = null;
       if ($("#install-auth-mode", m.el).value === "password") {
-        if (!globalThis.isSecureContext || !crypto.subtle) throw new Error("Open this controller's local Switchboard app to use the encrypted credential form.");
+        if (!globalThis.isSecureContext || !crypto.subtle) throw new Error("Open this controller's local Tazrivo app to use the encrypted credential form.");
         const username = $("#install-user", m.el).value.trim();
         const password = $("#install-password", m.el).value;
         if (!username || !password) throw new Error("Enter the SSH account username and password.");
@@ -1149,7 +1149,7 @@ async function installTool(node, tool, btn, after) {
 async function encryptInstallCredentials(route, node, tool, username, password) {
   // This endpoint is served directly by the loopback controller, never relayed through the hub.
   const local = await api("/api/local/install-auth-key");
-  if (local.controller !== route.controller) throw new Error(`Open Switchboard on ${route.controller} to authenticate this saved connection. Credentials cannot be encrypted for another controller through an untrusted hub link.`);
+  if (local.controller !== route.controller) throw new Error(`Open Tazrivo on ${route.controller} to authenticate this saved connection. Credentials cannot be encrypted for another controller through an untrusted hub link.`);
   const from64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
   const to64 = (data) => btoa(String.fromCharCode(...new Uint8Array(data)));
   const rsa = await crypto.subtle.importKey("spki", from64(local.spki), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
@@ -1198,7 +1198,7 @@ PAGES.settings = async function renderSettings() {
       <button class="sm" data-savekey="${esc(k.name)}">Save</button>${k.set ? `<button class="sm ghost danger" data-delkey="${esc(k.name)}" aria-label="Remove">${I("trash")}</button>` : ""}</div>`).join("")}
     <p class="tiny muted" style="margin-top:10px">Keys are stored only on your hub (in secrets.env) and are never shown again.</p></div>
 
-  <div class="card"><div class="card-head">${I("spark")}<div class="grow"><h2>How Switchboard chooses</h2></div></div><div class="stack">
+  <div class="card"><div class="card-head">${I("spark")}<div class="grow"><h2>How Tazrivo chooses</h2></div></div><div class="stack">
     <div><b>Default spending</b><div class="choice" style="margin-top:8px">${Object.entries(SPEND).map(([k, [t, d]]) => `<label><input type="radio" name="billing" value="${k}" ${r.billing === k ? "checked" : ""}><b>${t}</b><span>${d}</span></label>`).join("")}</div></div>
     <div><b>Quality or savings</b><div style="margin-top:6px">${seg("router.mode", [["balanced", "Balanced"], ["best", "Best quality"], ["cheapest", "Cheapest"]], r.mode)}</div></div>
     <label class="switch"><input type="checkbox" data-bool="router.auto_downgrade_effort" ${r.auto_downgrade_effort ? "checked" : ""}><span>Lower the effort automatically when you pick more than a task needs</span></label>
@@ -1249,7 +1249,7 @@ PAGES.settings = async function renderSettings() {
     toast("Key saved"); await Promise.all([loadStatus(), loadModels()]); PAGES.settings();
   }, b)));
   $$("[data-delkey]").forEach((b) => (b.onclick = () => {
-    const m = modal({ title: "Remove key?", body: "<p>Switchboard will stop using this account.</p>", foot: '<button data-close>Cancel</button><button class="primary" id="yes">Remove</button>' });
+    const m = modal({ title: "Remove key?", body: "<p>Tazrivo will stop using this account.</p>", foot: '<button data-close>Cancel</button><button class="primary" id="yes">Remove</button>' });
     $("#yes", m.el).onclick = () => guard(async () => { await api("/api/keys/" + b.dataset.delkey, { method: "DELETE" }); m.close(); toast("Removed"); await loadStatus(); PAGES.settings(); });
   }));
   $("#ntfyGen").onclick = () => { $("#ntfyTopic").value = "switchboard-" + Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6); };
@@ -1296,7 +1296,7 @@ if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWor
   } catch (e) {
     $("#hubDot").className = "dot crit";
     $("#hubName").textContent = "Hub not reachable";
-    view.innerHTML = `<div class="alert critical">${I("alert")}<div><div class="t">Can't reach your Switchboard hub</div><div class="m">${esc(e.message)}. Check that the hub is on and connected, then reload.</div></div></div>`;
+    view.innerHTML = `<div class="alert critical">${I("alert")}<div><div class="t">Can't reach your Tazrivo hub</div><div class="m">${esc(e.message)}. Check that the hub is on and connected, then reload.</div></div></div>`;
     return;
   }
   route();

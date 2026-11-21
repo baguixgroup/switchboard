@@ -1,4 +1,4 @@
-# Switchboard node configuration  (one file per machine)
+# Tazrivo node configuration  (one file per machine)
 #
 # One machine is the HUB: it runs the dashboard, the router, the credit ledger and the
 # scheduler. An always-on Raspberry Pi is ideal. Every other machine (Windows PC, Mac)
@@ -108,7 +108,7 @@ providers:
     edit_args: ["--allow-tool", "write"]
     mcp_style: copilot
     login_args: ["login"]
-  # Plans whose images are made in their own app: Switchboard opens the app with the prompt copied,
+  # Plans whose images are made in their own app: Tazrivo opens the app with the prompt copied,
   # then picks up the image you save. Set enabled: false if you don't have that plan.
   claude-app: {kind: handoff, label: Claude, url: "https://claude.ai/", windows_app: Claude, mac_app: Claude, enabled: true}
   chatgpt-app: {kind: handoff, label: ChatGPT, url: "https://chatgpt.com/", windows_app: ChatGPT, mac_app: ChatGPT, enabled: true}

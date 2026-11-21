@@ -55,30 +55,16 @@ def tray_available() -> bool:
 
 
 def make_icon(size: int = 64, status: str | None = None, maskable: bool = False):
-    """Switchboard mark: three sliders on a rounded square, with an optional status dot."""
-    from PIL import Image, ImageDraw
-
-    scale = 4  # draw large, then downsample for smooth edges
-    s = size * scale
-    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    pad = 0 if maskable else int(s * 0.06)
-    d.rounded_rectangle([pad, pad, s - pad, s - pad], radius=0 if maskable else int(s * 0.22), fill=ACCENT + (255,))
-    inner = int(s * (0.24 if maskable else 0.2))
-    for i, knob in enumerate((0.68, 0.32, 0.55)):
-        y = inner + i * (s - 2 * inner) / 2
-        x0, x1 = inner, s - inner
-        h = s * 0.055
-        d.rounded_rectangle([x0, y - h / 2, x1, y + h / 2], radius=h / 2, fill=(255, 255, 255, 150))
-        kx = x0 + (x1 - x0) * knob
-        r = s * 0.085
-        d.ellipse([kx - r, y - r, kx + r, y + r], fill=(255, 255, 255, 255))
+    """Converge app mark with the existing hub-status badge."""
+    from PIL import ImageDraw
+    from .brand import draw_icon
+    image = draw_icon(size, maskable=maskable)
     if status:
-        r = s * 0.2
-        cx, cy = s - r - pad * 0.5, s - r - pad * 0.5
-        d.ellipse([cx - r - s * 0.03, cy - r - s * 0.03, cx + r + s * 0.03, cy + r + s * 0.03], fill=(255, 255, 255, 255))
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=COLORS.get(status, COLORS["off"]) + (255,))
-    return img.resize((size, size), Image.LANCZOS)
+        draw = ImageDraw.Draw(image)
+        radius = max(2, round(size*.14)); center = size-radius-1
+        draw.ellipse((center-radius-1,center-radius-1,center+radius+1,center+radius+1),fill='white')
+        draw.ellipse((center-radius,center-radius,center+radius,center+radius),fill=COLORS.get(status,COLORS['off'])+(255,))
+    return image
 
 
 def dashboard_url(config) -> str:
@@ -105,10 +91,10 @@ class TrayState:
     @property
     def tooltip(self) -> str:
         if self.error or not self.summary:
-            return "Switchboard: hub not reachable"
+            return "Tazrivo: hub not reachable"
         c = self.summary.get("counts") or {}
         n = (c.get("critical") or 0) + (c.get("warning") or 0)
-        return f"Switchboard: {n} alert{'s' if n != 1 else ''}" if n else "Switchboard: all good"
+        return f"Tazrivo: {n} alert{'s' if n != 1 else ''}" if n else "Tazrivo: all good"
 
     @property
     def status_line(self) -> str:
@@ -225,7 +211,7 @@ def run_tray(config) -> None:
         except Exception:log.exception('desktop Laith action failed')
 
     menu = pystray.Menu(
-        pystray.MenuItem("Open Switchboard", lambda *_: open_app(url), default=True),
+        pystray.MenuItem("Open Tazrivo", lambda *_: open_app(url), default=True),
         pystray.MenuItem('Show Laith',lambda *_:pet_action('show')),
         pystray.MenuItem('Talk to Laith',lambda *_:pet_action('panel')),
         pystray.MenuItem('Hide Laith',lambda *_:pet_action('hide')),
@@ -236,7 +222,7 @@ def run_tray(config) -> None:
         pystray.MenuItem("Open output folder", lambda *_: open_path(str(config.output_dir))),
         pystray.MenuItem("Change setup…", lambda *_: open_setup()),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Quit Switchboard", lambda icon, _: (icon.stop(), _stop_loop())),
+        pystray.MenuItem("Quit Tazrivo", lambda icon, _: (icon.stop(), _stop_loop())),
     )
     if os_family() == "macos":
         # Menu-bar only: no Dock icon for this background process (the app window has its own).
@@ -246,7 +232,7 @@ def run_tray(config) -> None:
             NSApplication.sharedApplication().setActivationPolicy_(NSApplicationActivationPolicyAccessory)
         except Exception:  # noqa: BLE001
             log.debug("could not hide the Dock icon", exc_info=True)
-    icon = pystray.Icon("switchboard", make_icon(64, "off"), "Switchboard", menu)
+    icon = pystray.Icon("switchboard", make_icon(64, "off"), "Tazrivo", menu)
     if os_family() == 'macos':
         try:
             from AppKit import NSApplication
@@ -266,7 +252,7 @@ def run_tray(config) -> None:
         except Exception as exc:
             log.debug("tray update failed: %s", exc)
         for a in state.new_alerts():
-            desktop_notify(icon, "Switchboard", a["title"])
+            desktop_notify(icon, "Tazrivo", a["title"])
 
     def _stop_loop() -> None:
         loop = loop_holder.get("loop")

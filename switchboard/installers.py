@@ -13,7 +13,7 @@ from . import __version__
 
 
 def official_download(url: str):
-    request = urllib.request.Request(url, headers={"User-Agent": f"Switchboard/{__version__}"})
+    request = urllib.request.Request(url, headers={"User-Agent": f"Tazrivo/{__version__}"})
     return urllib.request.urlopen(request, timeout=120)
 
 
@@ -85,7 +85,7 @@ def install_windows_msix(entry: dict) -> str:
         if '0x80073D28' in error or 'administrator privileges' in error.casefold():
             error = ("Windows requires administrator approval to install ChatGPT's packaged service. "
                      "The agent runs as your normal user. Open Windows PowerShell as administrator on this PC and run:\n"
-                     + "Add-AppxPackage -Path '" + quoted + "'\nThen rescan this machine in Switchboard.")
+                     + "Add-AppxPackage -Path '" + quoted + "'\nThen rescan this machine in Tazrivo.")
         # Windows may hold a package handle after deployment fails. Keep the signed package for
         # the administrator instead of blocking error reporting on synchronous temporary cleanup.
         raise RuntimeError(error.strip()[-8000:] + f"\nOfficial package retained at {package}")

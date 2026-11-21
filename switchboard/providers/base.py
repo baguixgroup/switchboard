@@ -9,7 +9,7 @@ from ..catalog import ModelInfo
 from ..toolbox import ToolBox
 
 DEFAULT_SYSTEM = (
-    "You are working inside Switchboard, a personal AI control plane. Be direct and complete. "
+    "You are working inside Tazrivo, a personal AI control plane. Be direct and complete. "
     "When you produce code or files, put each file in its own fenced code block and write the file name "
     "on the fence line, e.g. ```python main.py. Use the available tools when they help; never invent tool results."
 )
@@ -41,7 +41,7 @@ class RunRequest:
     workdir: Path | None = None
     allow_edits: bool = False
     max_tool_rounds: int = 25
-    # Plan CLIs reach Switchboard's tools (MCP servers on every machine) through this gateway.
+    # Plan CLIs reach Tazrivo's tools (MCP servers on every machine) through this gateway.
     tool_servers: list[str] = field(default_factory=list)
     task_rel: str | None = None  # task folder relative to the output folder
     read_dirs: list[str] = field(default_factory=list)  # extra folders plan CLIs may read (earlier tasks)

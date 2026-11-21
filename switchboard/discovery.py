@@ -1,7 +1,7 @@
 """Find the hub on the local network, so setting up a new computer needs no IP address.
 
 The hub answers a small UDP broadcast on its port (8765 by default, UDP, so it doesn't clash with
-the dashboard's TCP port). The answer only says "a Switchboard hub named X lives here": joining still
+the dashboard's TCP port). The answer only says "a Tazrivo hub named X lives here": joining still
 needs a pairing code or the token.
 """
 from __future__ import annotations

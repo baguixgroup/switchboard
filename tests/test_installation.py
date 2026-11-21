@@ -151,7 +151,7 @@ def test_official_download_identifies_switchboard(monkeypatch):
         return 'response'
     monkeypatch.setattr('switchboard.installers.urllib.request.urlopen', opened)
     assert official_download('https://persistent.oaistatic.com/package.msix') == 'response'
-    assert seen[0][0].get_header('User-agent') == f'Switchboard/{__version__}'
+    assert seen[0][0].get_header('User-agent') == f'Tazrivo/{__version__}'
     assert seen[0][1]['timeout'] == 120
 
 
