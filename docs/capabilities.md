@@ -6,18 +6,20 @@ Open **Audio & files** or attach a file to Laith. Describe your request, review 
 
 | Capability | Implemented transport | Required setup | Verification in this release |
 |---|---|---|---|
-| Chat, code, translation | Existing model router and connected CLI agents | Existing provider or plan CLI | Offline model and delivery tests; existing provider suite |
+| Chat, code, translation | Existing model router and connected CLI agents | Existing provider or plan CLI | Offline suite plus a real plan-backed Codex reply through the hub and remote agent |
 | Document text and DOCX/HTML | Local or connected machine job | None | Real extraction and remote dispatch tests |
-| PDF text | Local or connected machine job | pypdf included in native installers | Real parser tests |
-| Scanned images/PDF | Tesseract; pdftoppm for scanned PDFs | Install tools and language data on the selected machine | Adapter and routing tests; availability depends on machine inventory |
+| PDF text | Local or connected machine job | pypdf included in native installers | Real parser tests and installed-app PDF extraction on Windows, macOS and Pi |
+| Scanned images/PDF | Tesseract; pdftoppm for scanned PDFs | Install tools and language data on the selected machine | Real OCR on the Pi; availability depends on machine inventory |
 | Transcription and meeting notes | OpenAI-compatible audio HTTP API | User-owned API account or compatible local transcription service | Simulated service contract; paid transcription not exercised |
 | Speech synthesis | OpenAI-compatible speech HTTP API | Model, voice and API key, or a compatible local service | WAV validation and simulated service contract |
 | Live voice | Server-mediated WebRTC session with direct encrypted media | Compatible realtime API, microphone permission, localhost or HTTPS | Session, billing approval, transcript and hangup contract tests; live audio not exercised |
 | Image/video generation | ComfyUI prompt/history/view APIs | Independently installed worker, models and reviewed API workflow | Recovery, polling and actual artifact validation with simulated worker |
-| Media conversion | Allowlisted FFmpeg jobs | FFmpeg installed on an online machine | Adapter and format validation; codecs depend on the installed build |
+| Media conversion | Allowlisted FFmpeg jobs | FFmpeg installed on an online machine | Real FFmpeg audio conversion on Windows; codecs depend on the installed build |
 | Embeddings/local inference | Ollama embed/generate APIs | Separately installed Ollama and a compatible model | Simulated service contract |
 | Other inference | JSON HTTP endpoint | Endpoint accepting `inputs` and `parameters` | Simulated service contract |
 | Search and tool actions | Existing authenticated MCP gateway | Connected MCP server with appropriate tools | Existing gateway, permission and remote-agent tests |
+
+**Deployment checks (2026-11-21):** all three installed apps reported 0.8.0. PDF extraction, OCR, audio conversion and a real Codex-backed chat completed with retrieved, hash-checked files. Plan-backed image generation also delivered a real PNG through the existing image provider. The scoped change passed 189 automated tests; the complete working checkout, including personalization, passed 212. Paid speech/transcription/realtime services and GPU generation workers were tested with simulated endpoints, not live accounts.
 
 **Configured** means settings and required credentials exist. A discovery check only confirms an endpoint responds. **Verified** requires successful execution and validated delivery during the current hub process. Unconfigured services remain **Setup required**. There are no preconfigured paid connections or bundled model weights.
 
