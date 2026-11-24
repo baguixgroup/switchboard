@@ -26,13 +26,14 @@ class ToolPolicy:
 
 
 def tool_policy(config):
+    protected = protected_mode(config)
     raw = config.raw.get("security", {}).get("local_tools", {})
     if not isinstance(raw, dict) or set(raw) - {"enabled", "allowed"}:
         raise ValueError("Invalid local tool policy")
     enabled, allowed = raw.get("enabled", False), raw.get("allowed", [])
     if type(enabled) is not bool or not isinstance(allowed, list) or any(t not in TOOLS for t in allowed) or len(set(allowed)) != len(allowed):
         raise ValueError("Invalid local tool policy")
-    if enabled and not protected_mode(config):
+    if enabled and not protected:
         raise ValueError("Local tools require protected mode")
     return ToolPolicy(enabled, tuple(allowed))
 
@@ -79,7 +80,11 @@ class LocalTools:
 
     def check(self, principal):
         self.security._require_parent(principal)
-        if self.closed or self.gateway._closed or not self.security.enabled or not self.policy.enabled or tool_policy(self.config) != self.policy or text_policy(self.config) != self.gateway.policy:
+        self.gateway.safety.guard(principal)
+        try: current, privacy = tool_policy(self.config), text_policy(self.config)
+        except (ValueError, TypeError):
+            raise SecurityDenied("local_tools_not_authorized") from None
+        if self.closed or self.gateway._closed or not self.security.enabled or not self.policy.enabled or current != self.policy or privacy != self.gateway.policy:
             raise SecurityDenied("local_tools_not_authorized")
 
     def forget(self, key):

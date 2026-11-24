@@ -1,0 +1,10 @@
+{
+  "scope": "50_hand_authored_synthetic_cases_not_independent_validation",
+  "counts": {
+    "true_positive": 36,
+    "true_negative": 10,
+    "false_negative": 2,
+    "false_positive": 2
+  },
+  "real_child_data_used": false
+}

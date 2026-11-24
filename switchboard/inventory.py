@@ -218,6 +218,8 @@ async def detect_devices(config) -> list[dict]:
 
 
 async def build_inventory(config, mcp_hub=None, start_mcp: bool = True) -> dict:
+    from .security import require_execution_enabled
+    require_execution_enabled(config)
     from .providers.cli_bridge import CLIProvider
 
     tools = await asyncio.to_thread(detect_tools)

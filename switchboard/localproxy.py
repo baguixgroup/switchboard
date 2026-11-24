@@ -41,6 +41,8 @@ def local_request_ok(request: Request) -> bool:
 
 
 def build_proxy_app(config) -> Starlette:
+    from .security import require_execution_enabled
+    require_execution_enabled(config)
     from .web.voice_api import VoiceAPI
     voice=VoiceAPI(config)
     hub = config.hub_url

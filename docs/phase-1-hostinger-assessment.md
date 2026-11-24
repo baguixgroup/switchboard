@@ -8,6 +8,14 @@ Latest update: Stage B was approved as Phase 3 on 24 November 2026. See [Phase 3
 
 Subsequent approval: Stage C / Phase 4 adds [reviewed local tools and provider mediation](phase-4-reviewed-tools-and-providers.md). Child execution, deployment and Stage D remain gated.
 
+Latest approval: Stage D / Phase 5 adds [child response and escalation policy for parent review](phase-5-child-safety-policy.md). Child execution and deployment remain disabled; Stage E / Phase 6 requires a separate review and approval.
+
+Subsequent approval: Stage E / Phase 6 adds [registered retention and deletion](phase-6-retention-and-deletion.md), with read-only legacy inventory and synthetic deletion evidence. Existing real data remains untouched; Stage F / Phase 7 and legacy adoption remain gated.
+
+Latest approval: Stage F / Phase 7 [local release validation](phase-7-local-release-validation.md) records passing Mac/browser checks and a **no-go** release decision. Actual Pi/device validation remains incomplete; deployment, legacy adoption and real child use are not approved.
+
+Follow-up: the [security/correctness audit of Phases 5–7](security-audit-phase-5-7.md) fixes reproduced bugs and records remaining missing implementation. The no-go release boundary remains in force.
+
 ## Architecture correction and scope
 
 Switchboard and Laith run together on a household Raspberry Pi Hub in the current test environment, as confirmed by the owner. The initial commercial model is one local Hub per household, with no intended external inbound access. Loopback communication is internal operation. The immediate security boundary is **outbound disclosure and action authorization**, with Switchboard as the mandatory enforcement point before managed requests reach external AI providers or tools.
@@ -199,7 +207,7 @@ No provider deletion was requested or executed. **Switchboard cannot guarantee d
 
 ## 6 Small testable implementation phases
 
-Stage A was subsequently explicitly approved as local Phase 2 and has been implemented for review. All remaining stages below are **proposals** requiring separate approval; each implementation stage stops for its own review. The earlier Hostinger Phase 2 is no longer the recommended next step.
+Stages A through F were subsequently separately approved as local Phases 2 through 7; their reports record implementation and validation limits. Stage F's actual-device validation remains incomplete and release is blocked. Future cloud work remains a **proposal** requiring separate approval. The earlier Hostinger Phase 2 is no longer the recommended next step.
 
 | Stage | Small deliverable after approval | Acceptance evidence and stop gate |
 |---|---|---|
@@ -251,4 +259,4 @@ These results identify process/role boundaries. They do not prove that arbitrary
 
 Rechecked source-defined outbound/data-copy paths and primary provider deletion documentation. This file is the only changed repository artifact. No application code, dependencies, runtime settings, infrastructure, provider data or real user storage was modified; no deletion, deployment, commit or push occurred.
 
-**Current review decision:** review Stage C / Phase 4 and its validation report before authorizing Stage D. Do not resume Hostinger provisioning or implement cloud user management.
+**Current review decision:** review Stage F / Phase 7's no-go assessment, restore Pi reachability for read-only device validation and separately approve any remediation/deployment scope. Legacy adoption and real child release remain blocked. Do not resume Hostinger provisioning or implement cloud user management.

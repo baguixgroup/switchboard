@@ -1,0 +1,86 @@
+{
+  "decision": "no_go",
+  "scope": "local_code_audit_and_synthetic_validation",
+  "source_head": "5c864325a870c0edeaf7c35634446474b1f0df8e",
+  "working_source_sha256": "4fde872b5127708fc57634b1ce02629aa1306611a07d8982ad4f57a137277fd8",
+  "fixed_findings": [
+    "A01",
+    "A02",
+    "A03",
+    "A04",
+    "A05",
+    "A06",
+    "A07",
+    "A08",
+    "A09",
+    "A10",
+    "A11",
+    "A12",
+    "A13"
+  ],
+  "new_regression_cases": 36,
+  "pytest": {
+    "passed": 561,
+    "seconds": 164.28
+  },
+  "focused": {
+    "passed": 332,
+    "seconds": 62.33
+  },
+  "browser": {
+    "passed": 25,
+    "engine": "Mozilla Firefox 160.0.1",
+    "all_local_checks_passed": true
+  },
+  "remaining_release_blockers": [
+    {
+      "id": "PI-01",
+      "state": "unverified",
+      "reason": "Pi unreachable; deployed settings/runtime/resources/network controls unverified"
+    },
+    {
+      "id": "SAFETY-01",
+      "state": "known_limits",
+      "reason": "Known risk misses; general PII and safeguarding suitability unvalidated"
+    },
+    {
+      "id": "CLIENT-01",
+      "state": "not_implemented",
+      "reason": "Child workflow/device/media and safe adult-recipient flow not released"
+    },
+    {
+      "id": "LEGACY-01",
+      "state": "inventory_only",
+      "reason": "Legacy copy lineage and writer/adoption migration incomplete"
+    },
+    {
+      "id": "AGENT-01",
+      "state": "contract_only",
+      "reason": "No real agent delete transport or independently verified acknowledgments"
+    },
+    {
+      "id": "BACKUP-01",
+      "state": "unverified",
+      "reason": "OS/control-ledger rollback, key custody/rotation and metadata retention not operationally proven"
+    },
+    {
+      "id": "TRANSPORT-01",
+      "state": "unverified",
+      "reason": "Confidential LAN transport and actual service/router/firewall controls not verified"
+    },
+    {
+      "id": "PROVIDER-01",
+      "state": "ineligible_or_unverified",
+      "reason": "Gemini child-directed exclusion; other product/account safeguards and retention unverified"
+    },
+    {
+      "id": "ARTIFACT-01",
+      "state": "unreleased",
+      "reason": "Uncommitted working tree; no new installer/deployment or frozen-worker support verified"
+    }
+  ],
+  "live_provider_calls": 0,
+  "deployment_performed": false,
+  "real_data_deleted": false,
+  "child_delivery_enabled": false
+}

@@ -1,0 +1,67 @@
+{
+  "decision": "no_go",
+  "local_validation_passed": true,
+  "pi_device_validation_complete": false,
+  "child_release_approved": false,
+  "source_head": "5c864325a870c0edeaf7c35634446474b1f0df8e",
+  "working_source_sha256": "b3ca9c2601f5ad75b5d4bca0319f145ae15b22c34482ae66b57527264b8c7f72",
+  "pytest": {
+    "passed": 525,
+    "seconds": 151.09
+  },
+  "browser": {
+    "passed": 25,
+    "engine": "Mozilla Firefox 160.0.1",
+    "evidence": "local-release-probe.json"
+  },
+  "blockers": [
+    {
+      "id": "PI-01",
+      "state": "unverified",
+      "reason": "Pi unreachable; deployed settings/runtime/resources/network controls unverified"
+    },
+    {
+      "id": "SAFETY-01",
+      "state": "known_limits",
+      "reason": "Known risk misses; general PII and safeguarding suitability unvalidated"
+    },
+    {
+      "id": "CLIENT-01",
+      "state": "not_implemented",
+      "reason": "Child workflow/device/media and safe adult-recipient flow not released"
+    },
+    {
+      "id": "LEGACY-01",
+      "state": "inventory_only",
+      "reason": "Legacy copy lineage and writer/adoption migration incomplete"
+    },
+    {
+      "id": "AGENT-01",
+      "state": "contract_only",
+      "reason": "No real agent delete transport or independently verified acknowledgments"
+    },
+    {
+      "id": "BACKUP-01",
+      "state": "unverified",
+      "reason": "OS/control-ledger rollback, key custody/rotation and metadata retention not operationally proven"
+    },
+    {
+      "id": "TRANSPORT-01",
+      "state": "unverified",
+      "reason": "Confidential LAN transport and actual service/router/firewall controls not verified"
+    },
+    {
+      "id": "PROVIDER-01",
+      "state": "ineligible_or_unverified",
+      "reason": "Gemini child-directed exclusion; other product/account safeguards and retention unverified"
+    },
+    {
+      "id": "ARTIFACT-01",
+      "state": "unreleased",
+      "reason": "Uncommitted working tree; no new installer/deployment or frozen-worker support verified"
+    }
+  ],
+  "deployment_performed": false,
+  "real_data_deleted": false,
+  "live_provider_calls": 0
+}

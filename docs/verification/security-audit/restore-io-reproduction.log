@@ -1,0 +1,26 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_restore_io_failure_marks_existing_copy_staging_for_recovery _______
+
+engine = <switchboard.engine.Engine object at 0x1071497f0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10716e3f0>
+
+    def test_restore_io_failure_marks_existing_copy_staging_for_recovery(engine, monkeypatch):
+        v = engine.retention; p = parent(engine); root = v.create(p)
+        key = v.put(p, root, "conversation", b"synthetic original", storage="file")
+        snapshot = v.snapshot(p, root)
+        (v.path / "files" / (key + ".bin")).unlink()
+        def disk_error(*args): raise OSError("synthetic fsync failure")
+        with monkeypatch.context() as patch:
+            patch.setattr("switchboard.retention.os.fsync", disk_error)
+            with pytest.raises((OSError, RetentionFailure)): v.restore(p, root, snapshot)
+>       assert v.db.execute("SELECT state FROM artifacts WHERE id=?", (key,)).fetchone()[0] == "staging"
+E       AssertionError: assert 'ready' == 'staging'
+E
+E         - staging
+E         + ready
+
+tests/test_security_audit.py:168: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_security_audit.py::test_restore_io_failure_marks_existing_copy_staging_for_recovery
+1 failed, 19 deselected in 3.47s

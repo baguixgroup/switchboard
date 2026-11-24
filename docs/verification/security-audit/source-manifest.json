@@ -1,0 +1,511 @@
+{
+  "head": "5c864325a870c0edeaf7c35634446474b1f0df8e",
+  "scope": "working_tree_Python_YAML_JSON_in_switchboard_tests_scripts",
+  "files": [
+    {
+      "path": "scripts/validate-local-release.py",
+      "sha256": "b758e72086b239d3168cd027a9a029ba6b56fe6b64a3e64825736ea11ab20263"
+    },
+    {
+      "path": "switchboard/__init__.py",
+      "sha256": "344fe6ece984d59a44918dfe5f7dd6085d954ca77e789b4b29db8cb43c5699f5"
+    },
+    {
+      "path": "switchboard/__main__.py",
+      "sha256": "cf1ede7a8dcd81f433f6a22dc61a67ef189bf0cf634cec58f8a70110531af500"
+    },
+    {
+      "path": "switchboard/advisor.py",
+      "sha256": "1db81657328e4f03ef896f04cb51db270258eeb992d6b2c7892dccb229d5bac0"
+    },
+    {
+      "path": "switchboard/agent.py",
+      "sha256": "0dc367d67f3e83bf0d9f789e0a0b8da9aadadc6a7f1e027ce45b47f435869d73"
+    },
+    {
+      "path": "switchboard/balances.py",
+      "sha256": "307cf491cbb54b8a334e1282495d728affa6c3a0a842da20ca103c924b39f119"
+    },
+    {
+      "path": "switchboard/brand.py",
+      "sha256": "c8ef67c1eb099786c20b0284dcb3ed2a01d6de7332e15089892dede0d75fa3c9"
+    },
+    {
+      "path": "switchboard/capabilities/__init__.py",
+      "sha256": "b5ab9132f0fc614201f9516ce97e6c26c1a3d89a034aabedb09d849840ce46f7"
+    },
+    {
+      "path": "switchboard/capabilities/adapters.py",
+      "sha256": "28e31ffc6c44c812b17fa049a3a54d8b9ecb3d661128cdaab49392978f182bc8"
+    },
+    {
+      "path": "switchboard/capabilities/documents.py",
+      "sha256": "b442e8a3689f3d411e91e2a3861b7e5f20ea715b3dada95bf82602896f776eb1"
+    },
+    {
+      "path": "switchboard/capabilities/hub.py",
+      "sha256": "57e7a524a51c07bdf80050e73e14946f3365b4d14c9d6a8d3e52c99232876ae4"
+    },
+    {
+      "path": "switchboard/capabilities/machine.py",
+      "sha256": "612bdefe91f3b8a73890f57e076d159e238c64759dd1a020229e97f11ea2b59e"
+    },
+    {
+      "path": "switchboard/capabilities/registry.py",
+      "sha256": "37f723849306639182707a8eb35b66bf27812401b7a09400b5b707c91f021251"
+    },
+    {
+      "path": "switchboard/catalog.py",
+      "sha256": "fb1b18f28425c2a8be530109fd811dae9828c6fc95100b9820f27348e463e954"
+    },
+    {
+      "path": "switchboard/child_safety.py",
+      "sha256": "840c9dadc189dc2a935595914e24b337012508e3e814f37999dc5ca33449f0c8"
+    },
+    {
+      "path": "switchboard/cli.py",
+      "sha256": "063d663c0097429570076505f3489d5f09edf77725a7db77b652bad7add5af52"
+    },
+    {
+      "path": "switchboard/companion.py",
+      "sha256": "495f1dd74e3ff62c86ad15fa9c346569e0e4f29bc69edc91319e4a8664550ab1"
+    },
+    {
+      "path": "switchboard/config.py",
+      "sha256": "6ee0947921c637ff316debc32d1be4c8008dac0e563dae86409a526c988915fb"
+    },
+    {
+      "path": "switchboard/contracts.py",
+      "sha256": "a4785635d13f5002418c44cd777e10e008ebb4a68cc9d3a99fea29c256c72689"
+    },
+    {
+      "path": "switchboard/credits.py",
+      "sha256": "2ac4df69c344df3f2c07f1452efcf6c446bdc79dda5f9166d2e1092cf4585936"
+    },
+    {
+      "path": "switchboard/defaults/config.yaml",
+      "sha256": "9a5051cd071f0e32933ae875b345d1ad072f1653ed50bd5479f5066640d3c3ea"
+    },
+    {
+      "path": "switchboard/defaults/credits.yaml",
+      "sha256": "2fccdb13f5a58f0775d249c4270ef8a0e717e92c2391bb6f1fbccf5c27ed9a2e"
+    },
+    {
+      "path": "switchboard/defaults/mcp_catalog.yaml",
+      "sha256": "74cc09e858427aabb3d57e412684e508f0465e8ea9d3718c611cf09b8aa338f3"
+    },
+    {
+      "path": "switchboard/defaults/models.yaml",
+      "sha256": "cbe4e1ade9ad87026d900f52796fc2c807a7449345fe9052250e2f33f1d8474c"
+    },
+    {
+      "path": "switchboard/defaults/studio_templates.yaml",
+      "sha256": "afba6d9e69893167e18b5c5c51a8dc08c89200523a751048f586885571975be6"
+    },
+    {
+      "path": "switchboard/defaults/tools_catalog.yaml",
+      "sha256": "1b2d58088ca279d3c1856a43e85f6f40be77cfafc293e4eff58b387d9c08f909"
+    },
+    {
+      "path": "switchboard/desktop_pet.py",
+      "sha256": "3cae1e09ce28af9795c064576450f1d482b57546bd02d42d5c75e49635047ba2"
+    },
+    {
+      "path": "switchboard/desktop_pet_ui.py",
+      "sha256": "93f152d5ee310a923d6676fa05bd92e598449a1620b07d0c9a62a6cbdb8fcdc3"
+    },
+    {
+      "path": "switchboard/devices.py",
+      "sha256": "dda6602e20ec3aff53fd4b96e2d22000b46e2d60f48045364e2112d6dc4a599d"
+    },
+    {
+      "path": "switchboard/discovery.py",
+      "sha256": "f5befd66089120c3806c6753de2ba58fa2c365173282dd718b1ae866b1c4a101"
+    },
+    {
+      "path": "switchboard/engine.py",
+      "sha256": "8d310c822249dde96afe83a48564da087f471c3a419a047f34be7098fc2a9dce"
+    },
+    {
+      "path": "switchboard/executor.py",
+      "sha256": "5bfa0901b64b415882c61f9a10cb8ab8dd5ef63979e32b3002979008a1a0533b"
+    },
+    {
+      "path": "switchboard/install_auth.py",
+      "sha256": "b38a6769f4cd5c0a4bc6d5f29d106a63c8eaa35c966f0ddd7773eb45205d91f2"
+    },
+    {
+      "path": "switchboard/installers.py",
+      "sha256": "06aa7e4d5913d35465dabd58bd71c257434c291abfea122ca676fb3104d8be23"
+    },
+    {
+      "path": "switchboard/inventory.py",
+      "sha256": "1cdc283a7be0d445d23da1cb99458a1d9e504394cd75eae0def19aed5bd4291a"
+    },
+    {
+      "path": "switchboard/knowledge.py",
+      "sha256": "1e88488f35b9aac16802d408e270674a9617a5e09b55642168cc6f8b910db9da"
+    },
+    {
+      "path": "switchboard/localproxy.py",
+      "sha256": "59196041d98dc935a64f3e61569fe629ee5d2ef8f8843fc956f79f46f73376fc"
+    },
+    {
+      "path": "switchboard/mcp_export.py",
+      "sha256": "f379e0dc5837ee8bd7e4a276962a63ed98a5a4c2491d7fae00fb7a8e119ab143"
+    },
+    {
+      "path": "switchboard/mcp_hub.py",
+      "sha256": "ce423c7ecde90791858aa75dceb5ff3e5d39258175676471de8ed45d4c2f9938"
+    },
+    {
+      "path": "switchboard/mcp_server.py",
+      "sha256": "7d70b4ec804af1c40223844eb85f06d660b4e3095b047f7802946fbc33b7b800"
+    },
+    {
+      "path": "switchboard/models_sync.py",
+      "sha256": "e44b1b68895890a354cfef6f6f092741dad63fd4188cf2a7f273f41b5660237a"
+    },
+    {
+      "path": "switchboard/nodes.py",
+      "sha256": "19a7a526bfc07fce4a63dafb35e3facf4b01076a22ca4ea81231280bcfd80cb2"
+    },
+    {
+      "path": "switchboard/notify.py",
+      "sha256": "c46f36755ee782255eb66996bb280acaaa126bebed76c3a659671a0695a1fac5"
+    },
+    {
+      "path": "switchboard/outputs.py",
+      "sha256": "b0880b0c58eeaaff730c9d187ea17b438acc3640a99bff254207d0e8c3add6cd"
+    },
+    {
+      "path": "switchboard/paths.py",
+      "sha256": "40269fd19ecfd4f9adab06ed2e5c74618b97c6501b98608fd6eb5b79327b545d"
+    },
+    {
+      "path": "switchboard/personalization.py",
+      "sha256": "727e1037eb27c0090e9ffb56cecf08c5ee5f3659c3fe0787c4d068a0c41a5088"
+    },
+    {
+      "path": "switchboard/privacy.py",
+      "sha256": "3ddb8e708490bbff87c04c087c20a6bebc809c8a66f7b114c4858dee656a23b6"
+    },
+    {
+      "path": "switchboard/privacy_gateway.py",
+      "sha256": "ee8adc01e0ea8cd1492e92825c786c02f664e430f348a19218db8ce4d4beb304"
+    },
+    {
+      "path": "switchboard/privacy_providers.py",
+      "sha256": "923293b81de626292dcfafba32462011ed0eaeaabe1955ed3373e8e2cc564e57"
+    },
+    {
+      "path": "switchboard/privacy_sandbox.py",
+      "sha256": "c94ce1233b298f8e2339697bbd7aee8b0bfd83213b6cd361884e5a63aff78c51"
+    },
+    {
+      "path": "switchboard/privacy_tools.py",
+      "sha256": "c0996fa23fbd04afaefc5f2b10f631cbf4381be4d29d59a74df9f04e60fcc78c"
+    },
+    {
+      "path": "switchboard/privacy_worker.py",
+      "sha256": "e802d29ad2329312f9c9ab82cc59e5db0b7babde6aeb3f34207ff97e28966c0a"
+    },
+    {
+      "path": "switchboard/providers/__init__.py",
+      "sha256": "cc738c15599a6394d46ed1783a75442ef09598157cade559ae0674c250e055a1"
+    },
+    {
+      "path": "switchboard/providers/anthropic_provider.py",
+      "sha256": "16573f4e4c540b50e608ee005991f6657e5a7a0ac5cb72989fb5347e2a580428"
+    },
+    {
+      "path": "switchboard/providers/base.py",
+      "sha256": "ff3ca58742175bd5314ea8365b5492178c231f5274929e7dfc4b433fd0b13b9e"
+    },
+    {
+      "path": "switchboard/providers/cli_bridge.py",
+      "sha256": "84f20da4c61af62007f72b0b488bbe34d27ab4ff0d0f9d9b1e9427c3bb542b34"
+    },
+    {
+      "path": "switchboard/providers/handoff.py",
+      "sha256": "5d1b484f5f36acc7582f13f3e8453a053ee38c2d62a9f1ea386ab1bafdb10f5a"
+    },
+    {
+      "path": "switchboard/providers/mock.py",
+      "sha256": "296965e0948239f07ac5f873f597c7a9e94e062d9c528a302985f76706cb69ef"
+    },
+    {
+      "path": "switchboard/providers/openai_compat.py",
+      "sha256": "2fa10bc2579b99f8da932f76e5367332487b7b4b72e27926fd389e0c494cc006"
+    },
+    {
+      "path": "switchboard/remote_install.py",
+      "sha256": "9a893589aad27603086b2bfbaba3b3a7a8d5c1bb8c6dd14dca4cea5694d3c0a2"
+    },
+    {
+      "path": "switchboard/retention.py",
+      "sha256": "b6eafc6783d04d838a38184f91617a10f3319230848928f6d802263cbf8596c6"
+    },
+    {
+      "path": "switchboard/retention_inventory.py",
+      "sha256": "02acc907843af503eca312aa8fc2cd5298ad9c876ed50d8b59776328c3e05da0"
+    },
+    {
+      "path": "switchboard/router.py",
+      "sha256": "5714adefb8c7ad9d0240196fb825db84753814213002f994bb0e085c746e8a11"
+    },
+    {
+      "path": "switchboard/runtime.py",
+      "sha256": "44b1e8d5f3c4f1f289e433538ab73b7086fe384a5d461823dfb1515d62dce8a4"
+    },
+    {
+      "path": "switchboard/security.py",
+      "sha256": "bf17cb01ab553cf43d240d6b188b64c18033c85b1233c7d2241a86ece762e7a5"
+    },
+    {
+      "path": "switchboard/service.py",
+      "sha256": "514d578b8f3368b6416104902594b34d6d16c8b371f2ababa303d4d8795231cd"
+    },
+    {
+      "path": "switchboard/setup.py",
+      "sha256": "47fe71511dbeafd0c8f60c046ae727d7ac89a361cbb66d5bbed4b709f747382c"
+    },
+    {
+      "path": "switchboard/setup_wizard.py",
+      "sha256": "d87fc4471ffb11321c45d08ae431d4b8f2e7b5698ab890f728ad725471311cdc"
+    },
+    {
+      "path": "switchboard/store.py",
+      "sha256": "4354780ad49bf7e4471320d7e402bec335b283be56b2c4828e9a7a84633c9df8"
+    },
+    {
+      "path": "switchboard/studio.py",
+      "sha256": "25b629d0f8d1746933a1b465dace2b1b91d164faebc89730a8d77ae2d42af02d"
+    },
+    {
+      "path": "switchboard/toolbox.py",
+      "sha256": "20b34d1a4eb2ddeb5df974f0899bf581f332e948411861c3707ac1fcf8424e36"
+    },
+    {
+      "path": "switchboard/tray.py",
+      "sha256": "74d9e62b7f0e233fa16160ff0ace451650b9d32ba621ffe0782f80a1146c45bc"
+    },
+    {
+      "path": "switchboard/voice.py",
+      "sha256": "c98251b7b628412ac963a8f69c997d054b0cf06deccc1935de492c8f161d90e2"
+    },
+    {
+      "path": "switchboard/web/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "switchboard/web/app.py",
+      "sha256": "1dc3c1e6fc466aad3ad4cedd8f993ce07741989cf66325d47544986b48bdec06"
+    },
+    {
+      "path": "switchboard/web/capability_api.py",
+      "sha256": "81ae23172a64071041ba7e83605bb4a357d704cacdd3fc30ffa0cf87c6c19c86"
+    },
+    {
+      "path": "switchboard/web/child_safety_api.py",
+      "sha256": "7fad344eda8f7685dc9d569c83cdcb0808ed1f87532d3cdda2014f3717566a9d"
+    },
+    {
+      "path": "switchboard/web/companion_api.py",
+      "sha256": "25d5daca477d7ea8fab5095c6c6d1b751923dc92f46825bd59b78d449a815afd"
+    },
+    {
+      "path": "switchboard/web/manage.py",
+      "sha256": "8aefc4f793536576541c01d2a27005e15d83bfc4c3953b172f0951b4cd30034c"
+    },
+    {
+      "path": "switchboard/web/pairing.py",
+      "sha256": "7f646f0ee22179394cba86dcef24d5569de5ba5e9c5c9b3f6d6c4bddd363e1ce"
+    },
+    {
+      "path": "switchboard/web/privacy_api.py",
+      "sha256": "fb155a6d078301632c0d30647b67f6509d584c285caf365eb4ccd94a05f798c5"
+    },
+    {
+      "path": "switchboard/web/privacy_tools_api.py",
+      "sha256": "9b9bf5fa9062bbff7daeab47539b8e587d2bd107144692af1dd39e0fa08119a5"
+    },
+    {
+      "path": "switchboard/web/retention_api.py",
+      "sha256": "c104833fc0067ca4c056d5b67345b2c6040b4e2c23c5a584eda043a1ed1bf555"
+    },
+    {
+      "path": "switchboard/web/security_api.py",
+      "sha256": "58df17e932217d68438b8dacfaa3dd1b5a7becc11cde0e4f04d3acb8e4e0fcfd"
+    },
+    {
+      "path": "switchboard/web/static/laith-assets.json",
+      "sha256": "18e87b8154328a29c7e30fab2366ef3f5de3e0b290ec9e55e0b742d4982faa3b"
+    },
+    {
+      "path": "switchboard/web/static/laith-wave.json",
+      "sha256": "c33e7fd4277fa6d02124f6a256f8ff4aa92b18987efefe82128b403460610022"
+    },
+    {
+      "path": "switchboard/web/studio_api.py",
+      "sha256": "bae1acbb08ca5e78a75a1e6b8ae498cf4c2877203c81d5252143c675517a76ed"
+    },
+    {
+      "path": "switchboard/web/voice_api.py",
+      "sha256": "21dd5fb6ea2e7622372fc3cef9fe79b4bd023b260a78b6a5cbc97b37fdd8e958"
+    },
+    {
+      "path": "switchboard/window.py",
+      "sha256": "91df94465f95a3162ba95a856208e11a6cc16cd492ca2e38f6ba5258064c3c14"
+    },
+    {
+      "path": "tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/conftest.py",
+      "sha256": "cbdac87adefde3adff37ac04b7b016934b95de3fd6dee6d4996690e7066f0957"
+    },
+    {
+      "path": "tests/fixtures/child_safety_cases.json",
+      "sha256": "a24fed134077f1bc75d057b4842cc48bd6cf37813b3825e299f7a00d98f654a7"
+    },
+    {
+      "path": "tests/fixtures/echo_mcp.py",
+      "sha256": "0ed85396393bcdc3a3be70755ba22aabd52775114a5adfec6cbe57c193ae2c7b"
+    },
+    {
+      "path": "tests/fixtures/fake_cli.py",
+      "sha256": "2c3f3a902b56fc038af718cf7ae6db0b35a2214221ef9cfd88137e085e732820"
+    },
+    {
+      "path": "tests/test_app_ux.py",
+      "sha256": "f63fd0cb6ddd11e47c8076b52c392aae2009be58c1f736dde493d7fd0bbd2ae6"
+    },
+    {
+      "path": "tests/test_brand_compatibility.py",
+      "sha256": "db23c656a9bdb6b06981e8c5e1d65ee1b363dc71037f5d7ba8c73c91d92e9148"
+    },
+    {
+      "path": "tests/test_capabilities.py",
+      "sha256": "a246d82249c33d5006d77fba8d0d674dc2d2f41f27cfafefe7f8f68487c17d16"
+    },
+    {
+      "path": "tests/test_child_safety.py",
+      "sha256": "b4b0850d9cd6ca376274dd656eebb10c091c0bba69d2cd7a7a93ac8d0e6e252b"
+    },
+    {
+      "path": "tests/test_composer_choices.py",
+      "sha256": "06d511578af78208423a014d4c1685ca97ba9d23ab1f94012af257b8e2fe2f17"
+    },
+    {
+      "path": "tests/test_credits.py",
+      "sha256": "3baed3771e37f9e0d0fa0ba6880131c5895d99454d19671610928ebd98c23b95"
+    },
+    {
+      "path": "tests/test_desktop_pet.py",
+      "sha256": "daf8c63b187d92a306e41c5903968bbddb0bb0d9e64ab0eea8c5bc242148c1ff"
+    },
+    {
+      "path": "tests/test_e2e.py",
+      "sha256": "592d6f1d7a46f14808d642c96f927c06ff7872d02c7118f563b8f89ee8e9c6ed"
+    },
+    {
+      "path": "tests/test_handoff.py",
+      "sha256": "5d5c1ed23b2f6bf86a25d0b9df93d5452a27e111b53cae698371583403abd1c3"
+    },
+    {
+      "path": "tests/test_image_execution.py",
+      "sha256": "397e8e573d1c033546fb152691b806a10f8088d25435b030e59ed21cb96ca255"
+    },
+    {
+      "path": "tests/test_installation.py",
+      "sha256": "d382557d5c9fdd22a4b41fc1c10d729c23985d3633c371a375fa2a61b69baa82"
+    },
+    {
+      "path": "tests/test_laith_crews.py",
+      "sha256": "e47c0ce572afaea762b2c97ceb7429db1aef22884f2792c4650093c727f7a5d3"
+    },
+    {
+      "path": "tests/test_local_security.py",
+      "sha256": "19130f4b14a94a40043bf3842dafbe1744d31298bdcc71efb64673d8921b83f5"
+    },
+    {
+      "path": "tests/test_macos_reopen.py",
+      "sha256": "49c35573ca6cf77280b2c93fe63acc46564268e64571bd006009033e09f874ef"
+    },
+    {
+      "path": "tests/test_nodes.py",
+      "sha256": "bf0e9b9147a1405d2911f27cb8103ed16e040aa5a15cc133a8f8106a4774c366"
+    },
+    {
+      "path": "tests/test_outputs.py",
+      "sha256": "50960928f4151f4ae85acf8a54e8d5de74cd26e5fe4af27dee3dc8095e992b63"
+    },
+    {
+      "path": "tests/test_personalization.py",
+      "sha256": "b1db9b601268aaf669298c87c6eb239bf03aee2b039df688f8dd7edc40c4830a"
+    },
+    {
+      "path": "tests/test_pet_widgets.py",
+      "sha256": "3c0025c040f8754c392a770996ad5b4c34bfb7a7a9c9700d264bc9ffab7ed871"
+    },
+    {
+      "path": "tests/test_plan_chat_auth.py",
+      "sha256": "1992db956a842c97bc22d6e4ca1dc6cb56c9a2e9a8f0312cb4f1f8277b71455f"
+    },
+    {
+      "path": "tests/test_plans.py",
+      "sha256": "8182aae6765715ee8779ac631185f430b139232674536afe487cb072966505f6"
+    },
+    {
+      "path": "tests/test_privacy_phase4.py",
+      "sha256": "84e5607ecdf5bdcbcfba0f68197027ca47247db7e2f4a179263f06bacd674c89"
+    },
+    {
+      "path": "tests/test_providers.py",
+      "sha256": "aefd1a41641fc04c1b34cea62962cf7e09d532891a74aa22d836220a2a8a6fa9"
+    },
+    {
+      "path": "tests/test_retention.py",
+      "sha256": "88d535c8438046e3fa8fd525bf1ac4357efca118d11c4b257df81534f6580aa7"
+    },
+    {
+      "path": "tests/test_router.py",
+      "sha256": "ecc209483059c7e2d6925945f6fa32985afd3d3b4e855300119cc9c64a2df39a"
+    },
+    {
+      "path": "tests/test_runtime.py",
+      "sha256": "74c9e2d6a508020787853fccd24f950ab2ec9cd6b7719a6128c958449022535c"
+    },
+    {
+      "path": "tests/test_security_audit.py",
+      "sha256": "a4aab09a4744610231245038dd9ae0bbfc2ea4c0cdfb3238b9c302c90d2f9ce0"
+    },
+    {
+      "path": "tests/test_setup.py",
+      "sha256": "51b8b6b65e8aa5a7b17cb2e8bef9eb24d6ae8f234f2e53dcd13894a9361f3e31"
+    },
+    {
+      "path": "tests/test_studio.py",
+      "sha256": "830a4f473885ae159082f17e1b3be967bfab05515e0611102dc086c34ff767d1"
+    },
+    {
+      "path": "tests/test_text_privacy.py",
+      "sha256": "4f797ce3b90fb736ef7f8c26da2b24895b6606315bcdb43c76a409cff2d54c47"
+    },
+    {
+      "path": "tests/test_voice.py",
+      "sha256": "aac42b9aeff64d69312d92f63eac0805e61e7f35b9f479ff690159826ac78611"
+    },
+    {
+      "path": "tests/test_voice_ui.py",
+      "sha256": "41c8b0f9f33fa4b173b5e0242ad3fbb6d3cad129c4f10c15a2576654f7abeee8"
+    },
+    {
+      "path": "tests/test_writing.py",
+      "sha256": "6224b0335ae02136d6d442ac378c8b27631a3557addffd4a765af7c22b80dda7"
+    }
+  ],
+  "aggregate_sha256": "4fde872b5127708fc57634b1ce02629aa1306611a07d8982ad4f57a137277fd8"
+}

@@ -21,6 +21,8 @@ HEARTBEAT_EVERY = 30
 
 
 async def run_agent(config) -> None:
+    from .security import require_execution_enabled
+    require_execution_enabled(config)
     if not config.token:
         raise SystemExit("SWITCHBOARD_TOKEN is not set in secrets.env (copy it from the hub).")
     mcp = MCPHub(config)

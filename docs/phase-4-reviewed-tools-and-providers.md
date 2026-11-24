@@ -2,6 +2,8 @@
 
 Date: 24 November 2026. Approved scope: local Stage C from the corrected household-first plan. **Implemented for review, not deployed or enabled on the Pi.**
 
+Subsequent update: Phases 3–4 were published in `5c86432`. The user then approved [Phase 5 child response and escalation policy](phase-5-child-safety-policy.md). This report retains the Phase 4 implementation baseline and validation.
+
 ## Result
 
 Extended the parent-reviewed privacy path to a locally configured choice of OpenAI, Anthropic or Gemini, with fixed provider destinations and no automatic fallback. Added three allowlisted local tools in a restricted, credential-free worker: arithmetic, text statistics and bounded text-attachment extraction. Tool execution and any later provider request require separate approvals.

@@ -1,0 +1,50 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________ test_protected_status_never_executes_legacy_cli_feature_probes ________
+
+engine = <switchboard.engine.Engine object at 0x111925940>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x11191a3f0>
+
+    async def test_protected_status_never_executes_legacy_cli_feature_probes(engine, monkeypatch):
+        from switchboard.providers.cli_bridge import CLIProvider
+        calls = []
+        def probe(*args, **kwargs):
+            calls.append(args[0])
+            return SimpleNamespace(returncode=0, stdout="image_generation stable true\n")
+        monkeypatch.setattr("switchboard.runtime.which", lambda *args: "/synthetic-audit-cli")
+        monkeypatch.setattr("switchboard.runtime._FEATURE_CACHE", {})
+        monkeypatch.setattr("switchboard.runtime.subprocess.run", probe)
+        engine.providers = {"codex-images": CLIProvider("codex-images", {"command":"codex", "required_feature":"image_generation"}, engine.config)}
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=create_app(engine)), base_url="http://local") as c:
+            result = await c.get("/api/status", headers=headers())
+            assert result.status_code == 200
+>           assert calls == []
+E           AssertionError: assert [['/synthetic...res', 'list']] == []
+E
+E             Left contains one more item: ['/synthetic-audit-cli', 'features', 'list']
+E             Use -v to get more diff
+
+tests/test_security_audit.py:238: AssertionError
+__________ test_protected_availability_ignores_advertised_remote_clis __________
+
+engine = <switchboard.engine.Engine object at 0x114f9c550>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x114f232f0>
+
+    def test_protected_availability_ignores_advertised_remote_clis(engine, monkeypatch):
+        from switchboard.providers.cli_bridge import CLIProvider
+        provider = CLIProvider("codex-images", {"required_feature":"image_generation"}, engine.config)
+        engine.providers = {"codex-images":provider}
+        monkeypatch.setattr(provider, "available", lambda: False)
+        engine.nodes.heartbeat({"node":"synthetic-agent", "cli_providers":["codex-images"]})
+>       assert engine.available_providers(refresh=True) == set()
+E       AssertionError: assert {'codex-images'} == set()
+E
+E         Extra items in the left set:
+E         'codex-images'
+E         Use -v to get more diff
+
+tests/test_security_audit.py:248: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_security_audit.py::test_protected_status_never_executes_legacy_cli_feature_probes
+FAILED tests/test_security_audit.py::test_protected_availability_ignores_advertised_remote_clis
+2 failed, 20 deselected in 3.30s

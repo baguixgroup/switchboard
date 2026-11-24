@@ -1,0 +1,49 @@
+..............................................................F......... [ 84%]
+.............                                                            [100%]
+=================================== FAILURES ===================================
+______ test_policy_changes_invalidate_existing_provider_approval[change1] ______
+
+engine = <switchboard.engine.Engine object at 0x114b8f350>
+change = {'enabled': False}
+
+    @pytest.mark.parametrize("change", [{"age_band":"6-8"}, {"enabled":False}, {"language":"fr"}, {"review_queue":False}])
+    async def test_policy_changes_invalidate_existing_provider_approval(engine, change):
+        preview = await engine.text_gateway.preview(parent(engine), prompt="Explain fractions", history=[], context=[])
+        engine.config.raw["security"]["child_safety"].update(change)
+        calls = []
+        async def send(*args): calls.append(args); return "No"
+        engine.text_gateway.transport.send = send
+        with pytest.raises(SecurityDenied):
+>           await engine.text_gateway.send(parent(engine), preview_id=preview["preview_id"], payload_digest=preview["payload_digest"], confirm=True)
+
+tests/test_child_safety.py:122:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+switchboard/privacy_gateway.py:226: in send
+    self._check(principal)
+switchboard/privacy_gateway.py:150: in _check
+    self.safety.guard(principal)
+switchboard/child_safety.py:122: in guard
+    if self.closed or child_policy(self.config) != self.policy or (enabled and (not self.security.enabled or not self.policy.enabled)):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+config = <switchboard.config.Config object at 0x114c36eb0>
+
+    def child_policy(config):
+        raw = config.raw.get("security", {}).get("child_safety", {})
+        if not isinstance(raw, dict) or set(raw) - {"enabled", "age_band", "language", "review_queue"}:
+            raise ValueError("Invalid child safety policy")
+        enabled, queue = raw.get("enabled", False), raw.get("review_queue", False)
+        age, language = raw.get("age_band", "9-12"), raw.get("language", "en")
+        if type(enabled) is not bool or type(queue) is not bool or age not in AGES or language not in LANGUAGES:
+            raise ValueError("Invalid child safety policy")
+        if enabled and not protected_mode(config):
+            raise ValueError("Child safety review requires protected mode")
+        if queue and not enabled:
+>           raise ValueError("Child safety queue requires enabled review")
+E           ValueError: Child safety queue requires enabled review
+
+switchboard/child_safety.py:44: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_child_safety.py::test_policy_changes_invalidate_existing_provider_approval[change1]
+1 failed, 84 passed in 13.13s

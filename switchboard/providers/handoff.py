@@ -25,6 +25,9 @@ class HandoffProvider(Provider):
     kind = "handoff"
 
     def available(self) -> bool:
+        from ..security import protected_mode
+        if self.config is not None and protected_mode(self.config):
+            return False
         return bool(self.cfg.get("enabled", True))
 
     async def run(self, req: RunRequest, toolbox: ToolBox | None = None) -> RunResult:

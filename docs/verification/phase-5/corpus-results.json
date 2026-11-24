@@ -1,0 +1,62 @@
+{
+  "policy_version": "local-child-review-v1",
+  "scope": "Hand-authored synthetic lexical corpus, not independent clinical or production validation",
+  "cases": 50,
+  "totals": {
+    "true_positive": 36,
+    "true_negative": 10,
+    "false_negative": 2,
+    "false_positive": 2
+  },
+  "by_language": {
+    "en": {
+      "true_positive": 10,
+      "true_negative": 6,
+      "false_negative": 1,
+      "false_positive": 2
+    },
+    "fr": {
+      "true_positive": 9,
+      "true_negative": 2
+    },
+    "ar": {
+      "true_positive": 8,
+      "true_negative": 1
+    },
+    "ary": {
+      "true_positive": 9,
+      "true_negative": 1,
+      "false_negative": 1
+    }
+  },
+  "known_errors": [
+    {
+      "id": "known-miss-metaphor",
+      "outcome": "false_negative",
+      "expected_category": "self_harm",
+      "observed_categories": []
+    },
+    {
+      "id": "known-miss-transliteration",
+      "outcome": "false_negative",
+      "expected_category": "self_harm",
+      "observed_categories": []
+    },
+    {
+      "id": "known-overblock-education",
+      "outcome": "false_positive",
+      "expected_category": null,
+      "observed_categories": [
+        "self_harm"
+      ]
+    },
+    {
+      "id": "known-overblock-negation",
+      "outcome": "false_positive",
+      "expected_category": null,
+      "observed_categories": [
+        "secrecy_dependency"
+      ]
+    }
+  ]
+}

@@ -110,9 +110,13 @@ def create_app(engine) -> FastAPI:
         if engine.security.enabled:
             # Foundation mode must not resume legacy jobs, start MCP workers,
             # broadcast discovery, or run the legacy network scheduler.
+            retention_worker = asyncio.create_task(engine.retention.run_maintenance()) if engine.retention.policy.enabled else None
             try:
                 yield
             finally:
+                if retention_worker:
+                    retention_worker.cancel()
+                    await asyncio.gather(retention_worker, return_exceptions=True)
                 await engine.close()
             return
         engine.capabilities.recover()
@@ -229,9 +233,12 @@ def create_app(engine) -> FastAPI:
     @app.get("/api/status", dependencies=[Depends(auth)])
     async def status() -> dict:
         avail = engine.available_providers(refresh=True)
+        providers = ([{"name": n, "kind": p.kind, "available": False} for n, p in engine.providers.items()]
+                     if engine.security.enabled else
+                     [dict(p.describe(), available=n in avail) for n, p in engine.providers.items()])
         return {
             "node": cfg.node_name, "role": cfg.role, "output_dir": str(cfg.output_dir), "version": __version__,
-            "providers": [dict(p.describe(), available=n in avail) for n, p in engine.providers.items()],
+            "providers": providers,
             "nodes_online": sum(1 for n in engine.nodes.list() if n["online"]),
             "running_tasks": len(engine.running), "router": cfg.router,
         }
@@ -430,7 +437,6 @@ def create_app(engine) -> FastAPI:
         return {"ok": True}
 
     # ---- agents ----------------------------------------------------------------------------
-    @app.post("/api/agent/heartbeat", dependencies=[Depends(auth)])
     async def heartbeat(body: HeartbeatIn, request: Request) -> dict:
         if engine.security.enabled:
             engine.security.require_node(request.state.principal, body.inventory.get("node"))
@@ -440,6 +446,25 @@ def create_app(engine) -> FastAPI:
             raise HTTPException(409, "an agent is using the hub's node name; give it a unique node.name")
         engine.nodes.heartbeat(body.inventory)
         return {"ok": True, "hub": cfg.node_name}
+
+    if engine.security.enabled:
+        @app.post("/api/agent/heartbeat", dependencies=[Depends(auth)])
+        async def protected_heartbeat(request: Request):
+            from .privacy_api import _body
+            try:
+                body = await _body(request, HeartbeatIn)
+            except HTTPException as exc:
+                if exc.status_code == 400:
+                    raise HTTPException(400, "invalid_heartbeat_request") from None
+                raise
+            # Authentication preceded the streamed body; a session can expire
+            # or be revoked while an enrolled device is still uploading it.
+            current = engine.security.authenticate(request.headers.get("authorization", ""))
+            if current != request.state.principal:
+                raise SecurityDenied("invalid_or_expired_credential")
+            return await heartbeat(body, request)
+    else:
+        app.add_api_route("/api/agent/heartbeat", heartbeat, methods=["POST"], dependencies=[Depends(auth)])
 
     @app.get("/api/agent/jobs", dependencies=[Depends(auth)])
     async def next_job(node: str, wait: float = 25):
@@ -474,4 +499,8 @@ def create_app(engine) -> FastAPI:
     register_privacy(app, engine)
     from .privacy_tools_api import register as register_privacy_tools
     register_privacy_tools(app, engine)
+    from .child_safety_api import register as register_child_safety
+    register_child_safety(app, engine)
+    from .retention_api import register as register_retention
+    register_retention(app, engine)
     return app

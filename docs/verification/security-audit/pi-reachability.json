@@ -1,0 +1,16 @@
+{
+  "observed_utc": "2026-11-24T20:47:32.077194+00:00",
+  "target": "10.0.0.17",
+  "scope": "read_only_two_known_ports_from_Mac",
+  "ports": {
+    "22": {
+      "state": "unavailable",
+      "error_code": "EHOSTDOWN"
+    },
+    "8765": {
+      "state": "unavailable",
+      "error_code": "EHOSTDOWN"
+    }
+  },
+  "actual_Pi_settings_and_runtime_verified": false
+}

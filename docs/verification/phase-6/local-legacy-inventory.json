@@ -1,0 +1,43 @@
+{
+  "mode": "read_only_inventory",
+  "deletion_performed": false,
+  "legacy_database": {
+    "state": "absent",
+    "tables": {}
+  },
+  "agent_execution_database": {
+    "state": "read_only",
+    "tables": {
+      "executions": 1
+    }
+  },
+  "output_tree": {
+    "state": "metadata_only",
+    "files": 1265,
+    "bytes": 887667945,
+    "symlinks_skipped": 324,
+    "truncated": true
+  },
+  "capability_inputs": {
+    "state": "absent",
+    "files": 0,
+    "bytes": 0,
+    "symlinks_skipped": 0,
+    "truncated": false
+  },
+  "data_tree_including_logs": {
+    "state": "metadata_only",
+    "files": 6,
+    "bytes": 1555156,
+    "symlinks_skipped": 0,
+    "truncated": false
+  },
+  "limitations": [
+    "counts_only_no_content_or_filenames",
+    "not_an_ownership_or_lineage_map",
+    "live_inventory_not_atomic",
+    "external_agents_os_temporary_files_and_backups_not_enumerated",
+    "unregistered_legacy_data_is_not_deleted_by_the_managed_vault"
+  ],
+  "scope": "This Mac default configuration only. Pi, other installations, external agents and backups were not inspected."
+}

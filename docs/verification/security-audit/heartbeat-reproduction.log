@@ -1,0 +1,22 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_device_heartbeat_bounds_chunked_body_before_inventory_storage ______
+
+engine = <switchboard.engine.Engine object at 0x1122c9a90>
+
+    async def test_device_heartbeat_bounds_chunked_body_before_inventory_storage(engine):
+        p = parent(engine)
+        credential = engine.security.issue(p, role="device", subject="audit-device", device="device-1")["token"]
+        raw = json.dumps({"inventory": {"node": "device-1", "diagnostic": "PrivateSyntheticMarker" + "x" * 70000}}).encode()
+        async def chunks():
+            for offset in range(0, len(raw), 4096): yield raw[offset:offset+4096]
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=create_app(engine)), base_url="http://local") as c:
+            result = await c.post("/api/agent/heartbeat", headers={**headers(credential), "Content-Type":"application/json"}, content=chunks())
+>           assert result.status_code in (400, 413) and "PrivateSyntheticMarker" not in result.text
+E           assert (200 in (400, 413))
+E            +  where 200 = <Response [200 OK]>.status_code
+
+tests/test_security_audit.py:289: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_security_audit.py::test_device_heartbeat_bounds_chunked_body_before_inventory_storage
+1 failed, 26 deselected in 2.86s

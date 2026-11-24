@@ -1,0 +1,12 @@
+{
+  "scope": "Mac_default_config_file_only_not_running_process_or_Pi",
+  "node_role": "agent",
+  "server_host_explicit": "0.0.0.0",
+  "server_port_explicit": 8765,
+  "protected_mode_explicit": "unset_current_source_defaults_false",
+  "real_vault_present": false,
+  "secrets_file_opened": false,
+  "credential_values_reported": false,
+  "tcp_8765_listener_observation": "none_observed_as_current_user",
+  "listener_visibility": "current_user_lsof_only_not_all_users_or_firewall"
+}

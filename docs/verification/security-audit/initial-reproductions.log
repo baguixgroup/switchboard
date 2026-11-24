@@ -1,0 +1,467 @@
+FFFFFFFFFFFFFFF                                                          [100%]
+=================================== FAILURES ===================================
+__________________ test_backup_cannot_outlive_any_source_copy __________________
+
+engine = <switchboard.engine.Engine object at 0x1120a56a0>
+
+    def test_backup_cannot_outlive_any_source_copy(engine):
+        v = engine.retention; p = parent(engine); clock = v.now(); v.now = lambda: clock
+        root = v.create(p)
+        short = v.put(p, root, "queue", b"short-lived synthetic content")
+        long = v.put(p, root, "conversation", b"long-lived synthetic content")
+        backup = v.backup(p, root)
+        deadline = v.db.execute("SELECT expires FROM artifacts WHERE id=?", (short,)).fetchone()[0]
+>       assert v.db.execute("SELECT expires FROM artifacts WHERE id=?", (backup,)).fetchone()[0] <= deadline
+E       assert 1795555674.588968 <= 1795552974.588968
+
+tests/test_security_audit.py:49: AssertionError
+______________ test_explicit_invalid_lineage_parent_is_rejected[] ______________
+
+engine = <switchboard.engine.Engine object at 0x11541cb90>, parent_id = ''
+
+    @pytest.mark.parametrize("parent_id", ["", False, 0])
+    def test_explicit_invalid_lineage_parent_is_rejected(engine, parent_id):
+        v = engine.retention; p = parent(engine); root = v.create(p)
+>       with pytest.raises(RetentionFailure):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RetentionFailure
+
+tests/test_security_audit.py:60: Failed
+___________ test_explicit_invalid_lineage_parent_is_rejected[False] ____________
+
+engine = <switchboard.engine.Engine object at 0x11541fb10>, parent_id = False
+
+    @pytest.mark.parametrize("parent_id", ["", False, 0])
+    def test_explicit_invalid_lineage_parent_is_rejected(engine, parent_id):
+        v = engine.retention; p = parent(engine); root = v.create(p)
+>       with pytest.raises(RetentionFailure):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RetentionFailure
+
+tests/test_security_audit.py:60: Failed
+_____________ test_explicit_invalid_lineage_parent_is_rejected[0] ______________
+
+engine = <switchboard.engine.Engine object at 0x1154422c0>, parent_id = 0
+
+    @pytest.mark.parametrize("parent_id", ["", False, 0])
+    def test_explicit_invalid_lineage_parent_is_rejected(engine, parent_id):
+        v = engine.retention; p = parent(engine); root = v.create(p)
+>       with pytest.raises(RetentionFailure):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RetentionFailure
+
+tests/test_security_audit.py:60: Failed
+________ test_agent_ack_obeys_current_retention_policy_and_key[disable] ________
+
+engine = <switchboard.engine.Engine object at 0x11553cd60>, change = 'disable'
+
+    @pytest.mark.parametrize("change", ["disable", "policy", "key"])
+    def test_agent_ack_obeys_current_retention_policy_and_key(engine, change):
+        v = engine.retention; p = parent(engine); root = v.create(p); agent = "a" * 32
+        token = v.register_agent(p, root, agent); v._tombstone(root)
+        if change == "disable": engine.config.raw["security"]["retention"]["enabled"] = False
+        if change == "policy": engine.config.raw["security"]["retention"]["seconds"] = 120
+        if change == "key": engine.config.secrets["SWITCHBOARD_RETENTION_KEY"] = Fernet.generate_key().decode()
+>       with pytest.raises(SecurityDenied): v.agent_ack(root, agent, token)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SecurityDenied
+
+tests/test_security_audit.py:72: Failed
+________ test_agent_ack_obeys_current_retention_policy_and_key[policy] _________
+
+engine = <switchboard.engine.Engine object at 0x110db7650>, change = 'policy'
+
+    @pytest.mark.parametrize("change", ["disable", "policy", "key"])
+    def test_agent_ack_obeys_current_retention_policy_and_key(engine, change):
+        v = engine.retention; p = parent(engine); root = v.create(p); agent = "a" * 32
+        token = v.register_agent(p, root, agent); v._tombstone(root)
+        if change == "disable": engine.config.raw["security"]["retention"]["enabled"] = False
+        if change == "policy": engine.config.raw["security"]["retention"]["seconds"] = 120
+        if change == "key": engine.config.secrets["SWITCHBOARD_RETENTION_KEY"] = Fernet.generate_key().decode()
+>       with pytest.raises(SecurityDenied): v.agent_ack(root, agent, token)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SecurityDenied
+
+tests/test_security_audit.py:72: Failed
+__________ test_agent_ack_obeys_current_retention_policy_and_key[key] __________
+
+engine = <switchboard.engine.Engine object at 0x11539ef10>, change = 'key'
+
+    @pytest.mark.parametrize("change", ["disable", "policy", "key"])
+    def test_agent_ack_obeys_current_retention_policy_and_key(engine, change):
+        v = engine.retention; p = parent(engine); root = v.create(p); agent = "a" * 32
+        token = v.register_agent(p, root, agent); v._tombstone(root)
+        if change == "disable": engine.config.raw["security"]["retention"]["enabled"] = False
+        if change == "policy": engine.config.raw["security"]["retention"]["seconds"] = 120
+        if change == "key": engine.config.secrets["SWITCHBOARD_RETENTION_KEY"] = Fernet.generate_key().decode()
+>       with pytest.raises(SecurityDenied): v.agent_ack(root, agent, token)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SecurityDenied
+
+tests/test_security_audit.py:72: Failed
+____ test_rejected_restore_preflights_all_conflicts_before_writes[database] ____
+
+engine = <switchboard.engine.Engine object at 0x11556d480>, storage = 'database'
+
+    @pytest.mark.parametrize("storage", ["database", "file"])
+    def test_rejected_restore_preflights_all_conflicts_before_writes(engine, storage):
+        v = engine.retention; p = parent(engine); root = v.create(p)
+        v.put(p, root, "conversation", b"first synthetic item", storage=storage)
+        v.put(p, root, "transcript", b"second synthetic item", storage=storage)
+        snapshot = v.snapshot(p, root)
+        items = json.loads(v.cipher(root).decrypt(snapshot))["items"]
+        first, second = items[0]["id"], items[1]["id"]
+        bad = v.cipher(root).encrypt(b"conflicting synthetic bytes")
+        if storage == "database":
+            with v.data:
+                v.data.execute("DELETE FROM payloads WHERE id=?", (first,))
+                v.data.execute("UPDATE payloads SET cipher=? WHERE id=?", (bad, second))
+        else:
+            (v.path / "files" / (first + ".bin")).unlink()
+            (v.path / "files" / (second + ".bin")).write_bytes(bad)
+        with pytest.raises(RetentionFailure): v.restore(p, root, snapshot)
+        if storage == "database":
+>           assert not v.data.execute("SELECT 1 FROM payloads WHERE id=?", (first,)).fetchone()
+E           AssertionError: assert not (1,)
+E            +  where (1,) = <built-in method fetchone of sqlite3.Cursor object at 0x115541940>()
+E            +    where <built-in method fetchone of sqlite3.Cursor object at 0x115541940> = <sqlite3.Cursor object at 0x115541940>.fetchone
+E            +      where <sqlite3.Cursor object at 0x115541940> = <built-in method execute of sqlite3.Connection object at 0x1154a9210>('SELECT 1 FROM payloads WHERE id=?', ('97ea83f0ce0b37039ed286097f70a6e7',))
+E            +        where <built-in method execute of sqlite3.Connection object at 0x1154a9210> = <sqlite3.Connection object at 0x1154a9210>.execute
+E            +          where <sqlite3.Connection object at 0x1154a9210> = <switchboard.retention.Retention object at 0x11556e030>.data
+
+tests/test_security_audit.py:94: AssertionError
+______ test_rejected_restore_preflights_all_conflicts_before_writes[file] ______
+
+engine = <switchboard.engine.Engine object at 0x11556f350>, storage = 'file'
+
+    @pytest.mark.parametrize("storage", ["database", "file"])
+    def test_rejected_restore_preflights_all_conflicts_before_writes(engine, storage):
+        v = engine.retention; p = parent(engine); root = v.create(p)
+        v.put(p, root, "conversation", b"first synthetic item", storage=storage)
+        v.put(p, root, "transcript", b"second synthetic item", storage=storage)
+        snapshot = v.snapshot(p, root)
+        items = json.loads(v.cipher(root).decrypt(snapshot))["items"]
+        first, second = items[0]["id"], items[1]["id"]
+        bad = v.cipher(root).encrypt(b"conflicting synthetic bytes")
+        if storage == "database":
+            with v.data:
+                v.data.execute("DELETE FROM payloads WHERE id=?", (first,))
+                v.data.execute("UPDATE payloads SET cipher=? WHERE id=?", (bad, second))
+        else:
+            (v.path / "files" / (first + ".bin")).unlink()
+            (v.path / "files" / (second + ".bin")).write_bytes(bad)
+        with pytest.raises(RetentionFailure): v.restore(p, root, snapshot)
+        if storage == "database":
+            assert not v.data.execute("SELECT 1 FROM payloads WHERE id=?", (first,)).fetchone()
+        else:
+>           assert not (v.path / "files" / (first + ".bin")).exists()
+E           AssertionError: assert not True
+E            +  where True = exists()
+E            +    where exists = ((PosixPath('/private/var/folders/z7/0wdzq4314cs73rln5n6wxpz80000gn/T/pytest-of-hicham/pytest-107/test_rejected_restore_prefligh1/audit/data/retention-v1') / 'files') / ('814442a4327074b537c85e22b23222b9' + '.bin')).exists
+E            +      where PosixPath('/private/var/folders/z7/0wdzq4314cs73rln5n6wxpz80000gn/T/pytest-of-hicham/pytest-107/test_rejected_restore_prefligh1/audit/data/retention-v1') = <switchboard.retention.Retention object at 0x115529050>.path
+
+tests/test_security_audit.py:96: AssertionError
+_________ test_unexpected_fifo_is_rejected_without_waiting_for_writer __________
+
+engine = <switchboard.engine.Engine object at 0x11556f9b0>
+
+    def test_unexpected_fifo_is_rejected_without_waiting_for_writer(engine):
+        v = engine.retention; p = parent(engine); root = v.create(p)
+        key = v.put(p, root, "transcript", b"synthetic", storage="file")
+        path = v.path / "files" / (key + ".bin"); path.unlink(); os.mkfifo(path)
+        def rescue():
+            try: fd = os.open(path, os.O_WRONLY | os.O_NONBLOCK); os.close(fd)
+            except OSError: pass
+        timer = threading.Timer(.3, rescue); timer.start()
+        try:
+            start = time.monotonic()
+            with pytest.raises(RetentionFailure): v.read(p, root, key)
+>           assert time.monotonic() - start < .15
+E           assert (189022.929726458 - 189022.622746291) < 0.15
+E            +  where 189022.929726458 = <built-in function monotonic>()
+E            +    where <built-in function monotonic> = time.monotonic
+
+tests/test_security_audit.py:110: AssertionError
+____ test_retention_preview_does_not_block_http_event_loop_on_storage_lock _____
+
+engine = <switchboard.engine.Engine object at 0x11556fdf0>
+
+    async def test_retention_preview_does_not_block_http_event_loop_on_storage_lock(engine):
+        v = engine.retention; p = parent(engine); root = v.create(p)
+        acquired = threading.Event(); release = threading.Event()
+        def hold():
+            with v.lock: acquired.set(); release.wait(2)
+        thread = threading.Thread(target=hold); thread.start(); assert acquired.wait(1)
+        rescue = threading.Timer(.3, release.set); rescue.start()
+        try:
+            start = time.monotonic()
+            task = asyncio.create_task(v.preview_delete(p, root))
+            await asyncio.sleep(.02)
+            elapsed = time.monotonic() - start
+            release.set(); await task
+>           assert elapsed < .15
+E           assert 0.3060474640224129 < 0.15
+
+tests/test_security_audit.py:127: AssertionError
+___________ test_child_policy_changes_invalidate_local_tool_approval ___________
+
+engine = <switchboard.engine.Engine object at 0x11556fbd0>
+
+    async def test_child_policy_changes_invalidate_local_tool_approval(engine):
+        tools = engine.local_tools; p = parent(engine)
+        preview = await tools.preview(p, tool="calculate", arguments={"expression": "2+2"})
+        engine.config.raw["security"]["child_safety"]["age_band"] = "6-8"
+        calls = []
+        async def worker(*args): calls.append(args); return "4"
+        tools.worker.run = worker
+>       with pytest.raises(SecurityDenied):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SecurityDenied
+
+tests/test_security_audit.py:138: Failed
+______ test_overlong_disclosure_retains_supportive_fallback_and_category _______
+
+engine = <switchboard.engine.Engine object at 0x11556ebe0>
+
+    async def test_overlong_disclosure_retains_supportive_fallback_and_category(engine):
+        result = await engine.text_gateway.safety.gate(parent(engine), ("My dad hits me. " + "x" * 3000,), stage="response")
+>       assert "abuse_disclosure" in result["categories"] and result["check_unavailable"]
+E       AssertionError: assert ('abuse_disclosure' in ())
+
+tests/test_security_audit.py:145: AssertionError
+_ test_invalid_runtime_policies_return_authorization_denial[text_gateway-patch0-/api/privacy/preview-body0] _
+
+engine = <switchboard.engine.Engine object at 0x11556e7a0>
+section = 'text_gateway', patch = {'provider': 'unsupported'}
+path = '/api/privacy/preview', body = {'prompt': 'Explain fractions'}
+
+    @pytest.mark.parametrize("section,patch,path,body", [
+        ("text_gateway", {"provider": "unsupported"}, "/api/privacy/preview", {"prompt": "Explain fractions"}),
+        ("local_tools", {"allowed": ["unsupported"]}, "/api/privacy/tools/preview", {"tool": "calculate", "arguments": {"expression": "2+2"}}),
+    ])
+    async def test_invalid_runtime_policies_return_authorization_denial(engine, section, patch, path, body):
+        engine.config.raw["security"][section].update(patch)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=create_app(engine)), base_url="http://local") as c:
+>           assert (await c.post(path, headers=headers(), json=body)).status_code == 403
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_security_audit.py:156:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/applications.py:1194: in __call__
+    await super().__call__(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/applications.py:96: in __call__
+    await self.middleware_stack(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/telemetry/_asgi.py:151: in __call__
+    await self.app(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/base.py:203: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+switchboard/web/app.py:172: in local_guard
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/base.py:179: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/base.py:149: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/routing.py:683: in __call__
+    await self.middleware_stack(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:2811: in app
+    await route.handle(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:1330: in handle
+    await super().handle(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/routing.py:289: in handle
+    await self.app(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:166: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:152: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:745: in app
+    raw_response = await run_endpoint_function(
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:372: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+switchboard/web/privacy_api.py:71: in preview
+    return await engine.text_gateway.preview(request.state.principal, **body.model_dump())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+switchboard/privacy_gateway.py:175: in preview
+    self._check(principal)
+switchboard/privacy_gateway.py:151: in _check
+    if self._closed or not self.security.enabled or not self.policy.enabled or text_policy(self.config) != self.policy:
+                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+config = <switchboard.config.Config object at 0x115521630>
+
+    def text_policy(config) -> TextPolicy:
+        raw = config.raw.get("security", {}).get("text_gateway", {})
+        if not isinstance(raw, dict) or set(raw) - {"enabled", "model", "max_tokens", "known_identifiers", "provider"}:
+            raise ValueError("Invalid text gateway policy")
+        enabled = raw.get("enabled", False)
+        model = raw.get("model", "")
+        tokens = raw.get("max_tokens", 512)
+        known = raw.get("known_identifiers", [])
+        provider = raw.get("provider", "openai")
+        if provider not in ("openai", "anthropic", "gemini"):
+>           raise ValueError("Invalid reviewed text provider")
+E           ValueError: Invalid reviewed text provider
+
+switchboard/privacy_gateway.py:45: ValueError
+_ test_invalid_runtime_policies_return_authorization_denial[local_tools-patch1-/api/privacy/tools/preview-body1] _
+
+engine = <switchboard.engine.Engine object at 0x11585dae0>
+section = 'local_tools', patch = {'allowed': ['unsupported']}
+path = '/api/privacy/tools/preview'
+body = {'tool': 'calculate', 'arguments': {'expression': '2+2'}}
+
+    @pytest.mark.parametrize("section,patch,path,body", [
+        ("text_gateway", {"provider": "unsupported"}, "/api/privacy/preview", {"prompt": "Explain fractions"}),
+        ("local_tools", {"allowed": ["unsupported"]}, "/api/privacy/tools/preview", {"tool": "calculate", "arguments": {"expression": "2+2"}}),
+    ])
+    async def test_invalid_runtime_policies_return_authorization_denial(engine, section, patch, path, body):
+        engine.config.raw["security"][section].update(patch)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=create_app(engine)), base_url="http://local") as c:
+>           assert (await c.post(path, headers=headers(), json=body)).status_code == 403
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_security_audit.py:156:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/applications.py:1194: in __call__
+    await super().__call__(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/applications.py:96: in __call__
+    await self.middleware_stack(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/telemetry/_asgi.py:151: in __call__
+    await self.app(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/base.py:203: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+switchboard/web/app.py:172: in local_guard
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/base.py:179: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/base.py:149: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/routing.py:683: in __call__
+    await self.middleware_stack(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:2811: in app
+    await route.handle(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:1330: in handle
+    await super().handle(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/routing.py:289: in handle
+    await self.app(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:166: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+build/venv-macos-x86_64/lib/python3.13/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:152: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:745: in app
+    raw_response = await run_endpoint_function(
+build/venv-macos-x86_64/lib/python3.13/site-packages/fastapi/routing.py:372: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+switchboard/web/privacy_tools_api.py:28: in preview
+    return await engine.local_tools.preview(request.state.principal, **body.model_dump())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+switchboard/privacy_tools.py:91: in preview
+    self.check(principal)
+switchboard/privacy_tools.py:82: in check
+    if self.closed or self.gateway._closed or not self.security.enabled or not self.policy.enabled or tool_policy(self.config) != self.policy or text_policy(self.config) != self.gateway.policy:
+                                                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+config = <switchboard.config.Config object at 0x116260390>
+
+    def tool_policy(config):
+        raw = config.raw.get("security", {}).get("local_tools", {})
+        if not isinstance(raw, dict) or set(raw) - {"enabled", "allowed"}:
+            raise ValueError("Invalid local tool policy")
+        enabled, allowed = raw.get("enabled", False), raw.get("allowed", [])
+        if type(enabled) is not bool or not isinstance(allowed, list) or any(t not in TOOLS for t in allowed) or len(set(allowed)) != len(allowed):
+>           raise ValueError("Invalid local tool policy")
+E           ValueError: Invalid local tool policy
+
+switchboard/privacy_tools.py:34: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_security_audit.py::test_backup_cannot_outlive_any_source_copy
+FAILED tests/test_security_audit.py::test_explicit_invalid_lineage_parent_is_rejected[]
+FAILED tests/test_security_audit.py::test_explicit_invalid_lineage_parent_is_rejected[False]
+FAILED tests/test_security_audit.py::test_explicit_invalid_lineage_parent_is_rejected[0]
+FAILED tests/test_security_audit.py::test_agent_ack_obeys_current_retention_policy_and_key[disable]
+FAILED tests/test_security_audit.py::test_agent_ack_obeys_current_retention_policy_and_key[policy]
+FAILED tests/test_security_audit.py::test_agent_ack_obeys_current_retention_policy_and_key[key]
+FAILED tests/test_security_audit.py::test_rejected_restore_preflights_all_conflicts_before_writes[database]
+FAILED tests/test_security_audit.py::test_rejected_restore_preflights_all_conflicts_before_writes[file]
+FAILED tests/test_security_audit.py::test_unexpected_fifo_is_rejected_without_waiting_for_writer
+FAILED tests/test_security_audit.py::test_retention_preview_does_not_block_http_event_loop_on_storage_lock
+FAILED tests/test_security_audit.py::test_child_policy_changes_invalidate_local_tool_approval
+FAILED tests/test_security_audit.py::test_overlong_disclosure_retains_supportive_fallback_and_category
+FAILED tests/test_security_audit.py::test_invalid_runtime_policies_return_authorization_denial[text_gateway-patch0-/api/privacy/preview-body0]
+FAILED tests/test_security_audit.py::test_invalid_runtime_policies_return_authorization_denial[local_tools-patch1-/api/privacy/tools/preview-body1]
+15 failed in 6.64s

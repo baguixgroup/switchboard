@@ -22,7 +22,7 @@ from .providers import ProviderError, RunRequest, RunResult, build_providers
 from .providers.cli_bridge import CLIProvider
 from .router import PRIORITY, Plan, Router, TaskProfile, classify
 from .store import Store
-from .security import LocalSecurity, require_execution_enabled
+from .security import LocalSecurity, require_execution_enabled, protected_mode
 from .toolbox import ToolBox
 
 log = logging.getLogger("switchboard.engine")
@@ -42,6 +42,8 @@ class Engine:
         self.text_gateway = TextGateway(config, self.security)
         from .privacy_tools import LocalTools
         self.local_tools = LocalTools(config, self.security, self.text_gateway)
+        from .retention import Retention
+        self.retention = Retention(config, self.security)
         self.catalog = Catalog.load(config)
         self.providers = build_providers(config)
         self.ledger = Ledger(config, self.store, lambda p: p in self.available_providers())
@@ -64,6 +66,8 @@ class Engine:
 
     # ---- discovery ----------------------------------------------------------------
     def available_providers(self, refresh: bool = False) -> set[str]:
+        if protected_mode(self.config):
+            return set()
         ts, cached = self._avail
         if refresh or time.time() - ts > 30:
             cached = {n for n, p in self.providers.items() if p.available()}
@@ -79,6 +83,8 @@ class Engine:
 
     def cli_location(self, provider: str) -> str | None:
         """Machine to run a plan CLI on: this one if installed, else an online agent that has it."""
+        if protected_mode(self.config):
+            return None
         p = self.providers.get(provider)
         if not p or p.kind != "cli":
             return None
@@ -704,6 +710,7 @@ class Engine:
             await asyncio.sleep(every)
 
     async def close(self) -> None:
+        self.retention.close()
         self.local_tools.close()
         self.text_gateway.close()
         await self.capabilities.close()

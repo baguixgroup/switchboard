@@ -1,0 +1,160 @@
+{
+  "host": {
+    "os": "Darwin",
+    "arch": "x86_64",
+    "python": "3.13.18"
+  },
+  "scope": "synthetic_loopback_only_no_live_AI",
+  "child_release": "blocked",
+  "real_child_delivery_enabled": false,
+  "browser": {
+    "engine": "Mozilla Firefox 160.0.1",
+    "completed": true,
+    "cases": {
+      "same_origin": [
+        {
+          "name": "anonymous_loopback_denied",
+          "passed": true
+        },
+        {
+          "name": "query_token_denied",
+          "passed": true
+        },
+        {
+          "name": "cookie_token_denied",
+          "passed": true
+        },
+        {
+          "name": "parent_policy_child_disabled",
+          "passed": true
+        },
+        {
+          "name": "child_admin_denied",
+          "passed": true
+        },
+        {
+          "name": "child_privacy_denied",
+          "passed": true
+        },
+        {
+          "name": "relayed_parent_denied",
+          "passed": true
+        },
+        {
+          "name": "tasks_closed",
+          "passed": true
+        },
+        {
+          "name": "laith_closed",
+          "passed": true
+        },
+        {
+          "name": "tts_closed",
+          "passed": true
+        },
+        {
+          "name": "live_voice_closed",
+          "passed": true
+        },
+        {
+          "name": "disclosure_local_fallback_no_notification",
+          "passed": true
+        },
+        {
+          "name": "local_calculator_review",
+          "passed": true
+        },
+        {
+          "name": "real_restricted_calculator",
+          "passed": true
+        },
+        {
+          "name": "reviewed_payload_minimized",
+          "passed": true
+        },
+        {
+          "name": "unconfirmed_send_denied",
+          "passed": true
+        },
+        {
+          "name": "confirmed_fake_provider_answer_parent_only",
+          "passed": true
+        },
+        {
+          "name": "send_replay_denied",
+          "passed": true
+        },
+        {
+          "name": "unsafe_fake_answer_buffered_and_replaced",
+          "passed": true
+        },
+        {
+          "name": "deletion_metadata_preview",
+          "passed": true
+        },
+        {
+          "name": "registered_deletion_and_limit_receipt",
+          "passed": true
+        },
+        {
+          "name": "deletion_replay_denied",
+          "passed": true
+        }
+      ],
+      "foreign_origin": [
+        {
+          "name": "foreign_bearer_preflight_blocked",
+          "passed": true
+        },
+        {
+          "name": "foreign_simple_post_blocked",
+          "passed": true
+        },
+        {
+          "name": "null_origin_blocked",
+          "passed": true
+        }
+      ]
+    },
+    "origin_denials": [
+      {
+        "origin_kind": "foreign",
+        "method": "OPTIONS",
+        "status": 403
+      },
+      {
+        "origin_kind": "foreign",
+        "method": "POST",
+        "status": 403
+      },
+      {
+        "origin_kind": "null",
+        "method": "POST",
+        "status": 403
+      }
+    ]
+  },
+  "fake_provider_calls": 2,
+  "fake_provider_payloads_minimized": true,
+  "deleted_snapshot_restore_blocked": true,
+  "deleted_file_removed": true,
+  "legacy_task_rows_created": 0,
+  "detector_benchmark": {
+    "input_characters": 19000,
+    "iterations": 20,
+    "median_ms": 170.168,
+    "max_ms": 228.596,
+    "scope": "Mac_only_no_allocation_tracing"
+  },
+  "bounded_http_load": {
+    "requests": 16,
+    "concurrency": 4,
+    "all_status_200": true,
+    "median_ms": 16.325,
+    "max_ms": 35.012,
+    "scope": "loopback_policy_GET_only_not_model_or_Pi_capacity"
+  },
+  "python_peak_rss_bytes": 147427328,
+  "synthetic_servers_stopped": true,
+  "all_local_checks_passed": true
+}

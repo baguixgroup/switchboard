@@ -1,0 +1,21 @@
+{
+  "observed_utc": "2026-11-24T19:57:53.909849+00:00",
+  "target": "10.0.0.17",
+  "scope": "Mac_to_Pi_two_known_TCP_ports_only",
+  "ports": {
+    "22": {
+      "state": "unavailable",
+      "errno": 64,
+      "error_type": "OSError",
+      "error_code": "EHOSTDOWN"
+    },
+    "8765": {
+      "state": "unavailable",
+      "errno": 64,
+      "error_type": "OSError",
+      "error_code": "EHOSTDOWN"
+    }
+  },
+  "pi_deployed_settings_verified": false,
+  "internet_exposure_verified": false
+}

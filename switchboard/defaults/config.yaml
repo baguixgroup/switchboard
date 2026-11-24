@@ -41,6 +41,14 @@ security:
   local_tools:
     enabled: false
     allowed: []                    # calculate | text.statistics | attachment.extract
+  child_safety:
+    enabled: false                 # experimental parent review; never enables child chat
+    age_band: "9-12"              # 6-8 | 9-12 | 13-17; no date of birth collected
+    language: en                   # en | fr | ar | ary (Darija)
+    review_queue: false            # optional metadata only, memory, 15-minute expiry
+  retention:
+    enabled: false                 # NEW registered vault only; never adopts/deletes legacy stores
+    seconds: 86400                 # 60..2592000; requires separate SWITCHBOARD_RETENTION_KEY
 
 router:
   billing: plans_first             # plans_only = never spend API credit (plans' daily limits, free tiers, local only)

@@ -1,0 +1,24 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_device_revoked_while_reading_heartbeat_cannot_update_inventory ______
+
+engine = <switchboard.engine.Engine object at 0x10d5f9a90>
+
+    async def test_device_revoked_while_reading_heartbeat_cannot_update_inventory(engine):
+        p = parent(engine)
+        credential = engine.security.issue(p, role="device", subject="audit-device", device="device-1")
+        raw = json.dumps({"inventory": {"node": "device-1"}}).encode()
+        async def chunks():
+            yield raw[:5]
+            engine.security.revoke(p, credential["id"])
+            yield raw[5:]
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=create_app(engine)), base_url="http://local") as c:
+            result = await c.post("/api/agent/heartbeat", headers={**headers(credential["token"]), "Content-Type":"application/json"}, content=chunks())
+>           assert result.status_code in (401, 403) and "device-1" not in engine.nodes.nodes
+E           assert (200 in (401, 403))
+E            +  where 200 = <Response [200 OK]>.status_code
+
+tests/test_security_audit.py:303: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_security_audit.py::test_device_revoked_while_reading_heartbeat_cannot_update_inventory
+1 failed, 27 deselected in 3.82s

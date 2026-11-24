@@ -19,7 +19,7 @@ class SecurityDenied(PermissionError):
 
 def protected_mode(config) -> bool:
     section = config.raw.get("security", {})
-    if not isinstance(section, dict) or set(section) - {"enabled", "text_gateway", "local_tools"} or type(section.get("enabled", False)) is not bool:
+    if not isinstance(section, dict) or set(section) - {"enabled", "text_gateway", "local_tools", "child_safety", "retention"} or type(section.get("enabled", False)) is not bool:
         raise ValueError("security.enabled must be a boolean")
     return section.get("enabled", False)
 
@@ -103,6 +103,14 @@ class LocalSecurity:
         if method == "GET" and path == "/api/security/me":
             return
         if principal.role == "parent":
+            if method == "GET" and path in ("/api/retention/policy", "/api/retention/inventory"):
+                return
+            if method == "POST" and path in ("/api/retention/delete/preview", "/api/retention/delete/confirm", "/api/retention/receipt", "/api/retention/maintain"):
+                return
+            if method == "GET" and path in ("/api/safety/policy", "/api/safety/reviews"):
+                return
+            if method == "POST" and path in ("/api/safety/evaluate", "/api/safety/reviews/resolve"):
+                return
             if method == "GET" and path == "/api/privacy/tools":
                 return
             if method == "POST" and path in ("/api/privacy/tools/preview", "/api/privacy/tools/run"):

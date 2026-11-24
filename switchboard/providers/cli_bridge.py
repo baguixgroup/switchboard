@@ -124,6 +124,10 @@ class CLIProvider(Provider):
 
     def available(self) -> bool:
         from ..runtime import cli_feature_enabled
+        from ..security import protected_mode
+
+        if self.config is not None and protected_mode(self.config):
+            return False
 
         feature = self.cfg.get("required_feature")
         return self.executable is not None and (not feature or cli_feature_enabled(self.executable, feature))
