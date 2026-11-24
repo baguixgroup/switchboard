@@ -22,6 +22,14 @@ server:                            # used by the hub only
 
 output_dir: auto                   # auto = ~/Switchboard/Output (Windows, macOS) or ~/switchboard-output (Linux/Pi)
 
+# Opt-in local authorization foundation. Requires a distinct, random
+# SWITCHBOARD_PARENT_TOKEN (32+ characters). This stage permits only security
+# administration and bound device heartbeats: chat/tools/provider execution
+# remain disabled until the privacy/safety stages are implemented and reviewed.
+# Existing installations remain in the legacy adult mode unless explicitly enabled.
+security:
+  enabled: false
+
 router:
   billing: plans_first             # plans_only = never spend API credit (plans' daily limits, free tiers, local only)
                                    # plans_first = use plans/free first, credit only when no plan can do it or limits are hit

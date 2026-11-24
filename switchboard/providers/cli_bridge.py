@@ -200,6 +200,11 @@ class CLIProvider(Provider):
         _AUTH_OK[self.name] = time.time()
 
     async def run(self, req: RunRequest, toolbox: ToolBox | None = None) -> RunResult:
+        from ..security import require_execution_enabled
+        # Standalone CLI adapters also support config=None (legacy embedding).
+        # Hub-built adapters always carry their actual deployment Config.
+        if self.config is not None:
+            require_execution_enabled(self.config)
         if not self.executable:
             raise ProviderError(f"{self.cfg.get('command')} is not installed on this machine", "unavailable")
         await self.check_auth()

@@ -11,6 +11,9 @@ TAGS = {"critical": ["rotating_light"], "warning": ["warning"], "info": ["inform
 
 
 async def send(config, title: str, message: str, severity: str = "info") -> bool:
+    from .security import protected_mode
+    if protected_mode(config):
+        return False
     n = config.notify or {}
     topic = n.get("ntfy_topic")
     if not topic:

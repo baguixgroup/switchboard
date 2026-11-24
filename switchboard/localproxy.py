@@ -73,6 +73,9 @@ def build_proxy_app(config) -> Starlette:
         if path.startswith("/api/agent/"):
             return JSONResponse({"detail": "not available through the local relay"}, 404)
         headers = {k: v for k, v in request.headers.items() if k.lower() in PASS_REQ}
+        # A protected Hub must not turn an anonymously accessible local relay
+        # into parent administration, even if its operator saved a parent token.
+        headers["X-Switchboard-Relay"] = "1"
         if config.token:
             headers["Authorization"] = f"Bearer {config.token}"
         url = path + (f"?{request.url.query}" if request.url.query else "")

@@ -132,6 +132,8 @@ class MCPHub:
         return out
 
     async def ensure(self, name: str, timeout: float = 90) -> _Worker:
+        from .security import require_execution_enabled
+        require_execution_enabled(self.config)
         w = self.workers.get(name)
         if w is None or (w.task and w.task.done()):
             cfg = self.configured().get(name)

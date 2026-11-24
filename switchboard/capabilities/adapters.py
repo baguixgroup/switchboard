@@ -89,6 +89,8 @@ def headers(config,service):
     return {'Authorization':'Bearer '+secret} if secret else {}
 
 async def execute_service(config,service,task,params,assets,checkpoint,progress):
+    from ..security import require_execution_enabled
+    require_execution_enabled(config)
     base=service['base_url'];auth=headers(config,service);model=service.get('model');adapter=service['adapter']
     if adapter=='audio':
         if len(assets)!=1:raise ValueError('Choose one audio file.')

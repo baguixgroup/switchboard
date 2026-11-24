@@ -43,9 +43,14 @@ class AnthropicProvider(Provider):
         return self.config.secret(self.cfg.get("api_key_env", "ANTHROPIC_API_KEY"))
 
     def available(self) -> bool:
+        from ..security import protected_mode
+        if protected_mode(self.config):
+            return False
         return bool(self.api_key)
 
     def client(self) -> anthropic.AsyncAnthropic:
+        from ..security import require_execution_enabled
+        require_execution_enabled(self.config)
         return anthropic.AsyncAnthropic(api_key=self.api_key, base_url=self.cfg.get("base_url") or None, max_retries=2)
 
     async def list_models(self) -> list[str]:

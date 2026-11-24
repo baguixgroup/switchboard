@@ -20,6 +20,8 @@ class Executor:
         self.mcp = mcp_hub
 
     async def execute(self, kind: str, payload: dict) -> dict:
+        from .security import require_execution_enabled
+        require_execution_enabled(self.config)
         if kind == "capability_execute":
             from .capabilities.machine import execute
             return await execute(self.config,payload)

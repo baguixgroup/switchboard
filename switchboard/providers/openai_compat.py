@@ -51,6 +51,9 @@ class OpenAICompatProvider(Provider):
         return self.cfg.get("base_url") or "https://api.openai.com/v1"
 
     def available(self) -> bool:
+        from ..security import protected_mode
+        if protected_mode(self.config):
+            return False
         if not self.api_key:
             return False
         if self.cfg.get("local"):
@@ -63,6 +66,8 @@ class OpenAICompatProvider(Provider):
         return True
 
     def client(self) -> openai.AsyncOpenAI:
+        from ..security import require_execution_enabled
+        require_execution_enabled(self.config)
         return openai.AsyncOpenAI(api_key=self.api_key, base_url=self.base_url,
                                   default_headers=self.cfg.get("headers") or None, timeout=600, max_retries=2)
 

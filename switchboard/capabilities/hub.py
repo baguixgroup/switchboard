@@ -96,6 +96,8 @@ class CapabilityHub:
     def event(self,job,message):
         job['events']=(job['events']+[{'time':time.time(),'message':message}])[-200:];self.save(job)
     def approve(self,key,max_cost_usd=0,allow_unpriced=False,confirm_data_transfer=False):
+        from ..security import require_execution_enabled
+        require_execution_enabled(self.engine.config)
         if type(max_cost_usd) not in (int,float) or not math.isfinite(max_cost_usd) or not 0<=max_cost_usd<=1000:raise ValueError('Choose a valid estimate allowance.')
         candidate=self.get(key)
         if candidate.get('chat_id'):
@@ -137,6 +139,8 @@ class CapabilityHub:
             elif job['status']=='running':
                 job.update(status='interrupted',error='The hub stopped during execution. The remote request may have completed. Inspect the worker before explicitly retrying.');self.save(job);self.engine.store.save_task(job['id'],'interrupted',error=job['error'])
     async def run(self,key):
+        from ..security import require_execution_enabled
+        require_execution_enabled(self.engine.config)
         job=self.get(key);job['status']='running';self.event(job,'Starting '+job['capability']['label']);self.engine.store.save_task(key,'running')
         try:
             cap=job['capability'];payload_assets=[]

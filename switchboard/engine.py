@@ -22,6 +22,7 @@ from .providers import ProviderError, RunRequest, RunResult, build_providers
 from .providers.cli_bridge import CLIProvider
 from .router import PRIORITY, Plan, Router, TaskProfile, classify
 from .store import Store
+from .security import LocalSecurity, require_execution_enabled
 from .toolbox import ToolBox
 
 log = logging.getLogger("switchboard.engine")
@@ -36,6 +37,7 @@ class Engine:
     def __init__(self, config):
         self.config = config
         self.store = Store(config.db_path)
+        self.security = LocalSecurity(config, self.store)
         self.catalog = Catalog.load(config)
         self.providers = build_providers(config)
         self.ledger = Ledger(config, self.store, lambda p: p in self.available_providers())
@@ -125,6 +127,7 @@ class Engine:
         return profile
 
     async def _llm_classify(self, prompt: str, profile: TaskProfile) -> TaskProfile:
+        require_execution_enabled(self.config)
         avail = self.available_providers()
         cands = sorted((m for m in self.catalog.all() if m.provider in avail and m.q >= 6 and
                         not ({"image_gen", "cli"} & m.features)), key=lambda m: m.price_in + m.price_out)
@@ -185,6 +188,7 @@ class Engine:
     # ---- tools --------------------------------------------------------------------------
     async def build_toolbox(self, plan: Plan | None, task_dir: Path, servers: list[str] | None = None,
                             include_save: bool = True) -> ToolBox:
+        require_execution_enabled(self.config)
         tb = ToolBox()
         locations = self.nodes.mcp_locations()
         for server in (servers if servers is not None else plan.tools):
@@ -207,6 +211,7 @@ class Engine:
 
     async def create_gateway(self, servers: list[str], task_rel: str | None) -> tuple[str, ToolBox]:
         """Tool gateway session for a plan CLI: the CLI's MCP client talks to these tools via the hub."""
+        require_execution_enabled(self.config)
         now = time.time()
         for gid in [g for g, (_, ts) in self.gateways.items() if now - ts > GATEWAY_TTL]:
             self.gateways.pop(gid, None)
@@ -221,6 +226,7 @@ class Engine:
 
     def _remote_tool(self, tb: ToolBox, node: str, server: str, tool: str):
         async def call(args: dict):
+            require_execution_enabled(self.config)
             payload = await self.nodes.submit(node, "mcp_call", {"server": server, "tool": tool, "args": args})
             for i, img in enumerate(payload.get("images") or [], start=1):
                 ext = (img.get("mime") or "image/png").split("/")[-1].replace("jpeg", "jpg")
@@ -329,6 +335,7 @@ class Engine:
         return route
 
     def start_install(self, node: str, tool: str, accept_agreements: bool = False, auth_route: str | None = None, auth_handle: str | None = None) -> str:
+        require_execution_enabled(self.config)
         node = self.resolve_node(node)
         tool = resolve_tool_id(tool)
         if not tool:
@@ -384,6 +391,7 @@ class Engine:
     def start_task(self, prompt: str, plan: Plan, images: list[Path] | None = None,
                    history: list[dict] | None = None, isolated: bool = False, read_only: bool = False,
                    estimate_allowance: float | None = None, system_prompt: str | None = None) -> str:
+        require_execution_enabled(self.config)
         task_id = datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
         self.store.save_task(task_id, "queued", prompt, plan.to_dict())
         t = asyncio.create_task(self.run_task(task_id, prompt, plan, images or [], history or [], isolated=isolated,read_only=read_only,estimate_allowance=estimate_allowance,system_prompt=system_prompt))
@@ -393,6 +401,7 @@ class Engine:
 
     async def run_task(self, task_id: str, prompt: str, plan: Plan, images: list[Path], history: list[dict], isolated: bool = False, read_only: bool = False,
                        estimate_allowance: float | None = None, system_prompt: str | None = None) -> dict:
+        require_execution_enabled(self.config)
         self.store.save_task(task_id, "running", prompt, plan.to_dict())
         task_dir = outputs.task_folder(self.config.output_dir, prompt)
         attempts: list[Plan] = [plan]
@@ -491,6 +500,7 @@ class Engine:
 
     async def _run_cli(self, prov: CLIProvider, req: RunRequest, task_dir: Path) -> RunResult:
         """Run a plan CLI here, or on the agent machine where it is installed and logged in."""
+        require_execution_enabled(self.config)
         where = self.cli_location(prov.name)
         if where is None:
             raise ProviderError(f"{prov.name} is not installed on any connected machine", "unavailable")
@@ -567,6 +577,7 @@ class Engine:
 
     async def handoff_open(self, task_id: str, node: str) -> dict:
         """Open the plan's app on one of your computers with the prompt copied, then watch for the image."""
+        require_execution_enabled(self.config)
         t = self.store.get_task(task_id)
         h = ((t or {}).get("plan") or {}).get("handoff")
         if not h:
@@ -636,6 +647,7 @@ class Engine:
         return out
 
     async def _mirror(self, task_dir: Path) -> None:
+        require_execution_enabled(self.config)
         rel_root = task_dir.relative_to(self.config.output_dir)
         for n in self.nodes.list():
             if n["local"] or not n["online"] or not n.get("mirror_outputs"):
@@ -668,9 +680,11 @@ class Engine:
                 "plans": self.plans_status(), "billing": self.config.router.get("billing", "plans_first")}
 
     async def refresh_balances(self) -> dict:
+        require_execution_enabled(self.config)
         return await balances.refresh_all(self.config, self.store)
 
     async def scheduler(self) -> None:
+        require_execution_enabled(self.config)
         every = max(5, int((self.config.notify or {}).get("check_every_minutes", 30))) * 60
         last_balance = 0.0
         while True:

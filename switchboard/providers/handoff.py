@@ -28,6 +28,8 @@ class HandoffProvider(Provider):
         return bool(self.cfg.get("enabled", True))
 
     async def run(self, req: RunRequest, toolbox: ToolBox | None = None) -> RunResult:
+        from ..security import require_execution_enabled
+        require_execution_enabled(self.config)
         label = self.cfg.get("label", self.name)
         if req.model.id == "chat":
             history = "\n\n".join(f"{m['role']}: {m['content']}" for m in req.history or [])

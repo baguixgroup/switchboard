@@ -20,6 +20,7 @@ from .. import __version__, advisor
 from ..credits import CreditSource
 from ..inventory import mcp_catalog, resolve_tool_id
 from ..router import Plan
+from ..security import SecurityDenied
 
 log = logging.getLogger("switchboard.web")
 LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient"}
@@ -106,6 +107,14 @@ def create_app(engine) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        if engine.security.enabled:
+            # Foundation mode must not resume legacy jobs, start MCP workers,
+            # broadcast discovery, or run the legacy network scheduler.
+            try:
+                yield
+            finally:
+                await engine.close()
+            return
         engine.capabilities.recover()
         await app.state.recover_capability_voice()
         engine.studio.recover()
@@ -128,7 +137,8 @@ def create_app(engine) -> FastAPI:
         sched.cancel()
         await engine.close()
 
-    app = FastAPI(title="Tazrivo", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="Tazrivo", version=__version__, lifespan=lifespan,
+                  **({"docs_url": None, "redoc_url": None, "openapi_url": None} if engine.security.enabled else {}))
 
     @app.middleware("http")
     async def local_guard(request: Request, call_next):
@@ -136,6 +146,31 @@ def create_app(engine) -> FastAPI:
         # websites (cross-site requests) and DNS-rebinding tricks from using it.
         from ..localproxy import local_request_ok
 
+        if engine.security.enabled:
+            # Never use cookies, URL tokens, loopback exemptions or the legacy
+            # shared token as an authority in protected mode.
+            if request.url.path.startswith("/api"):
+                origin = request.headers.get("origin")
+                if origin is not None and origin != str(request.base_url).rstrip("/"):
+                    return JSONResponse({"detail": "origin_not_authorized"}, status_code=403, headers={"Cache-Control": "no-store"})
+                try:
+                    principal = engine.security.authenticate(request.headers.get("authorization", ""))
+                except SecurityDenied as exc:
+                    return JSONResponse({"detail": str(exc)}, status_code=401, headers={"Cache-Control": "no-store"})
+                try:
+                    if principal.role == "parent" and request.headers.get("x-switchboard-relay"):
+                        raise SecurityDenied("parent_credential_not_allowed_through_relay")
+                    engine.security.authorize(principal, request.method, request.url.path)
+                except SecurityDenied as exc:
+                    return JSONResponse({"detail": str(exc)}, status_code=403, headers={"Cache-Control": "no-store"})
+                request.state.principal = principal
+            try:
+                response = await call_next(request)
+            except SecurityDenied:
+                return JSONResponse({"detail": "operation_not_authorized"}, status_code=403, headers={"Cache-Control": "no-store"})
+            if request.url.path.startswith("/api"):
+                response.headers["Cache-Control"] = "no-store"
+            return response
         host = request.client.host if request.client else ""
         if host in LOCAL_HOSTS and host != "testclient" and not request.headers.get("authorization") \
                 and not local_request_ok(request):
@@ -143,6 +178,10 @@ def create_app(engine) -> FastAPI:
         return await call_next(request)
 
     def auth(request: Request) -> None:
+        if engine.security.enabled:
+            if not getattr(request.state, "principal", None):
+                raise HTTPException(401, "credential_required")
+            return
         host = request.client.host if request.client else ""
         if host in LOCAL_HOSTS and not cfg.server.get("require_token_locally"):
             return
@@ -392,7 +431,9 @@ def create_app(engine) -> FastAPI:
 
     # ---- agents ----------------------------------------------------------------------------
     @app.post("/api/agent/heartbeat", dependencies=[Depends(auth)])
-    async def heartbeat(body: HeartbeatIn) -> dict:
+    async def heartbeat(body: HeartbeatIn, request: Request) -> dict:
+        if engine.security.enabled:
+            engine.security.require_node(request.state.principal, body.inventory.get("node"))
         if not body.inventory.get("node"):
             raise HTTPException(400, "inventory.node missing")
         if body.inventory["node"] == cfg.node_name:
@@ -427,4 +468,6 @@ def create_app(engine) -> FastAPI:
     register_capabilities(app,engine,auth)
     from .voice_api import register as register_voice
     register_voice(app,cfg,auth)
+    from .security_api import register as register_security
+    register_security(app, engine)
     return app
