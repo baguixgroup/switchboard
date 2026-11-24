@@ -126,7 +126,8 @@ async def test_parent_cannot_enable_egress_or_legacy_execution_over_api(engine):
         policy = (await c.get("/api/security/policy", headers=headers())).json()
         assert policy["outbound"]["allowed"] is False
         assert policy["child_chat_enabled"] is False
-        assert policy["pii_sanitization_implemented"] is False
+        assert policy["pii_sanitization_implemented"] is True
+        assert policy["text_gateway_enabled"] is False
 
 
 def test_sessions_expire_survive_restart_and_rotate_with_parent_authority(engine):

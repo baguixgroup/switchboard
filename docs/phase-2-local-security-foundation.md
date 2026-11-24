@@ -2,6 +2,8 @@
 
 Date: 23 November 2026. Scope: approved household-local Stage A from the corrected assessment. **Implemented locally, pending review; not deployed or enabled on the Pi.**
 
+Subsequent update: the user approved Stage B as Phase 3 on 24 November 2026. See [Phase 3 local text privacy](phase-3-local-text-privacy.md) for the separate reviewed text route and validation. This report describes the Phase 2 baseline; generic protected execution and child chat remain closed.
+
 ## Result
 
 Added an opt-in protected mode with local parent, child and device credentials and a closed outbound execution policy. Protected mode is a foundation for later privacy/safety implementation, not a usable child-chat release: no provider, tool, CLI, manual handoff, capability execution or live voice is enabled in it. Parent-only security administration and device registration are available. Existing adult installations continue in their previous mode unless explicitly configured otherwise.

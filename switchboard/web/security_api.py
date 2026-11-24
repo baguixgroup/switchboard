@@ -27,8 +27,13 @@ def register(app, engine):
 
     @app.get("/api/security/policy")
     async def policy(request: Request):
-        return {"protected": True, "phase": "local-foundation", "outbound": asdict(outbound_decision(request.state.principal)),
-                "child_chat_enabled": False, "pii_sanitization_implemented": False}
+        return {"protected": True, "phase": "reviewed-text-and-local-tools", "outbound": asdict(outbound_decision(request.state.principal)),
+                "outbound_scope": "legacy_execution",
+                "child_chat_enabled": False, "pii_sanitization_implemented": True,
+                "text_gateway_enabled": engine.text_gateway.policy.enabled,
+                "text_provider": engine.text_gateway.policy.provider,
+                "local_tools_enabled": engine.local_tools.policy.enabled,
+                "privacy_assurance": "limited_local_detection_requires_parent_review"}
 
     @app.post("/api/security/sessions", status_code=201)
     async def issue(request: Request, body: SessionIn, response: Response):

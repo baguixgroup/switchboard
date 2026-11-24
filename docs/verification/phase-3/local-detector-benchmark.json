@@ -1,0 +1,48 @@
+{
+  "platform": "Darwin",
+  "architecture": "x86_64",
+  "python": "3.13.18",
+  "scope": "Local detector only; allocation tracing enabled; not a Pi benchmark or provider-latency measurement",
+  "results": [
+    {
+      "case": "short",
+      "input_characters": 18,
+      "iterations": 10,
+      "median_ms": 1.982,
+      "max_ms": 48.634,
+      "peak_python_allocated_bytes": 160778
+    },
+    {
+      "case": "mixed",
+      "input_characters": 60,
+      "iterations": 10,
+      "median_ms": 3.567,
+      "max_ms": 4.119,
+      "peak_python_allocated_bytes": 4073
+    },
+    {
+      "case": "linked",
+      "input_characters": 47,
+      "iterations": 10,
+      "median_ms": 0.44,
+      "max_ms": 0.561,
+      "peak_python_allocated_bytes": 2914
+    },
+    {
+      "case": "large",
+      "input_characters": 18024,
+      "iterations": 10,
+      "median_ms": 164.445,
+      "max_ms": 205.543,
+      "peak_python_allocated_bytes": 191266
+    },
+    {
+      "case": "long_token",
+      "input_characters": 23000,
+      "iterations": 10,
+      "median_ms": 357.011,
+      "max_ms": 394.405,
+      "peak_python_allocated_bytes": 242146
+    }
+  ]
+}

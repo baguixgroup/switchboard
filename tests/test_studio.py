@@ -27,6 +27,24 @@ async def wait_for(engine,key,statuses):
     pytest.fail('Team did not reach expected checkpoint: '+str(engine.studio.run(key)))
 
 
+async def test_resume_allows_finished_worker_before_registry_cleanup(tmp_path):
+    e=make_engine(tmp_path);s=e.studio
+    spec=s.save_blueprint(blueprint([node('input','input'),node('save','save',['input'],filename='result.txt',text='{{input}}')]))
+    run=s.start(spec['id'],'Synthetic result')
+    worker=s.jobs[run['id']]
+    with pytest.raises(ValueError,match='already active'):
+        await s.resume(run['id'],confirm_retry=True)
+    await worker
+    # A completed task's cleanup callback may not yet have removed its entry.
+    s.jobs[run['id']]=worker
+    paused=s.run(run['id']);paused['status']='interrupted';s.persist(paused)
+    resumed=await s.resume(run['id'],confirm_retry=True)
+    assert resumed['status']=='queued'
+    assert s.jobs[run['id']] is not worker
+    assert (await wait_for(e,run['id'],{'done','failed'}))['status']=='done'
+    await e.close()
+
+
 def blueprint(nodes,**extra):
     return dict(name='Test team',billing='plans_only',max_cost_usd=0,nodes=nodes,**extra)
 

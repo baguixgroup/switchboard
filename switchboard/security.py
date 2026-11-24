@@ -1,7 +1,7 @@
-"""Local authorization foundation. Protected mode deliberately enables no egress.
+"""Local principals and default-deny legacy execution.
 
-This is not a PII sanitizer. Child workloads stay closed until later safety stages.
-Legacy, explicitly adult installations retain their existing behavior.
+The separate parent-reviewed text gateway owns its narrowly scoped approvals.
+Child workloads stay closed; legacy adult mode retains its existing behavior.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ class SecurityDenied(PermissionError):
 
 def protected_mode(config) -> bool:
     section = config.raw.get("security", {})
-    if not isinstance(section, dict) or set(section) - {"enabled"} or type(section.get("enabled", False)) is not bool:
+    if not isinstance(section, dict) or set(section) - {"enabled", "text_gateway", "local_tools"} or type(section.get("enabled", False)) is not bool:
         raise ValueError("security.enabled must be a boolean")
     return section.get("enabled", False)
 
@@ -53,7 +53,8 @@ class OutboundDecision:
 
 
 def outbound_decision(principal: Principal | None, intent: OutboundIntent | None = None) -> OutboundDecision:
-    # No caller-controlled allowlist/override before full-context sanitization exists.
+    # Legacy destinations stay denied. TextGateway owns reviewed-text approvals;
+    # a caller-supplied intent or role alone never grants provider execution.
     return OutboundDecision(False, "identity_required" if principal is None else "outbound_not_enabled")
 
 
@@ -102,6 +103,12 @@ class LocalSecurity:
         if method == "GET" and path == "/api/security/me":
             return
         if principal.role == "parent":
+            if method == "GET" and path == "/api/privacy/tools":
+                return
+            if method == "POST" and path in ("/api/privacy/tools/preview", "/api/privacy/tools/run"):
+                return
+            if method == "POST" and path in ("/api/privacy/preview", "/api/privacy/send"):
+                return
             if path in ("/api/status", "/api/settings", "/api/security/policy") and method == "GET":
                 return
             if path == "/api/security/sessions" and method in ("GET", "POST"):

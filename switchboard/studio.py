@@ -293,7 +293,8 @@ class Studio:
         async with self.locks.setdefault(key,asyncio.Lock()):
             run=self.run(key)
             if run['status'] in TERMINAL|{'awaiting_approval','awaiting_confirmation'}:raise ValueError('This run cannot be resumed here.')
-            if key in self.jobs:raise ValueError('This run is already active.')
+            previous=self.jobs.get(key)
+            if previous and not previous.done():raise ValueError('This run is already active.')
             if run['status'] in ('failed','interrupted') and not confirm_retry:raise ValueError('Confirm retry after checking the previous task; an interrupted operation may still be running.')
             for state in run['steps'].values():
                 if state['status'] in ('running','failed'):

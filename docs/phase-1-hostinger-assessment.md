@@ -4,6 +4,10 @@ Revised 23 November 2026, America/Winnipeg. **Baseline assessment; subsequent ap
 
 Update: the user subsequently approved local Stage A as Phase 2. Its implementation and review status are recorded in [Phase 2 local security foundation](phase-2-local-security-foundation.md). The remaining stages and any deployment still require separate approval; findings below describe the assessed baseline revision.
 
+Latest update: Stage B was approved as Phase 3 on 24 November 2026. See [Phase 3 local text privacy](phase-3-local-text-privacy.md) for its separate parent-reviewed route and validation; child execution and all later stages remain gated.
+
+Subsequent approval: Stage C / Phase 4 adds [reviewed local tools and provider mediation](phase-4-reviewed-tools-and-providers.md). Child execution, deployment and Stage D remain gated.
+
 ## Architecture correction and scope
 
 Switchboard and Laith run together on a household Raspberry Pi Hub in the current test environment, as confirmed by the owner. The initial commercial model is one local Hub per household, with no intended external inbound access. Loopback communication is internal operation. The immediate security boundary is **outbound disclosure and action authorization**, with Switchboard as the mandatory enforcement point before managed requests reach external AI providers or tools.
@@ -247,4 +251,4 @@ These results identify process/role boundaries. They do not prove that arbitrary
 
 Rechecked source-defined outbound/data-copy paths and primary provider deletion documentation. This file is the only changed repository artifact. No application code, dependencies, runtime settings, infrastructure, provider data or real user storage was modified; no deletion, deployment, commit or push occurred.
 
-**Current review decision:** review the approved Stage A / Phase 2 implementation and its validation report before authorizing Stage B. Do not resume Hostinger provisioning or implement cloud user management.
+**Current review decision:** review Stage C / Phase 4 and its validation report before authorizing Stage D. Do not resume Hostinger provisioning or implement cloud user management.

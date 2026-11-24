@@ -470,4 +470,8 @@ def create_app(engine) -> FastAPI:
     register_voice(app,cfg,auth)
     from .security_api import register as register_security
     register_security(app, engine)
+    from .privacy_api import register as register_privacy
+    register_privacy(app, engine)
+    from .privacy_tools_api import register as register_privacy_tools
+    register_privacy_tools(app, engine)
     return app

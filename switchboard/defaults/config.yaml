@@ -24,11 +24,23 @@ output_dir: auto                   # auto = ~/Switchboard/Output (Windows, macOS
 
 # Opt-in local authorization foundation. Requires a distinct, random
 # SWITCHBOARD_PARENT_TOKEN (32+ characters). This stage permits only security
-# administration and bound device heartbeats: chat/tools/provider execution
-# remain disabled until the privacy/safety stages are implemented and reviewed.
+# administration and bound device heartbeats. Legacy execution stays closed.
+# The separate text gateway is also OFF unless explicitly configured for a
+# reviewed adult text trial; it is not a child-chat release.
 # Existing installations remain in the legacy adult mode unless explicitly enabled.
 security:
   enabled: false
+  text_gateway:
+    enabled: false
+    provider: openai               # openai | anthropic | gemini; no automatic fallback
+    # When enabling, set an approved OpenAI Chat Completions model explicitly.
+    model: ""
+    max_tokens: 512
+    # Optional pre-existing local identifiers; never collect extra child data.
+    known_identifiers: []
+  local_tools:
+    enabled: false
+    allowed: []                    # calculate | text.statistics | attachment.extract
 
 router:
   billing: plans_first             # plans_only = never spend API credit (plans' daily limits, free tiers, local only)

@@ -38,6 +38,10 @@ class Engine:
         self.config = config
         self.store = Store(config.db_path)
         self.security = LocalSecurity(config, self.store)
+        from .privacy_gateway import TextGateway
+        self.text_gateway = TextGateway(config, self.security)
+        from .privacy_tools import LocalTools
+        self.local_tools = LocalTools(config, self.security, self.text_gateway)
         self.catalog = Catalog.load(config)
         self.providers = build_providers(config)
         self.ledger = Ledger(config, self.store, lambda p: p in self.available_providers())
@@ -700,6 +704,8 @@ class Engine:
             await asyncio.sleep(every)
 
     async def close(self) -> None:
+        self.local_tools.close()
+        self.text_gateway.close()
         await self.capabilities.close()
         await self.studio.close()
         for t in list(self.running.values()) + list(self._bg):
